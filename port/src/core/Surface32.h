@@ -26,6 +26,16 @@ class Surface32 {
                   int dst_y,
                   int w,
                   int h);
+  void AlphaBlitToBack(const uint32_t* src_pixels,
+                       int src_width,
+                       int src_height,
+                       int src_x,
+                       int src_y,
+                       int dst_x,
+                       int dst_y,
+                       int w,
+                       int h,
+                       uint8_t global_alpha);
 
   void SwapBuffers();
 

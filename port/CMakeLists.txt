@@ -14,6 +14,7 @@ endif()
 
 add_executable(forward_native
   src/main.cpp
+  src/core/Image32.cpp
   src/core/Mesh.cpp
   src/core/MeshLoaderIgu.cpp
   src/core/Renderer3D.cpp

@@ -9,8 +9,10 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <utility>
 
 #include "core/Camera.h"
+#include "core/Image32.h"
 #include "core/Mesh.h"
 #include "core/MeshLoaderIgu.h"
 #include "core/Renderer3D.h"
@@ -21,6 +23,7 @@
 namespace {
 
 using forward::core::Camera;
+using forward::core::Image32;
 using forward::core::Mesh;
 using forward::core::RenderInstance;
 using forward::core::Renderer3D;
@@ -45,6 +48,13 @@ struct DemoState {
   bool paused = false;
   bool fullscreen = false;
   std::string mesh_label;
+  std::string post_label;
+};
+
+struct QuickWinPostLayer {
+  Image32 primary;
+  Image32 secondary;
+  bool enabled = false;
 };
 
 uint32_t PackArgb(uint8_t r, uint8_t g, uint8_t b) {
@@ -70,7 +80,7 @@ SDL_Rect ComputePresentationRect(SDL_Renderer* renderer) {
 }
 
 std::string ResolveMeshPath() {
-  const std::array<std::string, 2> mesh_names = {"half8.igu", "octa8.igu"};
+  const std::array<std::string, 2> mesh_names = {"meshes/half8.igu", "meshes/octa8.igu"};
   std::error_code ec;
   std::filesystem::path cursor = std::filesystem::current_path(ec);
   if (ec) {
@@ -79,8 +89,7 @@ std::string ResolveMeshPath() {
 
   while (true) {
     for (const std::string& mesh_name : mesh_names) {
-      const std::filesystem::path candidate =
-          cursor / "original" / "forward" / "meshes" / mesh_name;
+      const std::filesystem::path candidate = cursor / "original" / "forward" / mesh_name;
       if (std::filesystem::exists(candidate, ec) && !ec) {
         return candidate.string();
       }
@@ -95,11 +104,41 @@ std::string ResolveMeshPath() {
 
   for (const std::string& mesh_name : mesh_names) {
     const std::filesystem::path candidate =
-        std::filesystem::path("original") / "forward" / "meshes" / mesh_name;
+        std::filesystem::path("original") / "forward" / mesh_name;
     std::error_code ec;
     if (std::filesystem::exists(candidate, ec) && !ec) {
       return candidate.string();
     }
+  }
+  return {};
+}
+
+std::string ResolveForwardAssetPath(const std::string& relative_path) {
+  std::error_code ec;
+  std::filesystem::path cursor = std::filesystem::current_path(ec);
+  if (ec) {
+    return {};
+  }
+
+  while (true) {
+    const std::filesystem::path candidate =
+        cursor / "original" / "forward" / relative_path;
+    if (std::filesystem::exists(candidate, ec) && !ec) {
+      return candidate.string();
+    }
+
+    const std::filesystem::path parent = cursor.parent_path();
+    if (parent == cursor) {
+      break;
+    }
+    cursor = parent;
+  }
+
+  const std::filesystem::path candidate =
+      std::filesystem::path("original") / "forward" / relative_path;
+  std::error_code ec2;
+  if (std::filesystem::exists(candidate, ec2) && !ec2) {
+    return candidate.string();
   }
   return {};
 }
@@ -119,9 +158,69 @@ void UpdateWindowTitle(SDL_Window* window,
         << " | fps " << std::fixed << std::setprecision(1) << fps
         << " | ups " << std::fixed << std::setprecision(1) << ups
         << " | mesh " << state.mesh_label << " | logical " << kLogicalWidth << "x"
-        << kLogicalHeight << " | audio pending";
+        << kLogicalHeight << " | post " << state.post_label << " | audio pending";
 
   SDL_SetWindowTitle(window, title.str().c_str());
+}
+
+void DrawScrollingLayer(Surface32& surface,
+                        const Image32& image,
+                        int scroll_offset,
+                        uint8_t global_alpha) {
+  if (image.Empty() || global_alpha == 0) {
+    return;
+  }
+
+  const int copy_w = std::min(kLogicalWidth, image.width);
+  const int wrapped =
+      ((scroll_offset % image.height) + image.height) % image.height;
+  const int first_h = std::min(kLogicalHeight, image.height - wrapped);
+
+  surface.AlphaBlitToBack(image.pixels.data(),
+                          image.width,
+                          image.height,
+                          0,
+                          wrapped,
+                          0,
+                          0,
+                          copy_w,
+                          first_h,
+                          global_alpha);
+
+  if (first_h < kLogicalHeight) {
+    surface.AlphaBlitToBack(image.pixels.data(),
+                            image.width,
+                            image.height,
+                            0,
+                            0,
+                            0,
+                            first_h,
+                            copy_w,
+                            kLogicalHeight - first_h,
+                            global_alpha);
+  }
+}
+
+void DrawQuickWinPostLayer(Surface32& surface,
+                           const DemoState& state,
+                           const QuickWinPostLayer& post) {
+  if (!post.enabled || post.primary.Empty()) {
+    return;
+  }
+
+  const float t = static_cast<float>(state.timeline_seconds);
+  const float blend = 0.5f + 0.5f * std::sin(t * 0.23f);
+  const uint8_t alpha_primary = static_cast<uint8_t>(40 + 45 * blend);
+  const uint8_t alpha_secondary = static_cast<uint8_t>(10 + 25 * (1.0f - blend));
+
+  const int scroll_primary = static_cast<int>(t * 44.0f);
+  DrawScrollingLayer(surface, post.primary, scroll_primary, alpha_primary);
+
+  if (!post.secondary.Empty()) {
+    const int scroll_secondary =
+        static_cast<int>(t * 31.0f + static_cast<float>(post.secondary.height) * 0.3f);
+    DrawScrollingLayer(surface, post.secondary, scroll_secondary, alpha_secondary);
+  }
 }
 
 void DrawFrame(Surface32& surface,
@@ -130,7 +229,8 @@ void DrawFrame(Surface32& surface,
                Camera& camera,
                Renderer3D& renderer,
                RenderInstance& instance,
-               const TimelineDriver& timeline) {
+               const TimelineDriver& timeline,
+               const QuickWinPostLayer& post) {
   surface.ClearBack(PackArgb(2, 3, 8));
 
   TimelineOutput timeline_output;
@@ -144,6 +244,7 @@ void DrawFrame(Surface32& surface,
   camera.fov_degrees = timeline_output.camera_fov_degrees;
 
   renderer.DrawMesh(surface, mesh, camera, instance);
+  DrawQuickWinPostLayer(surface, state, post);
   surface.SwapBuffers();
 }
 
@@ -184,6 +285,29 @@ int main() {
   instance.enable_backface_culling = true;
 
   TimelineDriver timeline;
+  QuickWinPostLayer post;
+
+  const std::string phorward_path = ResolveForwardAssetPath("images/phorward.gif");
+  std::string image_error;
+  if (!phorward_path.empty() &&
+      forward::core::LoadImage32(phorward_path, post.primary, &image_error)) {
+    post.enabled = true;
+  } else if (!phorward_path.empty()) {
+    std::cerr << "quick-win image load failed: " << image_error << "\n";
+  }
+
+  std::string secondary_path = ResolveForwardAssetPath("images/komplex.gif");
+  if (secondary_path.empty()) {
+    secondary_path = ResolveForwardAssetPath("images/back.gif");
+  }
+  if (!secondary_path.empty()) {
+    Image32 secondary;
+    if (forward::core::LoadImage32(secondary_path, secondary, &image_error)) {
+      post.secondary = std::move(secondary);
+    } else {
+      std::cerr << "secondary post image load failed: " << image_error << "\n";
+    }
+  }
 
   SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
 
@@ -232,6 +356,7 @@ int main() {
 
   DemoState state;
   state.mesh_label = std::filesystem::path(mesh_path).filename().string();
+  state.post_label = post.enabled ? "phorward" : "off";
   RuntimeStats stats;
 
   uint64_t perf_prev = SDL_GetPerformanceCounter();
@@ -284,7 +409,7 @@ int main() {
     }
     stats.simulated_ticks += static_cast<uint64_t>(ticks_this_frame);
 
-    DrawFrame(surface, state, mesh, camera, renderer_3d, instance, timeline);
+    DrawFrame(surface, state, mesh, camera, renderer_3d, instance, timeline, post);
 
     if (SDL_UpdateTexture(texture,
                           nullptr,
