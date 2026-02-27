@@ -1,0 +1,16 @@
+
+Forward version history by saviour.
+
+     ddmmyyyy
+     --------
+1.00 17041998	The initial release.
+
+1.01 18041998	Fixed the nosound option (didn't do anything). Added credits
+		to reward for the komplex klunssi 3d object.
+
+1.02 26041998	Compatability version. Some things fixed to make this
+		work on various JVMs. Works better on platforms that worked
+		already aswell.
+		-"kosmiset ukot" jerks a lot less now, 'whops forgot a "new"
+		in the inner loop' :)
+		-"watercube" no longer reset kunigas mode.

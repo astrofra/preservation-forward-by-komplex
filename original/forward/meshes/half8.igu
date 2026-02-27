@@ -1,0 +1,969 @@
+3DSRDR, 3D Studio formats reader v1.2 by Javier Arevalo AKA Jare/Iguana.
+
+Chunk type "Main", offset 0x0, size 5878 bytes
+  Chunk type "Object Mesh", offset 0x10, size 5638 bytes
+    Chunk type "Material", offset 0x20, size 173 bytes
+      Chunk type "Material name", offset 0x26, size 14 bytes
+        Material name "Default"
+      Chunk type "Ambient color", offset 0x34, size 15 bytes
+        Chunk type "RGB byte", offset 0x3A, size 9 bytes
+              Red: 178, Green: 178, Blue: 178
+      Chunk type "Diffuse color", offset 0x43, size 15 bytes
+        Chunk type "RGB byte", offset 0x49, size 9 bytes
+              Red: 178, Green: 178, Blue: 178
+      Chunk type "Specular color", offset 0x52, size 15 bytes
+        Chunk type "RGB byte", offset 0x58, size 9 bytes
+              Red: 255, Green: 255, Blue: 255
+    Chunk type "Object Block", offset 0xD7, size 5439 bytes
+      Object name "GeoSphere0"
+      Chunk type "Tri-Mesh", offset 0xE8, size 5422 bytes
+        Chunk type "Vertex list", offset 0xEE, size 1748 bytes
+          Vertices: 145
+              X: 0.001000, Y: 0.001000, Z: 1.001000
+              X: 1.001000, Y: 0.001000, Z: 0.001000
+              X: 0.001000, Y: 1.001000, Z: 0.001000
+              X: -0.999000, Y: 0.001000, Z: 0.001000
+              X: 0.001000, Y: -0.999000, Z: 0.001000
+              X: 0.196090, Y: 0.001000, Z: 0.981785
+              X: 0.383683, Y: 0.001000, Z: 0.924880
+              X: 0.556570, Y: 0.001000, Z: 0.832470
+              X: 0.708107, Y: 0.001000, Z: 0.708107
+              X: 0.832470, Y: 0.001000, Z: 0.556570
+              X: 0.924880, Y: 0.001000, Z: 0.383683
+              X: 0.981785, Y: 0.001000, Z: 0.196090
+              X: 0.001000, Y: 0.196090, Z: 0.981785
+              X: 0.001000, Y: 0.383683, Z: 0.924880
+              X: 0.001000, Y: 0.556570, Z: 0.832470
+              X: 0.001000, Y: 0.708107, Z: 0.708107
+              X: 0.001000, Y: 0.832470, Z: 0.556570
+              X: 0.001000, Y: 0.924880, Z: 0.383683
+              X: 0.001000, Y: 0.981785, Z: 0.196090
+              X: -0.194090, Y: 0.001000, Z: 0.981785
+              X: -0.381683, Y: 0.001000, Z: 0.924880
+              X: -0.554570, Y: 0.001000, Z: 0.832470
+              X: -0.706107, Y: 0.001000, Z: 0.708107
+              X: -0.830470, Y: 0.001000, Z: 0.556570
+              X: -0.922880, Y: 0.001000, Z: 0.383683
+              X: -0.979785, Y: 0.001000, Z: 0.196090
+              X: 0.001000, Y: -0.194090, Z: 0.981785
+              X: 0.001000, Y: -0.381683, Z: 0.924880
+              X: 0.001000, Y: -0.554570, Z: 0.832470
+              X: 0.001000, Y: -0.706107, Z: 0.708107
+              X: 0.001000, Y: -0.830470, Z: 0.556570
+              X: 0.001000, Y: -0.922880, Z: 0.383683
+              X: 0.001000, Y: -0.979785, Z: 0.196090
+              X: 0.981785, Y: 0.196090, Z: 0.001000
+              X: 0.924880, Y: 0.383683, Z: 0.001000
+              X: 0.832470, Y: 0.556570, Z: 0.001000
+              X: 0.708107, Y: 0.708107, Z: 0.001000
+              X: 0.556570, Y: 0.832470, Z: 0.001000
+              X: 0.383683, Y: 0.924880, Z: 0.001000
+              X: 0.196090, Y: 0.981785, Z: 0.001000
+              X: -0.194090, Y: 0.981785, Z: 0.001000
+              X: -0.381683, Y: 0.924880, Z: 0.001000
+              X: -0.554570, Y: 0.832470, Z: 0.001000
+              X: -0.706107, Y: 0.708107, Z: 0.001000
+              X: -0.830470, Y: 0.556570, Z: 0.001000
+              X: -0.922880, Y: 0.383683, Z: 0.001000
+              X: -0.979785, Y: 0.196090, Z: 0.001000
+              X: -0.979785, Y: -0.194090, Z: 0.001000
+              X: -0.922880, Y: -0.381683, Z: 0.001000
+              X: -0.830470, Y: -0.554570, Z: 0.001000
+              X: -0.706107, Y: -0.706107, Z: 0.001000
+              X: -0.554570, Y: -0.830470, Z: 0.001000
+              X: -0.381683, Y: -0.922880, Z: 0.001000
+              X: -0.194090, Y: -0.979785, Z: 0.001000
+              X: 0.196090, Y: -0.979785, Z: 0.001000
+              X: 0.383683, Y: -0.922880, Z: 0.001000
+              X: 0.556570, Y: -0.830470, Z: 0.001000
+              X: 0.708107, Y: -0.706107, Z: 0.001000
+              X: 0.832470, Y: -0.554570, Z: 0.001000
+              X: 0.924880, Y: -0.381683, Z: 0.001000
+              X: 0.981785, Y: -0.194090, Z: 0.001000
+              X: 0.199757, Y: 0.199757, Z: 0.960683
+              X: 0.395211, Y: 0.205467, Z: 0.896986
+              X: 0.205467, Y: 0.395211, Z: 0.896986
+              X: 0.578350, Y: 0.212325, Z: 0.789675
+              X: 0.409248, Y: 0.409248, Z: 0.817497
+              X: 0.212325, Y: 0.578350, Z: 0.789675
+              X: 0.739212, Y: 0.218457, Z: 0.639557
+              X: 0.599542, Y: 0.422241, Z: 0.682398
+              X: 0.422241, Y: 0.599542, Z: 0.682398
+              X: 0.218457, Y: 0.739212, Z: 0.639557
+              X: 0.866835, Y: 0.220555, Z: 0.450583
+              X: 0.760261, Y: 0.427804, Z: 0.492284
+              X: 0.611131, Y: 0.611131, Z: 0.506449
+              X: 0.427804, Y: 0.760261, Z: 0.492284
+              X: 0.220555, Y: 0.866835, Z: 0.450583
+              X: 0.950253, Y: 0.214196, Z: 0.232226
+              X: 0.873392, Y: 0.417212, Z: 0.257319
+              X: 0.754872, Y: 0.600352, Z: 0.270173
+              X: 0.600352, Y: 0.754872, Z: 0.270173
+              X: 0.417212, Y: 0.873392, Z: 0.257319
+              X: 0.214196, Y: 0.950253, Z: 0.232226
+              X: -0.197757, Y: 0.199757, Z: 0.960683
+              X: -0.203467, Y: 0.395211, Z: 0.896986
+              X: -0.393211, Y: 0.205467, Z: 0.896986
+              X: -0.210325, Y: 0.578350, Z: 0.789675
+              X: -0.407248, Y: 0.409248, Z: 0.817497
+              X: -0.576350, Y: 0.212325, Z: 0.789675
+              X: -0.216457, Y: 0.739212, Z: 0.639557
+              X: -0.420241, Y: 0.599542, Z: 0.682398
+              X: -0.597542, Y: 0.422241, Z: 0.682398
+              X: -0.737212, Y: 0.218457, Z: 0.639557
+              X: -0.218555, Y: 0.866835, Z: 0.450583
+              X: -0.425804, Y: 0.760261, Z: 0.492284
+              X: -0.609131, Y: 0.611131, Z: 0.506449
+              X: -0.758261, Y: 0.427804, Z: 0.492284
+              X: -0.864835, Y: 0.220555, Z: 0.450583
+              X: -0.212196, Y: 0.950253, Z: 0.232226
+              X: -0.415212, Y: 0.873392, Z: 0.257319
+              X: -0.598352, Y: 0.754872, Z: 0.270173
+              X: -0.752872, Y: 0.600352, Z: 0.270173
+              X: -0.871392, Y: 0.417212, Z: 0.257319
+              X: -0.948253, Y: 0.214196, Z: 0.232226
+              X: -0.197757, Y: -0.197757, Z: 0.960683
+              X: -0.393211, Y: -0.203467, Z: 0.896986
+              X: -0.203467, Y: -0.393211, Z: 0.896986
+              X: -0.576350, Y: -0.210325, Z: 0.789675
+              X: -0.407248, Y: -0.407248, Z: 0.817497
+              X: -0.210325, Y: -0.576350, Z: 0.789675
+              X: -0.737212, Y: -0.216457, Z: 0.639557
+              X: -0.597542, Y: -0.420241, Z: 0.682398
+              X: -0.420241, Y: -0.597542, Z: 0.682398
+              X: -0.216457, Y: -0.737212, Z: 0.639557
+              X: -0.864835, Y: -0.218555, Z: 0.450583
+              X: -0.758261, Y: -0.425804, Z: 0.492284
+              X: -0.609131, Y: -0.609131, Z: 0.506449
+              X: -0.425804, Y: -0.758261, Z: 0.492284
+              X: -0.218555, Y: -0.864835, Z: 0.450583
+              X: -0.948253, Y: -0.212196, Z: 0.232226
+              X: -0.871392, Y: -0.415212, Z: 0.257319
+              X: -0.752872, Y: -0.598352, Z: 0.270173
+              X: -0.598352, Y: -0.752872, Z: 0.270173
+              X: -0.415212, Y: -0.871392, Z: 0.257319
+              X: -0.212196, Y: -0.948253, Z: 0.232226
+              X: 0.199757, Y: -0.197757, Z: 0.960683
+              X: 0.205467, Y: -0.393211, Z: 0.896986
+              X: 0.395211, Y: -0.203467, Z: 0.896986
+              X: 0.212325, Y: -0.576350, Z: 0.789675
+              X: 0.409248, Y: -0.407248, Z: 0.817497
+              X: 0.578350, Y: -0.210325, Z: 0.789675
+              X: 0.218457, Y: -0.737212, Z: 0.639557
+              X: 0.422241, Y: -0.597542, Z: 0.682398
+              X: 0.599542, Y: -0.420241, Z: 0.682398
+              X: 0.739212, Y: -0.216457, Z: 0.639557
+              X: 0.220555, Y: -0.864835, Z: 0.450583
+              X: 0.427804, Y: -0.758261, Z: 0.492284
+              X: 0.611131, Y: -0.609131, Z: 0.506449
+              X: 0.760261, Y: -0.425804, Z: 0.492284
+              X: 0.866835, Y: -0.218555, Z: 0.450583
+              X: 0.214196, Y: -0.948253, Z: 0.232226
+              X: 0.417212, Y: -0.871392, Z: 0.257319
+              X: 0.600352, Y: -0.752872, Z: 0.270173
+              X: 0.754872, Y: -0.598352, Z: 0.270173
+              X: 0.873392, Y: -0.415212, Z: 0.257319
+              X: 0.950253, Y: -0.212196, Z: 0.232226
+        Chunk type "Matrix", offset 0x7C2, size 54 bytes
+          Rotation matrix:
+              1.000000, 0.000000, 0.000000
+              0.000000, 1.000000, 0.000000
+              0.000000, 0.000000, 1.000000
+          Translation matrix: 0.001000, 0.001000, 0.001000
+        Chunk type "Face list", offset 0x7F8, size 3614 bytes
+          Faces: 256
+            A 0, B 5, C 12, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 5, B 6, C 61, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 5, B 61, C 12, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 12, B 61, C 13, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 6, B 7, C 62, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 6, B 62, C 61, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 61, B 62, C 63, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 61, B 63, C 13, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 13, B 63, C 14, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 7, B 8, C 64, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 7, B 64, C 62, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 62, B 64, C 65, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 62, B 65, C 63, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 63, B 65, C 66, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 63, B 66, C 14, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 14, B 66, C 15, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 8, B 9, C 67, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 8, B 67, C 64, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 64, B 67, C 68, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 64, B 68, C 65, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 65, B 68, C 69, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 65, B 69, C 66, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 66, B 69, C 70, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 66, B 70, C 15, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 15, B 70, C 16, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 9, B 10, C 71, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 9, B 71, C 67, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 67, B 71, C 72, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 67, B 72, C 68, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 68, B 72, C 73, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 68, B 73, C 69, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 69, B 73, C 74, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 69, B 74, C 70, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 70, B 74, C 75, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 70, B 75, C 16, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 16, B 75, C 17, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 10, B 11, C 76, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 10, B 76, C 71, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 71, B 76, C 77, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 71, B 77, C 72, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 72, B 77, C 78, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 72, B 78, C 73, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 73, B 78, C 79, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 73, B 79, C 74, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 74, B 79, C 80, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 74, B 80, C 75, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 75, B 80, C 81, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 75, B 81, C 17, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 17, B 81, C 18, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 11, B 1, C 33, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 11, B 33, C 76, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 76, B 33, C 34, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 76, B 34, C 77, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 77, B 34, C 35, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 77, B 35, C 78, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 78, B 35, C 36, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 78, B 36, C 79, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 79, B 36, C 37, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 79, B 37, C 80, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 80, B 37, C 38, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 80, B 38, C 81, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 81, B 38, C 39, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 81, B 39, C 18, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 18, B 39, C 2, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 0, B 12, C 19, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 12, B 13, C 82, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 12, B 82, C 19, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 19, B 82, C 20, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 13, B 14, C 83, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 13, B 83, C 82, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 82, B 83, C 84, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 82, B 84, C 20, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 20, B 84, C 21, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 14, B 15, C 85, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 14, B 85, C 83, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 83, B 85, C 86, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 83, B 86, C 84, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 84, B 86, C 87, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 84, B 87, C 21, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 21, B 87, C 22, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 15, B 16, C 88, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 15, B 88, C 85, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 85, B 88, C 89, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 85, B 89, C 86, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 86, B 89, C 90, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 86, B 90, C 87, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 87, B 90, C 91, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 87, B 91, C 22, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 22, B 91, C 23, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 16, B 17, C 92, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 16, B 92, C 88, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 88, B 92, C 93, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 88, B 93, C 89, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 89, B 93, C 94, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 89, B 94, C 90, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 90, B 94, C 95, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 90, B 95, C 91, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 91, B 95, C 96, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 91, B 96, C 23, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 23, B 96, C 24, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 17, B 18, C 97, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 17, B 97, C 92, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 92, B 97, C 98, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 92, B 98, C 93, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 93, B 98, C 99, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 93, B 99, C 94, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 94, B 99, C 100, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 94, B 100, C 95, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 95, B 100, C 101, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 95, B 101, C 96, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 96, B 101, C 102, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 96, B 102, C 24, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 24, B 102, C 25, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 18, B 2, C 40, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 18, B 40, C 97, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 97, B 40, C 41, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 97, B 41, C 98, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 98, B 41, C 42, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 98, B 42, C 99, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 99, B 42, C 43, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 99, B 43, C 100, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 100, B 43, C 44, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 100, B 44, C 101, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 101, B 44, C 45, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 101, B 45, C 102, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 102, B 45, C 46, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 102, B 46, C 25, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 25, B 46, C 3, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 0, B 19, C 26, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 19, B 20, C 103, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 19, B 103, C 26, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 26, B 103, C 27, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 20, B 21, C 104, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 20, B 104, C 103, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 103, B 104, C 105, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 103, B 105, C 27, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 27, B 105, C 28, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 21, B 22, C 106, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 21, B 106, C 104, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 104, B 106, C 107, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 104, B 107, C 105, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 105, B 107, C 108, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 105, B 108, C 28, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 28, B 108, C 29, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 22, B 23, C 109, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 22, B 109, C 106, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 106, B 109, C 110, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 106, B 110, C 107, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 107, B 110, C 111, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 107, B 111, C 108, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 108, B 111, C 112, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 108, B 112, C 29, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 29, B 112, C 30, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 23, B 24, C 113, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 23, B 113, C 109, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 109, B 113, C 114, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 109, B 114, C 110, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 110, B 114, C 115, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 110, B 115, C 111, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 111, B 115, C 116, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 111, B 116, C 112, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 112, B 116, C 117, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 112, B 117, C 30, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 30, B 117, C 31, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 24, B 25, C 118, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 24, B 118, C 113, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 113, B 118, C 119, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 113, B 119, C 114, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 114, B 119, C 120, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 114, B 120, C 115, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 115, B 120, C 121, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 115, B 121, C 116, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 116, B 121, C 122, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 116, B 122, C 117, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 117, B 122, C 123, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 117, B 123, C 31, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 31, B 123, C 32, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 25, B 3, C 47, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 25, B 47, C 118, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 118, B 47, C 48, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 118, B 48, C 119, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 119, B 48, C 49, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 119, B 49, C 120, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 120, B 49, C 50, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 120, B 50, C 121, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 121, B 50, C 51, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 121, B 51, C 122, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 122, B 51, C 52, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 122, B 52, C 123, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 123, B 52, C 53, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 123, B 53, C 32, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 32, B 53, C 4, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 0, B 26, C 5, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 26, B 27, C 124, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 26, B 124, C 5, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 5, B 124, C 6, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 27, B 28, C 125, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 27, B 125, C 124, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 124, B 125, C 126, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 124, B 126, C 6, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 6, B 126, C 7, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 28, B 29, C 127, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 28, B 127, C 125, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 125, B 127, C 128, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 125, B 128, C 126, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 126, B 128, C 129, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 126, B 129, C 7, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 7, B 129, C 8, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 29, B 30, C 130, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 29, B 130, C 127, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 127, B 130, C 131, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 127, B 131, C 128, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 128, B 131, C 132, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 128, B 132, C 129, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 129, B 132, C 133, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 129, B 133, C 8, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 8, B 133, C 9, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 30, B 31, C 134, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 30, B 134, C 130, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 130, B 134, C 135, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 130, B 135, C 131, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 131, B 135, C 136, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 131, B 136, C 132, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 132, B 136, C 137, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 132, B 137, C 133, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 133, B 137, C 138, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 133, B 138, C 9, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 9, B 138, C 10, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 31, B 32, C 139, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 31, B 139, C 134, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 134, B 139, C 140, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 134, B 140, C 135, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 135, B 140, C 141, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 135, B 141, C 136, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 136, B 141, C 142, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 136, B 142, C 137, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 137, B 142, C 143, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 137, B 143, C 138, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 138, B 143, C 144, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 138, B 144, C 10, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 10, B 144, C 11, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 32, B 4, C 54, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 32, B 54, C 139, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 139, B 54, C 55, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 139, B 55, C 140, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 140, B 55, C 56, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 140, B 56, C 141, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 141, B 56, C 57, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 141, B 57, C 142, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 142, B 57, C 58, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 142, B 58, C 143, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 143, B 58, C 59, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 143, B 59, C 144, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 144, B 59, C 60, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 144, B 60, C 11, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+            A 11, B 60, C 1, 0x7: AB 1 BC 1 CA 1 UWrap 0 VWrap 0
+          Chunk type "Face material", offset 0x1000, size 528 bytes
+            Material name for faces: "Default"
+            Faces with this material: 256
+                Face 0
+                Face 1
+                Face 2
+                Face 3
+                Face 4
+                Face 5
+                Face 6
+                Face 7
+                Face 8
+                Face 9
+                Face 10
+                Face 11
+                Face 12
+                Face 13
+                Face 14
+                Face 15
+                Face 16
+                Face 17
+                Face 18
+                Face 19
+                Face 20
+                Face 21
+                Face 22
+                Face 23
+                Face 24
+                Face 25
+                Face 26
+                Face 27
+                Face 28
+                Face 29
+                Face 30
+                Face 31
+                Face 32
+                Face 33
+                Face 34
+                Face 35
+                Face 36
+                Face 37
+                Face 38
+                Face 39
+                Face 40
+                Face 41
+                Face 42
+                Face 43
+                Face 44
+                Face 45
+                Face 46
+                Face 47
+                Face 48
+                Face 49
+                Face 50
+                Face 51
+                Face 52
+                Face 53
+                Face 54
+                Face 55
+                Face 56
+                Face 57
+                Face 58
+                Face 59
+                Face 60
+                Face 61
+                Face 62
+                Face 63
+                Face 64
+                Face 65
+                Face 66
+                Face 67
+                Face 68
+                Face 69
+                Face 70
+                Face 71
+                Face 72
+                Face 73
+                Face 74
+                Face 75
+                Face 76
+                Face 77
+                Face 78
+                Face 79
+                Face 80
+                Face 81
+                Face 82
+                Face 83
+                Face 84
+                Face 85
+                Face 86
+                Face 87
+                Face 88
+                Face 89
+                Face 90
+                Face 91
+                Face 92
+                Face 93
+                Face 94
+                Face 95
+                Face 96
+                Face 97
+                Face 98
+                Face 99
+                Face 100
+                Face 101
+                Face 102
+                Face 103
+                Face 104
+                Face 105
+                Face 106
+                Face 107
+                Face 108
+                Face 109
+                Face 110
+                Face 111
+                Face 112
+                Face 113
+                Face 114
+                Face 115
+                Face 116
+                Face 117
+                Face 118
+                Face 119
+                Face 120
+                Face 121
+                Face 122
+                Face 123
+                Face 124
+                Face 125
+                Face 126
+                Face 127
+                Face 128
+                Face 129
+                Face 130
+                Face 131
+                Face 132
+                Face 133
+                Face 134
+                Face 135
+                Face 136
+                Face 137
+                Face 138
+                Face 139
+                Face 140
+                Face 141
+                Face 142
+                Face 143
+                Face 144
+                Face 145
+                Face 146
+                Face 147
+                Face 148
+                Face 149
+                Face 150
+                Face 151
+                Face 152
+                Face 153
+                Face 154
+                Face 155
+                Face 156
+                Face 157
+                Face 158
+                Face 159
+                Face 160
+                Face 161
+                Face 162
+                Face 163
+                Face 164
+                Face 165
+                Face 166
+                Face 167
+                Face 168
+                Face 169
+                Face 170
+                Face 171
+                Face 172
+                Face 173
+                Face 174
+                Face 175
+                Face 176
+                Face 177
+                Face 178
+                Face 179
+                Face 180
+                Face 181
+                Face 182
+                Face 183
+                Face 184
+                Face 185
+                Face 186
+                Face 187
+                Face 188
+                Face 189
+                Face 190
+                Face 191
+                Face 192
+                Face 193
+                Face 194
+                Face 195
+                Face 196
+                Face 197
+                Face 198
+                Face 199
+                Face 200
+                Face 201
+                Face 202
+                Face 203
+                Face 204
+                Face 205
+                Face 206
+                Face 207
+                Face 208
+                Face 209
+                Face 210
+                Face 211
+                Face 212
+                Face 213
+                Face 214
+                Face 215
+                Face 216
+                Face 217
+                Face 218
+                Face 219
+                Face 220
+                Face 221
+                Face 222
+                Face 223
+                Face 224
+                Face 225
+                Face 226
+                Face 227
+                Face 228
+                Face 229
+                Face 230
+                Face 231
+                Face 232
+                Face 233
+                Face 234
+                Face 235
+                Face 236
+                Face 237
+                Face 238
+                Face 239
+                Face 240
+                Face 241
+                Face 242
+                Face 243
+                Face 244
+                Face 245
+                Face 246
+                Face 247
+                Face 248
+                Face 249
+                Face 250
+                Face 251
+                Face 252
+                Face 253
+                Face 254
+                Face 255
+          Chunk type "Smoothings", offset 0x1210, size 1030 bytes
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+            Smoothing groups: 1, 
+  Chunk type "Keyframer data", offset 0x1616, size 224 bytes
+    Chunk type "Frames", offset 0x1631, size 14 bytes
+          Start: 0, End: 100
+    Chunk type "Track info", offset 0x1649, size 173 bytes
+      Chunk type "Object number", offset 0x164F, size 8 bytes
+        Object number: 0
+      Chunk type "Track Obj. Name", offset 0x1657, size 23 bytes
+        Track object name "GeoSphere0"
+        Object name data: Flags 0x4000, 0x0, Parent 65535
+      Chunk type "Pivot point", offset 0x166E, size 18 bytes
+          Pivot at X: 0.000000, Y: 0.000000, Z: 0.000000
+      Chunk type "Position keys", offset 0x1680, size 38 bytes
+        Position keys: 1
+          Frame   0: Flags 0x0
+                     X: 0.000000, Y: 0.000000, Z: 0.000000
+      Chunk type "Rotation keys", offset 0x16A6, size 42 bytes
+        Rotation keys: 1
+          Frame   0: Flags 0x0
+                     Angle: 0.000000§, X: 0.000000, Y: 0.000000, Z: 0.000000
+      Chunk type "Scale keys", offset 0x16D0, size 38 bytes
+        Scale keys: 1
+          Frame   0: Flags 0x0
+                    X: 1.000000, Y: 1.000000, Z: 1.000000
