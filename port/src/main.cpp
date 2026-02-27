@@ -1,23 +1,30 @@
 #include <SDL.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
+#include <filesystem>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include <string>
 
+#include "core/Camera.h"
+#include "core/Mesh.h"
+#include "core/MeshLoaderIgu.h"
+#include "core/Renderer3D.h"
 #include "core/Surface32.h"
-#include "core/Vec2.h"
 #include "core/Vec3.h"
-#include "core/Vertex.h"
 
 namespace {
 
+using forward::core::Camera;
+using forward::core::Mesh;
+using forward::core::RenderInstance;
+using forward::core::Renderer3D;
 using forward::core::Surface32;
-using forward::core::Vec2;
 using forward::core::Vec3;
-using forward::core::Vertex;
 
 constexpr int kLogicalWidth = 512;
 constexpr int kLogicalHeight = 256;
@@ -34,6 +41,7 @@ struct DemoState {
   double timeline_seconds = 0.0;
   bool paused = false;
   bool fullscreen = false;
+  std::string mesh_label;
 };
 
 uint32_t PackArgb(uint8_t r, uint8_t g, uint8_t b) {
@@ -58,6 +66,41 @@ SDL_Rect ComputePresentationRect(SDL_Renderer* renderer) {
   return SDL_Rect{out_x, out_y, out_w, out_h};
 }
 
+std::string ResolveMeshPath() {
+  const std::array<std::string, 2> mesh_names = {"half8.igu", "octa8.igu"};
+  std::error_code ec;
+  std::filesystem::path cursor = std::filesystem::current_path(ec);
+  if (ec) {
+    return {};
+  }
+
+  while (true) {
+    for (const std::string& mesh_name : mesh_names) {
+      const std::filesystem::path candidate =
+          cursor / "original" / "forward" / "meshes" / mesh_name;
+      if (std::filesystem::exists(candidate, ec) && !ec) {
+        return candidate.string();
+      }
+    }
+
+    const std::filesystem::path parent = cursor.parent_path();
+    if (parent == cursor) {
+      break;
+    }
+    cursor = parent;
+  }
+
+  for (const std::string& mesh_name : mesh_names) {
+    const std::filesystem::path candidate =
+        std::filesystem::path("original") / "forward" / "meshes" / mesh_name;
+    std::error_code ec;
+    if (std::filesystem::exists(candidate, ec) && !ec) {
+      return candidate.string();
+    }
+  }
+  return {};
+}
+
 void UpdateWindowTitle(SDL_Window* window,
                        const DemoState& state,
                        const RuntimeStats& stats,
@@ -72,101 +115,32 @@ void UpdateWindowTitle(SDL_Window* window,
         << (state.paused ? "paused" : "running")
         << " | fps " << std::fixed << std::setprecision(1) << fps
         << " | ups " << std::fixed << std::setprecision(1) << ups
-        << " | logical " << kLogicalWidth << "x" << kLogicalHeight
-        << " | audio pending";
+        << " | mesh " << state.mesh_label << " | logical " << kLogicalWidth << "x"
+        << kLogicalHeight << " | audio pending";
 
   SDL_SetWindowTitle(window, title.str().c_str());
 }
 
-void BuildOverlayPattern(Surface32& overlay) {
-  overlay.ClearBack(PackArgb(12, 12, 16));
+void DrawFrame(Surface32& surface,
+               const DemoState& state,
+               const Mesh& mesh,
+               const Camera& camera,
+               Renderer3D& renderer,
+               RenderInstance& instance) {
+  surface.ClearBack(PackArgb(2, 3, 8));
 
-  for (int y = 0; y < overlay.height(); ++y) {
-    for (int x = 0; x < overlay.width(); ++x) {
-      const bool checker = ((x / 8) + (y / 8)) % 2 == 0;
-      if (!checker) {
-        continue;
-      }
-      const uint8_t r = static_cast<uint8_t>(48 + (x % 64));
-      const uint8_t g = static_cast<uint8_t>(24 + (y % 64));
-      const uint8_t b = static_cast<uint8_t>(96 + ((x + y) % 64));
-      overlay.SetBackPixel(x, y, PackArgb(r, g, b));
-    }
-  }
+  const float t = static_cast<float>(state.timeline_seconds);
+  instance.rotation_radians.Set(t * 0.63f, t * 0.57f, t * 0.29f);
+  instance.fill_color = PackArgb(
+      static_cast<uint8_t>(90 + 90 * std::sin(t * 0.45f + 0.8f)),
+      static_cast<uint8_t>(120 + 80 * std::sin(t * 0.66f + 1.5f)),
+      static_cast<uint8_t>(180 + 70 * std::sin(t * 0.90f + 2.0f)));
+  instance.wire_color = PackArgb(
+      static_cast<uint8_t>(170 + 50 * std::sin(t * 0.7f)),
+      static_cast<uint8_t>(180 + 45 * std::sin(t * 1.1f + 1.3f)),
+      static_cast<uint8_t>(220 + 30 * std::sin(t * 1.7f + 2.1f)));
 
-  overlay.SwapBuffers();
-}
-
-void DrawMarker(Surface32& surface, const DemoState& state) {
-  Vertex marker;
-  marker.Set(static_cast<float>(std::cos(state.timeline_seconds * 1.3) * 0.75),
-             static_cast<float>(std::sin(state.timeline_seconds * 0.9) * 0.45),
-             0.0f);
-  marker.sx = (marker.x * 0.5f + 0.5f) * static_cast<float>(kLogicalWidth - 1);
-  marker.sy = (marker.y * 0.5f + 0.5f) * static_cast<float>(kLogicalHeight - 1);
-
-  const int mx = static_cast<int>(marker.sx);
-  const int my = static_cast<int>(marker.sy);
-  const uint32_t color = PackArgb(255, 255, 255);
-
-  for (int d = -2; d <= 2; ++d) {
-    surface.SetBackPixel(mx + d, my, color);
-    surface.SetBackPixel(mx, my + d, color);
-  }
-}
-
-void DrawFrame(Surface32& surface, const Surface32& overlay, const DemoState& state) {
-  const double t = state.timeline_seconds;
-  surface.ClearBack(PackArgb(0, 0, 0));
-
-  const Vec3 base_color(0.25f, 0.22f, 0.28f);
-
-  for (int y = 0; y < kLogicalHeight; ++y) {
-    for (int x = 0; x < kLogicalWidth; ++x) {
-      const Vec2 uv(
-          static_cast<float>(x) / static_cast<float>(kLogicalWidth - 1),
-          static_cast<float>(y) / static_cast<float>(kLogicalHeight - 1));
-
-      const float nx = uv.x * 2.0f - 1.0f;
-      const float ny = uv.y * 2.0f - 1.0f;
-      const float radius = std::sqrt(nx * nx + ny * ny);
-
-      const float wave = static_cast<float>(std::sin((nx * 10.0f) + (t * 2.2)) +
-                                            std::cos((ny * 14.0f) - (t * 1.7)));
-      const float ring = static_cast<float>(std::sin((radius * 24.0f) - (t * 3.3)));
-
-      Vec3 color(
-          base_color.x + 0.28f * wave + 0.20f * ring,
-          base_color.y + 0.30f * std::sin((nx + ny) * 8.0f + t),
-          base_color.z + 0.45f * std::cos((radius * 9.0f) - t));
-
-      color.x = std::clamp(color.x, 0.0f, 1.0f);
-      color.y = std::clamp(color.y, 0.0f, 1.0f);
-      color.z = std::clamp(color.z, 0.0f, 1.0f);
-
-      surface.SetBackPixel(
-          x,
-          y,
-          PackArgb(static_cast<uint8_t>(color.x * 255.0f),
-                   static_cast<uint8_t>(color.y * 255.0f),
-                   static_cast<uint8_t>(color.z * 255.0f)));
-    }
-  }
-
-  if ((static_cast<int>(t * 2.0) & 1) == 0) {
-    surface.AddBackRgb(8, 4, 0);
-  } else {
-    surface.SubBackRgb(4, 1, 0);
-  }
-
-  const int overlay_x = static_cast<int>(
-      (std::sin(t * 0.8) * 0.5 + 0.5) * static_cast<double>(kLogicalWidth - overlay.width()));
-  const int overlay_y = static_cast<int>(
-      (std::cos(t * 0.5) * 0.5 + 0.5) * static_cast<double>(kLogicalHeight - overlay.height()));
-  surface.BlitToBack(overlay, 0, 0, overlay_x, overlay_y, overlay.width(), overlay.height());
-
-  DrawMarker(surface, state);
-
+  renderer.DrawMesh(surface, mesh, camera, instance);
   surface.SwapBuffers();
 }
 
@@ -177,6 +151,33 @@ int main() {
     std::cerr << "SDL_Init failed: " << SDL_GetError() << "\n";
     return 1;
   }
+
+  const std::string mesh_path = ResolveMeshPath();
+  if (mesh_path.empty()) {
+    std::cerr << "Unable to locate mesh file. Tried from project and port directories.\n";
+    SDL_Quit();
+    return 1;
+  }
+
+  Mesh mesh;
+  std::string mesh_error;
+  if (!forward::core::LoadIguMesh(mesh_path, mesh, &mesh_error)) {
+    std::cerr << "LoadIguMesh failed: " << mesh_error << "\n";
+    SDL_Quit();
+    return 1;
+  }
+
+  Camera camera;
+  camera.position = Vec3(0.0f, 0.0f, 0.0f);
+  camera.fov_degrees = 70.0f;
+  camera.near_plane = 0.1f;
+
+  RenderInstance instance;
+  const float radius = mesh.BoundingRadius();
+  instance.uniform_scale = (radius > 0.001f) ? (1.0f / radius) : 1.0f;
+  instance.translation = Vec3(0.0f, 0.0f, 2.4f);
+  instance.draw_fill = true;
+  instance.draw_wire = true;
 
   SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
 
@@ -195,36 +196,36 @@ int main() {
     return 1;
   }
 
-  SDL_Renderer* renderer =
+  SDL_Renderer* renderer_sdl =
       SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-  if (!renderer) {
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
+  if (!renderer_sdl) {
+    renderer_sdl = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
   }
-  if (!renderer) {
+  if (!renderer_sdl) {
     std::cerr << "SDL_CreateRenderer failed: " << SDL_GetError() << "\n";
     SDL_DestroyWindow(window);
     SDL_Quit();
     return 1;
   }
 
-  SDL_Texture* texture = SDL_CreateTexture(renderer,
+  SDL_Texture* texture = SDL_CreateTexture(renderer_sdl,
                                            SDL_PIXELFORMAT_ARGB8888,
                                            SDL_TEXTUREACCESS_STREAMING,
                                            kLogicalWidth,
                                            kLogicalHeight);
   if (!texture) {
     std::cerr << "SDL_CreateTexture failed: " << SDL_GetError() << "\n";
-    SDL_DestroyRenderer(renderer);
+    SDL_DestroyRenderer(renderer_sdl);
     SDL_DestroyWindow(window);
     SDL_Quit();
     return 1;
   }
 
   Surface32 surface(kLogicalWidth, kLogicalHeight, true);
-  Surface32 overlay(160, 72, false);
-  BuildOverlayPattern(overlay);
+  Renderer3D renderer_3d(kLogicalWidth, kLogicalHeight);
 
   DemoState state;
+  state.mesh_label = std::filesystem::path(mesh_path).filename().string();
   RuntimeStats stats;
 
   uint64_t perf_prev = SDL_GetPerformanceCounter();
@@ -277,7 +278,7 @@ int main() {
     }
     stats.simulated_ticks += static_cast<uint64_t>(ticks_this_frame);
 
-    DrawFrame(surface, overlay, state);
+    DrawFrame(surface, state, mesh, camera, renderer_3d, instance);
 
     if (SDL_UpdateTexture(texture,
                           nullptr,
@@ -287,12 +288,12 @@ int main() {
       running = false;
     }
 
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-    SDL_RenderClear(renderer);
+    SDL_SetRenderDrawColor(renderer_sdl, 0, 0, 0, 255);
+    SDL_RenderClear(renderer_sdl);
 
-    const SDL_Rect dst = ComputePresentationRect(renderer);
-    SDL_RenderCopy(renderer, texture, nullptr, &dst);
-    SDL_RenderPresent(renderer);
+    const SDL_Rect dst = ComputePresentationRect(renderer_sdl);
+    SDL_RenderCopy(renderer_sdl, texture, nullptr, &dst);
+    SDL_RenderPresent(renderer_sdl);
 
     ++stats.rendered_frames;
 
@@ -305,7 +306,7 @@ int main() {
   }
 
   SDL_DestroyTexture(texture);
-  SDL_DestroyRenderer(renderer);
+  SDL_DestroyRenderer(renderer_sdl);
   SDL_DestroyWindow(window);
   SDL_Quit();
   return 0;

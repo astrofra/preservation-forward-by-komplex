@@ -26,16 +26,18 @@ cmake --build build -j
 
 ## Core Port Scaffold
 
-Initial core translation layer now exists under `src/core/`:
+Initial minimal 3D core now exists under `src/core/`:
 
-- `Vec2.h` (from Java math utility style)
-- `Vec3.h` (from `mmajmma` style vector ops)
-- `Vertex.h` (from `mmjakka` shape)
-- `Surface32.h/.cpp` (minimal 32-bit software surface + double buffering)
+- `Vec2.h`, `Vec3.h`, `Vertex.h` (basic math + vertex shape)
+- `Surface32.h/.cpp` (software 32-bit framebuffer with double buffer semantics)
+- `Mesh.h/.cpp` (positions, optional texcoords, triangle indices)
+- `MeshLoaderIgu.h/.cpp` (loader for the `3DSRDR` text `.igu` mesh dumps used by forward)
+- `Camera.h`, `Renderer3D.h/.cpp` (software transform/projection + filled triangle raster + z-buffer + wire overlay)
 
 ## Notes
 
 - Logical framebuffer is fixed at `512x256`.
 - Presentation uses SDL texture upload + nearest filtering.
 - Lowres and nosound mode switches are intentionally omitted.
-- Audio is deferred; next milestone is XM pipeline integration.
+- Runtime currently loads `../original/forward/meshes/half8.igu` (fallback to `octa8.igu`) and renders animated filled mesh with z-buffer and wire overlay.
+- Audio is still deferred; next milestone is XM pipeline integration.
