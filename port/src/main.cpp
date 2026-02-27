@@ -81,8 +81,6 @@ struct KaaakmaBackgroundPass {
 
 struct Particle {
   Vec3 position;
-  Vec3 velocity;
-  float life = 0.0f;
   float size = 1.0f;
   float energy = 1.0f;
 };
@@ -90,8 +88,6 @@ struct Particle {
 struct MmaamkaParticlePass {
   Image32 flare;
   std::vector<Particle> particles;
-  size_t emit_cursor = 0;
-  float phase = 0.0f;
   double last_timeline_seconds = 0.0;
   uint32_t rng_state = 0x1998u;
   bool initialized = false;
@@ -336,6 +332,24 @@ void ConfigureFetaInstance(RenderInstance& instance, const FetaSceneAssets& feta
   instance.use_mesh_uv = true;
   instance.texture_wrap = true;
   instance.enable_backface_culling = true;
+}
+
+void ConfigureFetaHaloInstance(RenderInstance& instance,
+                               const FetaSceneAssets& feta,
+                               float t,
+                               float scale_multiplier,
+                               uint32_t tint) {
+  instance.rotation_radians.Set(0.28f * std::sin(t * 0.14f), -t * 0.52f, t * 0.11f);
+  instance.translation = FetaTranslationAtTime(t);
+  instance.fill_color = tint;
+  instance.wire_color = 0;
+  instance.draw_fill = true;
+  instance.draw_wire = false;
+  instance.texture = feta.enabled ? &feta.babyenv : nullptr;
+  instance.use_mesh_uv = true;
+  instance.texture_wrap = true;
+  instance.enable_backface_culling = true;
+  instance.uniform_scale *= scale_multiplier;
 }
 
 void ConfigureKaaakmaBackgroundInstance(RenderInstance& instance,
@@ -635,100 +649,44 @@ void DrawMute95Frame(Surface32& surface,
   surface.SwapBuffers();
 }
 
-void EmitOneParticle(MmaamkaParticlePass& pass, const Vec3& emitter_world, float angle) {
-  if (pass.particles.empty()) {
-    return;
-  }
-
-  Particle& p = pass.particles[pass.emit_cursor];
-  p.position = emitter_world;
-  const float radial_speed = RandomRange(&pass.rng_state, 0.2f, 0.6f);
-  const float up_speed = RandomRange(&pass.rng_state, 0.2f, 0.7f);
-  const float depth_speed = RandomRange(&pass.rng_state, 0.7f, 1.5f);
-  p.velocity.Set(std::cos(angle) * radial_speed, up_speed, std::sin(angle) * radial_speed + depth_speed);
-  p.life = RandomRange(&pass.rng_state, 0.9f, 2.4f);
-  p.size = RandomRange(&pass.rng_state, 0.35f, 1.0f);
-  p.energy = RandomRange(&pass.rng_state, 0.5f, 1.0f);
-
-  ++pass.emit_cursor;
-  if (pass.emit_cursor >= pass.particles.size()) {
-    pass.emit_cursor = 0;
-  }
+Vec3 RotateXSimple(const Vec3& v, float angle) {
+  const float s = std::sin(angle);
+  const float c = std::cos(angle);
+  return Vec3(v.x, v.y * c - v.z * s, v.y * s + v.z * c);
 }
 
-void InitializeMmaamkaParticles(MmaamkaParticlePass& pass,
-                                int count,
-                                const Vec3& emitter_world,
-                                double timeline_seconds) {
+Vec3 RotateYSimple(const Vec3& v, float angle) {
+  const float s = std::sin(angle);
+  const float c = std::cos(angle);
+  return Vec3(v.x * c + v.z * s, v.y, -v.x * s + v.z * c);
+}
+
+void InitializeMmaamkaParticles(MmaamkaParticlePass& pass, int count, double timeline_seconds) {
   pass.particles.assign(static_cast<size_t>(count), Particle{});
-  pass.emit_cursor = 0;
-  pass.phase = 0.0f;
   pass.last_timeline_seconds = timeline_seconds;
   pass.rng_state = 0x1998u;
   pass.initialized = true;
 
   for (Particle& p : pass.particles) {
-    p.position.Set(emitter_world.x + RandomRange(&pass.rng_state, -1.2f, 1.2f),
-                   emitter_world.y + RandomRange(&pass.rng_state, -0.8f, 0.8f),
-                   emitter_world.z + RandomRange(&pass.rng_state, -0.9f, 0.9f));
-    p.velocity.Set(RandomRange(&pass.rng_state, -0.35f, 0.35f),
-                   RandomRange(&pass.rng_state, -0.2f, 0.6f),
-                   RandomRange(&pass.rng_state, 0.4f, 1.3f));
-    p.life = RandomRange(&pass.rng_state, 0.1f, 1.8f);
-    p.size = RandomRange(&pass.rng_state, 0.35f, 0.95f);
-    p.energy = RandomRange(&pass.rng_state, 0.4f, 1.0f);
+    // feta uses mmaamka mode 0: random cloud around origin, not an emitter stream.
+    p.position.Set(RandomRange(&pass.rng_state, -5.0f, 5.0f),
+                   RandomRange(&pass.rng_state, -5.0f, 5.0f),
+                   RandomRange(&pass.rng_state, -5.0f, 5.0f));
+    p.size = RandomRange(&pass.rng_state, 0.35f, 1.15f);
+    p.energy = RandomRange(&pass.rng_state, 0.45f, 1.0f);
   }
 }
 
-void StepMmaamkaParticles(MmaamkaParticlePass& pass,
-                          const Camera& camera,
-                          double timeline_seconds,
-                          const Vec3& emitter_world) {
+void StepMmaamkaParticles(MmaamkaParticlePass& pass, double timeline_seconds) {
   if (!pass.enabled || pass.flare.Empty()) {
     return;
   }
 
   if (!pass.initialized) {
-    InitializeMmaamkaParticles(pass, 300, emitter_world, timeline_seconds);
+    InitializeMmaamkaParticles(pass, 300, timeline_seconds);
     return;
   }
-
-  double dt = timeline_seconds - pass.last_timeline_seconds;
   pass.last_timeline_seconds = timeline_seconds;
-  if (dt <= 0.0) {
-    return;
-  }
-  dt = std::min(dt, 0.15);
-  const float dtf = static_cast<float>(dt);
-
-  const Vec3 gravity(0.0f, -0.85f, -0.42f);
-  for (Particle& p : pass.particles) {
-    p.velocity = p.velocity + gravity * dtf;
-    p.position = p.position + p.velocity * dtf;
-    p.life -= dtf;
-
-    if (p.position.z <= camera.near_plane + 0.05f) {
-      p.life = -1.0f;
-    }
-    if (p.life <= 0.0f) {
-      p.position.Set(emitter_world.x + RandomRange(&pass.rng_state, -0.4f, 0.4f),
-                     emitter_world.y + RandomRange(&pass.rng_state, -0.2f, 0.2f),
-                     emitter_world.z + RandomRange(&pass.rng_state, -0.35f, 0.35f));
-      p.velocity.Set(RandomRange(&pass.rng_state, -0.2f, 0.2f),
-                     RandomRange(&pass.rng_state, 0.1f, 0.8f),
-                     RandomRange(&pass.rng_state, 0.5f, 1.4f));
-      p.life = RandomRange(&pass.rng_state, 0.8f, 2.2f);
-      p.size = RandomRange(&pass.rng_state, 0.35f, 1.0f);
-      p.energy = RandomRange(&pass.rng_state, 0.5f, 1.0f);
-    }
-  }
-
-  for (int i = 0; i < 7; ++i) {
-    const float ring_t = static_cast<float>(i) / 7.0f;
-    const float angle = pass.phase + ring_t * (kPi * 2.0f);
-    EmitOneParticle(pass, emitter_world, angle);
-  }
-  pass.phase += 0.05f;
 }
 
 bool ProjectPointToScreen(const Camera& camera,
@@ -759,22 +717,32 @@ bool ProjectPointToScreen(const Camera& camera,
 
 void DrawMmaamkaParticles(Surface32& surface,
                           const Camera& camera,
-                          const MmaamkaParticlePass& pass) {
+                          const MmaamkaParticlePass& pass,
+                          double timeline_seconds) {
   if (!pass.enabled || pass.flare.Empty()) {
     return;
   }
 
+  const float t = static_cast<float>(timeline_seconds);
+  const float rot_y = -t * 0.5f;
+  const float rot_x = 0.08f * std::sin(t * 0.33f);
+  const Vec3 cloud_center(0.0f, 0.0f, 3.2f);
+
   for (const Particle& p : pass.particles) {
+    Vec3 world = RotateYSimple(p.position, rot_y);
+    world = RotateXSimple(world, rot_x);
+    world = world + cloud_center;
+
     int sx = 0;
     int sy = 0;
     float depth = 1.0f;
-    if (!ProjectPointToScreen(camera, p.position, &sx, &sy, &depth)) {
+    if (!ProjectPointToScreen(camera, world, &sx, &sy, &depth)) {
       continue;
     }
 
-    const float projected = (20.0f / std::max(depth, 0.2f)) * p.size;
-    const int sprite_size = std::clamp(static_cast<int>(std::lround(projected)), 2, 46);
-    const float intensity_f = (18.0f / std::max(depth, 0.3f)) * p.energy;
+    const float projected = (24.0f / std::max(depth, 0.2f)) * p.size;
+    const int sprite_size = std::clamp(static_cast<int>(std::lround(projected)), 2, 54);
+    const float intensity_f = (20.0f / std::max(depth, 0.3f)) * p.energy;
     const uint8_t intensity = static_cast<uint8_t>(
         std::clamp(static_cast<int>(std::lround(intensity_f * 16.0f)), 12, 255));
 
@@ -799,7 +767,9 @@ void DrawFetaFrame(Surface32& surface,
                    Camera& camera,
                    Renderer3D& renderer,
                    RenderInstance& mesh_instance,
+                   RenderInstance& halo_instance,
                    RenderInstance& background_instance,
+                   Surface32& halo_surface,
                    const FetaSceneAssets& feta,
                    const QuickWinPostLayer& post) {
   surface.ClearBack(PackArgb(2, 3, 8));
@@ -812,12 +782,42 @@ void DrawFetaFrame(Surface32& surface,
     renderer.DrawMesh(surface, background.mesh, camera, background_instance);
   }
 
+  if (feta.enabled) {
+    struct HaloPass {
+      float scale;
+      uint8_t intensity;
+      uint32_t tint;
+    };
+    static const std::array<HaloPass, 3> kHaloPasses = {
+        HaloPass{1.025f, 150, PackArgb(90, 255, 120)},
+        HaloPass{1.055f, 100, PackArgb(120, 255, 145)},
+        HaloPass{1.090f, 50, PackArgb(165, 255, 185)},
+    };
+
+    for (const HaloPass& pass : kHaloPasses) {
+      halo_surface.ClearBack(PackArgb(0, 0, 0));
+      halo_instance.uniform_scale = mesh_instance.uniform_scale;
+      ConfigureFetaHaloInstance(halo_instance, feta, t, pass.scale, pass.tint);
+      renderer.DrawMesh(halo_surface, mesh, camera, halo_instance);
+      halo_surface.SwapBuffers();
+      surface.AdditiveBlitToBack(halo_surface.FrontPixels(),
+                                 kLogicalWidth,
+                                 kLogicalHeight,
+                                 0,
+                                 0,
+                                 0,
+                                 0,
+                                 kLogicalWidth,
+                                 kLogicalHeight,
+                                 pass.intensity);
+    }
+  }
+
   ConfigureFetaInstance(mesh_instance, feta, t);
   renderer.DrawMesh(surface, mesh, camera, mesh_instance);
 
-  const Vec3 emitter = FetaTranslationAtTime(t);
-  StepMmaamkaParticles(particles, camera, state.timeline_seconds, emitter);
-  DrawMmaamkaParticles(surface, camera, particles);
+  StepMmaamkaParticles(particles, state.timeline_seconds);
+  DrawMmaamkaParticles(surface, camera, particles, state.timeline_seconds);
 
   DrawQuickWinPostLayer(surface, state, post);
   surface.SwapBuffers();
@@ -833,7 +833,9 @@ void DrawFrame(Surface32& surface,
                Camera& camera,
                Renderer3D& renderer,
                RenderInstance& mesh_instance,
+               RenderInstance& halo_instance,
                RenderInstance& background_instance,
+               Surface32& halo_surface,
                const FetaSceneAssets& feta,
                const QuickWinPostLayer& post) {
   if (state.scene_mode == SceneMode::kMute95) {
@@ -848,7 +850,9 @@ void DrawFrame(Surface32& surface,
                 camera,
                 renderer,
                 mesh_instance,
+                halo_instance,
                 background_instance,
+                halo_surface,
                 feta,
                 post);
 }
@@ -888,6 +892,12 @@ int main(int argc, char** argv) {
   mesh_instance.draw_fill = true;
   mesh_instance.draw_wire = true;
   mesh_instance.enable_backface_culling = true;
+
+  RenderInstance halo_instance;
+  halo_instance.uniform_scale = mesh_instance.uniform_scale * 1.075f;
+  halo_instance.draw_fill = true;
+  halo_instance.draw_wire = false;
+  halo_instance.enable_backface_culling = true;
 
   RenderInstance background_instance;
 
@@ -1037,6 +1047,7 @@ int main(int argc, char** argv) {
   }
 
   Surface32 surface(kLogicalWidth, kLogicalHeight, true);
+  Surface32 halo_surface(kLogicalWidth, kLogicalHeight, true);
   Renderer3D renderer_3d(kLogicalWidth, kLogicalHeight);
 
   DemoState state;
@@ -1157,7 +1168,9 @@ int main(int argc, char** argv) {
               camera,
               renderer_3d,
               mesh_instance,
+              halo_instance,
               background_instance,
+              halo_surface,
               feta,
               post);
 
