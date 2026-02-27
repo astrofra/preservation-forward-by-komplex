@@ -206,6 +206,78 @@ void Surface32::AlphaBlitToBack(const uint32_t* src_pixels,
   }
 }
 
+void Surface32::AdditiveBlitToBack(const uint32_t* src_pixels,
+                                   int src_width,
+                                   int src_height,
+                                   int src_x,
+                                   int src_y,
+                                   int dst_x,
+                                   int dst_y,
+                                   int w,
+                                   int h,
+                                   uint8_t intensity) {
+  if (!src_pixels || src_width <= 0 || src_height <= 0 || w <= 0 || h <= 0 || intensity == 0) {
+    return;
+  }
+
+  int copy_src_x = src_x;
+  int copy_src_y = src_y;
+  int copy_dst_x = dst_x;
+  int copy_dst_y = dst_y;
+  int copy_w = w;
+  int copy_h = h;
+
+  if (copy_src_x < 0) {
+    copy_w += copy_src_x;
+    copy_dst_x -= copy_src_x;
+    copy_src_x = 0;
+  }
+  if (copy_src_y < 0) {
+    copy_h += copy_src_y;
+    copy_dst_y -= copy_src_y;
+    copy_src_y = 0;
+  }
+  if (copy_dst_x < 0) {
+    copy_w += copy_dst_x;
+    copy_src_x -= copy_dst_x;
+    copy_dst_x = 0;
+  }
+  if (copy_dst_y < 0) {
+    copy_h += copy_dst_y;
+    copy_src_y -= copy_dst_y;
+    copy_dst_y = 0;
+  }
+
+  copy_w = std::min(copy_w, src_width - copy_src_x);
+  copy_h = std::min(copy_h, src_height - copy_src_y);
+  copy_w = std::min(copy_w, width_ - copy_dst_x);
+  copy_h = std::min(copy_h, height_ - copy_dst_y);
+
+  if (copy_w <= 0 || copy_h <= 0) {
+    return;
+  }
+
+  for (int row = 0; row < copy_h; ++row) {
+    const uint32_t* src_row = src_pixels +
+                              static_cast<size_t>(copy_src_y + row) * src_width + copy_src_x;
+    uint32_t* dst_row =
+        back_.data() + static_cast<size_t>(copy_dst_y + row) * width_ + copy_dst_x;
+    for (int col = 0; col < copy_w; ++col) {
+      const uint32_t src = src_row[col];
+      const uint32_t dst = dst_row[col];
+
+      const int r = ClampToByte(static_cast<int>(ChannelR(dst)) +
+                                (static_cast<int>(ChannelR(src)) * intensity) / 255);
+      const int g = ClampToByte(static_cast<int>(ChannelG(dst)) +
+                                (static_cast<int>(ChannelG(src)) * intensity) / 255);
+      const int b = ClampToByte(static_cast<int>(ChannelB(dst)) +
+                                (static_cast<int>(ChannelB(src)) * intensity) / 255);
+      dst_row[col] = PackArgb(static_cast<uint8_t>(r), static_cast<uint8_t>(g),
+                              static_cast<uint8_t>(b));
+    }
+  }
+}
+
 void Surface32::SwapBuffers() {
   if (double_buffered_) {
     std::swap(front_, back_);

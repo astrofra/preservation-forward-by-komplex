@@ -23,6 +23,7 @@ cmake --build build -j
 - `Esc` or `q` : quit
 - `Space` : pause timeline
 - `f` : toggle fullscreen desktop
+- `p` : toggle quick-win `phorward` post layer
 
 ## Core Port Scaffold
 
@@ -33,7 +34,7 @@ Initial minimal 3D core now exists under `src/core/`:
 - `Mesh.h/.cpp` (positions, optional texcoords, triangle indices)
 - `MeshLoaderIgu.h/.cpp` (loader for the `3DSRDR` text `.igu` mesh dumps used by forward)
 - `Image32.h/.cpp` (minimal image decoder path using stb_image for original JPG/GIF assets)
-- `Camera.h`, `Renderer3D.h/.cpp` (software transform/projection + near-plane clipping + backface culling + filled triangle raster + z-buffer + wire overlay)
+- `Camera.h`, `Renderer3D.h/.cpp` (software transform/projection + near-plane clipping + backface culling + z-buffer + textured/fill pipeline + wire overlay)
 - `Timeline.h/.cpp` (minimal keyframed scene driver feeding object/camera state)
 
 ## Notes
@@ -41,7 +42,7 @@ Initial minimal 3D core now exists under `src/core/`:
 - Logical framebuffer is fixed at `512x256`.
 - Presentation uses SDL texture upload + nearest filtering.
 - Lowres and nosound mode switches are intentionally omitted.
-- Runtime currently loads `../original/forward/meshes/half8.igu` (fallback to `octa8.igu`) and renders animated filled mesh with z-buffer and wire overlay.
-- Animation now comes from a minimal timeline driver (looped keyframes); this is the scaffold for porting the original demo sequence logic.
+- Runtime now prefers `../original/forward/meshes/fetus.igu` (fallback to `half8.igu` then `octa8.igu`).
+- First forward-looking scene pass (`feta`-inspired): `fetus.igu` rendered with `images/babyenv.jpg` texturing and `images/flare1.jpg` additive flare layer.
 - Quick-win original asset emergence: post layer now uses `images/phorward.gif` (and `images/back.gif` fallback for secondary blending) with scroll/fade compositing.
 - Audio is still deferred; next milestone is XM pipeline integration.

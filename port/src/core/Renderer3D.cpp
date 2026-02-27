@@ -5,6 +5,8 @@
 #include <limits>
 #include <vector>
 
+#include "Image32.h"
+
 namespace forward::core {
 namespace {
 
@@ -54,6 +56,30 @@ uint32_t ModulateColor(uint32_t base, float intensity) {
   return PackArgb(r, g, b);
 }
 
+uint32_t SampleTexture(const Image32& image, float u, float v, bool wrap) {
+  if (image.Empty()) {
+    return 0xFFFFFFFFu;
+  }
+
+  float su = u;
+  float sv = v;
+  if (wrap) {
+    su = su - std::floor(su);
+    sv = sv - std::floor(sv);
+  } else {
+    su = std::clamp(su, 0.0f, 1.0f);
+    sv = std::clamp(sv, 0.0f, 1.0f);
+  }
+
+  const int x =
+      std::clamp(static_cast<int>(su * static_cast<float>(image.width - 1)), 0, image.width - 1);
+  const int y = std::clamp(static_cast<int>(sv * static_cast<float>(image.height - 1)),
+                           0,
+                           image.height - 1);
+  return image.pixels[static_cast<size_t>(y) * static_cast<size_t>(image.width) +
+                      static_cast<size_t>(x)];
+}
+
 }  // namespace
 
 Renderer3D::Renderer3D(int target_width, int target_height)
@@ -82,6 +108,18 @@ void Renderer3D::DrawMesh(Surface32& target,
     v = v - camera.position;
     transformed[i].view_pos = v;
     transformed[i].z = v.z;
+
+    if (instance.texture) {
+      if (instance.use_mesh_uv && mesh.texcoords.size() == mesh.positions.size()) {
+        transformed[i].u = mesh.texcoords[i].x;
+        transformed[i].v = mesh.texcoords[i].y;
+      } else {
+        // Fallback env-style mapping for meshes that do not contain UVs (e.g. fetus.igu).
+        Vec3 n = RotateXYZ(mesh.positions[i], instance.rotation_radians).Normalized();
+        transformed[i].u = 0.5f + 0.5f * n.x;
+        transformed[i].v = 0.5f - 0.5f * n.y;
+      }
+    }
   }
 
   const float winding_sign = ComputeMeshWindingSign(mesh);
@@ -114,7 +152,7 @@ void Renderer3D::DrawMesh(Surface32& target,
 
     if (instance.draw_fill) {
       for (size_t i = 1; i + 1 < clipped.size(); ++i) {
-        DrawFilledTriangle(target, clipped[0], clipped[i], clipped[i + 1], instance.fill_color);
+        DrawFilledTriangle(target, clipped[0], clipped[i], clipped[i + 1], instance);
       }
     }
 
@@ -168,6 +206,8 @@ std::vector<Renderer3D::ProjectedVertex> Renderer3D::ClipTriangleAgainstNearPlan
     out.view_pos = s.view_pos + (e.view_pos - s.view_pos) * t;
     out.view_pos.z = near_plane;
     out.z = out.view_pos.z;
+    out.u = s.u + (e.u - s.u) * t;
+    out.v = s.v + (e.v - s.v) * t;
     return out;
   };
 
@@ -207,7 +247,7 @@ void Renderer3D::DrawFilledTriangle(Surface32& target,
                                     const ProjectedVertex& a,
                                     const ProjectedVertex& b,
                                     const ProjectedVertex& c,
-                                    uint32_t fill_color) {
+                                    const RenderInstance& instance) {
   const float area = EdgeFunction(a.fx, a.fy, b.fx, b.fy, c.fx, c.fy);
   if (std::abs(area) < 1e-6f) {
     return;
@@ -229,7 +269,6 @@ void Renderer3D::DrawFilledTriangle(Surface32& target,
   const Vec3 face_normal =
       (b.view_pos - a.view_pos).Cross(c.view_pos - a.view_pos).Normalized();
   const float light_intensity = 0.20f + 0.80f * std::abs(face_normal.z);
-  const uint32_t shaded_color = ModulateColor(fill_color, light_intensity);
 
   for (int y = min_y; y <= max_y; ++y) {
     const float py = static_cast<float>(y) + 0.5f;
@@ -252,6 +291,14 @@ void Renderer3D::DrawFilledTriangle(Surface32& target,
       }
 
       depth_buffer_[index] = z;
+
+      uint32_t base_color = instance.fill_color;
+      if (instance.texture) {
+        const float u = w0 * a.u + w1 * b.u + w2 * c.u;
+        const float v = w0 * a.v + w1 * b.v + w2 * c.v;
+        base_color = SampleTexture(*instance.texture, u, v, instance.texture_wrap);
+      }
+      const uint32_t shaded_color = ModulateColor(base_color, light_intensity);
       target.SetBackPixel(x, y, shaded_color);
     }
   }

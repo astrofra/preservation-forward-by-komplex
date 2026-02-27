@@ -17,7 +17,6 @@
 #include "core/MeshLoaderIgu.h"
 #include "core/Renderer3D.h"
 #include "core/Surface32.h"
-#include "core/Timeline.h"
 #include "core/Vec3.h"
 
 namespace {
@@ -28,8 +27,6 @@ using forward::core::Mesh;
 using forward::core::RenderInstance;
 using forward::core::Renderer3D;
 using forward::core::Surface32;
-using forward::core::TimelineDriver;
-using forward::core::TimelineOutput;
 using forward::core::Vec3;
 
 constexpr int kLogicalWidth = 512;
@@ -47,6 +44,8 @@ struct DemoState {
   double timeline_seconds = 0.0;
   bool paused = false;
   bool fullscreen = false;
+  bool show_post = false;
+  std::string scene_label;
   std::string mesh_label;
   std::string post_label;
 };
@@ -54,6 +53,12 @@ struct DemoState {
 struct QuickWinPostLayer {
   Image32 primary;
   Image32 secondary;
+  bool enabled = false;
+};
+
+struct FetaSceneAssets {
+  Image32 babyenv;
+  Image32 flare;
   bool enabled = false;
 };
 
@@ -80,7 +85,8 @@ SDL_Rect ComputePresentationRect(SDL_Renderer* renderer) {
 }
 
 std::string ResolveMeshPath() {
-  const std::array<std::string, 2> mesh_names = {"meshes/half8.igu", "meshes/octa8.igu"};
+  const std::array<std::string, 3> mesh_names = {
+      "meshes/fetus.igu", "meshes/half8.igu", "meshes/octa8.igu"};
   std::error_code ec;
   std::filesystem::path cursor = std::filesystem::current_path(ec);
   if (ec) {
@@ -157,7 +163,8 @@ void UpdateWindowTitle(SDL_Window* window,
         << (state.paused ? "paused" : "running")
         << " | fps " << std::fixed << std::setprecision(1) << fps
         << " | ups " << std::fixed << std::setprecision(1) << ups
-        << " | mesh " << state.mesh_label << " | logical " << kLogicalWidth << "x"
+        << " | scene " << state.scene_label << " | mesh " << state.mesh_label
+        << " | logical " << kLogicalWidth << "x"
         << kLogicalHeight << " | post " << state.post_label << " | audio pending";
 
   SDL_SetWindowTitle(window, title.str().c_str());
@@ -204,7 +211,7 @@ void DrawScrollingLayer(Surface32& surface,
 void DrawQuickWinPostLayer(Surface32& surface,
                            const DemoState& state,
                            const QuickWinPostLayer& post) {
-  if (!post.enabled || post.primary.Empty()) {
+  if (!state.show_post || !post.enabled || post.primary.Empty()) {
     return;
   }
 
@@ -223,27 +230,48 @@ void DrawQuickWinPostLayer(Surface32& surface,
   }
 }
 
+void DrawFetaFlare(Surface32& surface, const Image32& flare, double timeline_seconds) {
+  if (flare.Empty()) {
+    return;
+  }
+
+  const float t = static_cast<float>(timeline_seconds);
+  const int center_x = kLogicalWidth / 2 + static_cast<int>(std::sin(t * 0.7f) * 64.0f);
+  const int center_y = kLogicalHeight / 2 + static_cast<int>(std::cos(t * 0.5f) * 26.0f);
+  const int x = center_x - flare.width / 2;
+  const int y = center_y - flare.height / 2;
+  const uint8_t intensity = static_cast<uint8_t>(120 + 100 * (0.5f + 0.5f * std::sin(t * 1.3f)));
+
+  surface.AdditiveBlitToBack(
+      flare.pixels.data(), flare.width, flare.height, 0, 0, x, y, flare.width, flare.height, intensity);
+}
+
 void DrawFrame(Surface32& surface,
                const DemoState& state,
                const Mesh& mesh,
                Camera& camera,
                Renderer3D& renderer,
                RenderInstance& instance,
-               const TimelineDriver& timeline,
+               const FetaSceneAssets& feta,
                const QuickWinPostLayer& post) {
   surface.ClearBack(PackArgb(2, 3, 8));
 
-  TimelineOutput timeline_output;
-  timeline.Evaluate(state.timeline_seconds, timeline_output);
-  instance.rotation_radians = timeline_output.rotation_radians;
-  instance.translation = timeline_output.translation;
-  instance.fill_color = timeline_output.fill_color;
-  instance.wire_color = timeline_output.wire_color;
-  instance.draw_fill = timeline_output.draw_fill;
-  instance.draw_wire = timeline_output.draw_wire;
-  camera.fov_degrees = timeline_output.camera_fov_degrees;
+  const float t = static_cast<float>(state.timeline_seconds);
+  instance.rotation_radians.Set(0.28f * std::sin(t * 0.14f), -t * 0.52f, t * 0.11f);
+  instance.translation.Set(0.0f, 0.12f * std::sin(t * 0.37f), 2.55f + 0.35f * std::sin(t * 0.21f));
+  instance.fill_color = PackArgb(220, 220, 220);
+  instance.wire_color = PackArgb(110, 255, 220);
+  instance.draw_fill = true;
+  instance.draw_wire = false;
+  instance.texture = feta.enabled ? &feta.babyenv : nullptr;
+  instance.use_mesh_uv = true;
+  instance.texture_wrap = true;
+  camera.fov_degrees = 62.0f + 6.0f * std::sin(t * 0.31f);
 
   renderer.DrawMesh(surface, mesh, camera, instance);
+  if (feta.enabled) {
+    DrawFetaFlare(surface, feta.flare, state.timeline_seconds);
+  }
   DrawQuickWinPostLayer(surface, state, post);
   surface.SwapBuffers();
 }
@@ -284,7 +312,27 @@ int main() {
   instance.draw_wire = true;
   instance.enable_backface_culling = true;
 
-  TimelineDriver timeline;
+  FetaSceneAssets feta;
+  if (std::filesystem::path(mesh_path).filename().string() == "fetus.igu") {
+    std::string image_error;
+    const std::string babyenv_path = ResolveForwardAssetPath("images/babyenv.jpg");
+    const std::string flare_path = ResolveForwardAssetPath("images/flare1.jpg");
+
+    const bool has_babyenv =
+        !babyenv_path.empty() && forward::core::LoadImage32(babyenv_path, feta.babyenv, &image_error);
+    if (!has_babyenv && !babyenv_path.empty()) {
+      std::cerr << "feta babyenv load failed: " << image_error << "\n";
+    }
+
+    const bool has_flare =
+        !flare_path.empty() && forward::core::LoadImage32(flare_path, feta.flare, &image_error);
+    if (!has_flare && !flare_path.empty()) {
+      std::cerr << "feta flare load failed: " << image_error << "\n";
+    }
+
+    feta.enabled = has_babyenv;
+  }
+
   QuickWinPostLayer post;
 
   const std::string phorward_path = ResolveForwardAssetPath("images/phorward.gif");
@@ -355,8 +403,9 @@ int main() {
   Renderer3D renderer_3d(kLogicalWidth, kLogicalHeight);
 
   DemoState state;
+  state.scene_label = feta.enabled ? "feta" : "fallback";
   state.mesh_label = std::filesystem::path(mesh_path).filename().string();
-  state.post_label = post.enabled ? "phorward" : "off";
+  state.post_label = state.show_post && post.enabled ? "phorward" : "off";
   RuntimeStats stats;
 
   uint64_t perf_prev = SDL_GetPerformanceCounter();
@@ -385,6 +434,10 @@ int main() {
             SDL_SetWindowFullscreen(window,
                                     state.fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
             break;
+          case SDLK_p:
+            state.show_post = !state.show_post;
+            state.post_label = state.show_post && post.enabled ? "phorward" : "off";
+            break;
           default:
             break;
         }
@@ -409,7 +462,7 @@ int main() {
     }
     stats.simulated_ticks += static_cast<uint64_t>(ticks_this_frame);
 
-    DrawFrame(surface, state, mesh, camera, renderer_3d, instance, timeline, post);
+    DrawFrame(surface, state, mesh, camera, renderer_3d, instance, feta, post);
 
     if (SDL_UpdateTexture(texture,
                           nullptr,

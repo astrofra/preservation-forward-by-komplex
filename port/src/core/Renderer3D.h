@@ -10,12 +10,17 @@
 
 namespace forward::core {
 
+struct Image32;
+
 struct RenderInstance {
   Vec3 rotation_radians{0.0f, 0.0f, 0.0f};
   Vec3 translation{0.0f, 0.0f, 0.0f};
   float uniform_scale = 1.0f;
   uint32_t fill_color = 0xFFB0D0FFu;
   uint32_t wire_color = 0xFFFFFFFFu;
+  const Image32* texture = nullptr;
+  bool use_mesh_uv = true;
+  bool texture_wrap = true;
   bool draw_fill = true;
   bool draw_wire = true;
   bool enable_backface_culling = true;
@@ -36,6 +41,8 @@ class Renderer3D {
     float fx = 0.0f;
     float fy = 0.0f;
     float z = 0.0f;
+    float u = 0.0f;
+    float v = 0.0f;
     int x = 0;
     int y = 0;
     bool visible = false;
@@ -59,7 +66,7 @@ class Renderer3D {
                           const ProjectedVertex& a,
                           const ProjectedVertex& b,
                           const ProjectedVertex& c,
-                          uint32_t fill_color);
+                          const RenderInstance& instance);
 
   void DrawLine(Surface32& target, int x0, int y0, int x1, int y1, uint32_t color) const;
 
