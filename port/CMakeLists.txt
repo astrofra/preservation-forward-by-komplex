@@ -14,7 +14,10 @@ endif()
 
 add_executable(forward_native
   src/main.cpp
+  src/core/Surface32.cpp
 )
+
+target_include_directories(forward_native PRIVATE src)
 
 if(TARGET SDL2::SDL2main)
   target_link_libraries(forward_native PRIVATE SDL2::SDL2 SDL2::SDL2main)

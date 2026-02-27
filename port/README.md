@@ -1,6 +1,8 @@
 # forward native harness (macOS ARM first step)
 
-This is a no-audio native harness for starting the C++ port on modern systems.
+This is the no-audio native harness for starting the C++ port on modern systems.
+
+Current focus is the original `1x1` visual path (`512x256` logical buffer at full-quality sampling).
 
 ## Build
 
@@ -13,13 +15,8 @@ cmake --build build -j
 ## Run
 
 ```bash
-./build/forward_native --nosound
+./build/forward_native
 ```
-
-Optional flags:
-
-- `--1x1` : open in 1x scale (512x256 window)
-- `--scale N` : set startup window scale (1..16)
 
 ## Controls
 
@@ -27,8 +24,18 @@ Optional flags:
 - `Space` : pause timeline
 - `f` : toggle fullscreen desktop
 
+## Core Port Scaffold
+
+Initial core translation layer now exists under `src/core/`:
+
+- `Vec2.h` (from Java math utility style)
+- `Vec3.h` (from `mmajmma` style vector ops)
+- `Vertex.h` (from `mmjakka` shape)
+- `Surface32.h/.cpp` (minimal 32-bit software surface + double buffering)
+
 ## Notes
 
-- Logical buffer is fixed at `512x256` and rendered in software.
-- Presentation uses an SDL texture upload with nearest filtering.
-- This is the runtime shell to begin porting Java classes and scene logic.
+- Logical framebuffer is fixed at `512x256`.
+- Presentation uses SDL texture upload + nearest filtering.
+- Lowres and nosound mode switches are intentionally omitted.
+- Audio is deferred; next milestone is XM pipeline integration.
