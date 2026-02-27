@@ -176,6 +176,8 @@ bool LoadIguMesh(const std::string& path, Mesh& out_mesh, std::string* out_error
     }
   }
 
+  out_mesh.RebuildVertexNormals();
+
   return true;
 }
 

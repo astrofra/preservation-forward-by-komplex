@@ -47,6 +47,7 @@ struct DemoState {
   bool paused = false;
   bool fullscreen = false;
   bool show_post = false;
+  float feta_fov_degrees = 84.0f;  // horizontal FOV
   std::string scene_label;
   std::string mesh_label;
   std::string post_label;
@@ -201,6 +202,7 @@ void UpdateWindowTitle(SDL_Window* window,
         << (state.paused ? "paused" : "running")
         << " | fps " << std::fixed << std::setprecision(1) << fps
         << " | ups " << std::fixed << std::setprecision(1) << ups
+        << " | fov " << std::fixed << std::setprecision(1) << state.feta_fov_degrees
         << " | scene " << state.scene_label << " | mesh " << state.mesh_label
         << " | logical " << kLogicalWidth << "x"
         << kLogicalHeight << " | post " << state.post_label << " | audio pending";
@@ -430,7 +432,7 @@ bool ProjectPointToScreen(const Camera& camera,
   const float half_fov =
       (camera.fov_degrees * (kPi / 180.0f)) * 0.5f;
   const float focal_length =
-      (0.5f * static_cast<float>(kLogicalHeight)) / std::tan(half_fov);
+      (0.5f * static_cast<float>(kLogicalWidth)) / std::tan(half_fov);
   const float center_x = (static_cast<float>(kLogicalWidth) - 1.0f) * 0.5f;
   const float center_y = (static_cast<float>(kLogicalHeight) - 1.0f) * 0.5f;
   const float inv_z = 1.0f / view.z;
@@ -491,7 +493,7 @@ void DrawFrame(Surface32& surface,
   surface.ClearBack(PackArgb(2, 3, 8));
 
   const float t = static_cast<float>(state.timeline_seconds);
-  camera.fov_degrees = 62.0f + 6.0f * std::sin(t * 0.31f);
+  camera.fov_degrees = state.feta_fov_degrees;
 
   if (background.enabled) {
     ConfigureKaaakmaBackgroundInstance(background_instance, background, camera, t);
@@ -534,7 +536,7 @@ int main() {
 
   Camera camera;
   camera.position = Vec3(0.0f, 0.0f, 0.0f);
-  camera.fov_degrees = 70.0f;
+  camera.fov_degrees = 84.0f;
   camera.near_plane = 0.1f;
 
   RenderInstance mesh_instance;
@@ -701,6 +703,14 @@ int main() {
           case SDLK_p:
             state.show_post = !state.show_post;
             state.post_label = state.show_post && post.enabled ? "phorward" : "off";
+            break;
+          case SDLK_LEFTBRACKET:
+          case SDLK_MINUS:
+            state.feta_fov_degrees = std::clamp(state.feta_fov_degrees - 1.0f, 40.0f, 120.0f);
+            break;
+          case SDLK_RIGHTBRACKET:
+          case SDLK_EQUALS:
+            state.feta_fov_degrees = std::clamp(state.feta_fov_degrees + 1.0f, 40.0f, 120.0f);
             break;
           default:
             break;

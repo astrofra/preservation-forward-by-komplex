@@ -38,6 +38,7 @@ class Renderer3D {
  private:
   struct ProjectedVertex {
     Vec3 view_pos;
+    Vec3 view_normal;
     float fx = 0.0f;
     float fy = 0.0f;
     float z = 0.0f;

@@ -18,8 +18,10 @@ class Mesh {
   void Clear();
   bool Empty() const;
   float BoundingRadius() const;
+  void RebuildVertexNormals();
 
   std::vector<Vec3> positions;
+  std::vector<Vec3> normals;
   std::vector<Vec2> texcoords;
   std::vector<Triangle> triangles;
 };

@@ -96,7 +96,7 @@ void Renderer3D::DrawMesh(Surface32& target,
   ClearDepthBuffer();
 
   const float half_fov = (camera.fov_degrees * (kPi / 180.0f)) * 0.5f;
-  const float focal_length = (0.5f * static_cast<float>(target_height_)) / std::tan(half_fov);
+  const float focal_length = (0.5f * static_cast<float>(target_width_)) / std::tan(half_fov);
   const float center_x = (static_cast<float>(target_width_) - 1.0f) * 0.5f;
   const float center_y = (static_cast<float>(target_height_) - 1.0f) * 0.5f;
 
@@ -109,13 +109,18 @@ void Renderer3D::DrawMesh(Surface32& target,
     transformed[i].view_pos = v;
     transformed[i].z = v.z;
 
+    Vec3 normal = (mesh.normals.size() == mesh.positions.size()) ? mesh.normals[i]
+                                                                  : mesh.positions[i].Normalized();
+    normal = RotateXYZ(normal, instance.rotation_radians).Normalized();
+    transformed[i].view_normal = normal;
+
     if (instance.texture) {
       if (instance.use_mesh_uv && mesh.texcoords.size() == mesh.positions.size()) {
         transformed[i].u = mesh.texcoords[i].x;
         transformed[i].v = mesh.texcoords[i].y;
       } else {
-        // Fallback env-style mapping for meshes that do not contain UVs (e.g. fetus.igu).
-        Vec3 n = RotateXYZ(mesh.positions[i], instance.rotation_radians).Normalized();
+        // Use smoothed normals for fake phong/env map UVs.
+        const Vec3 n = transformed[i].view_normal;
         transformed[i].u = 0.5f + 0.5f * n.x;
         transformed[i].v = 0.5f - 0.5f * n.y;
       }
@@ -206,6 +211,7 @@ std::vector<Renderer3D::ProjectedVertex> Renderer3D::ClipTriangleAgainstNearPlan
     out.view_pos = s.view_pos + (e.view_pos - s.view_pos) * t;
     out.view_pos.z = near_plane;
     out.z = out.view_pos.z;
+    out.view_normal = (s.view_normal + (e.view_normal - s.view_normal) * t).Normalized();
     out.u = s.u + (e.u - s.u) * t;
     out.v = s.v + (e.v - s.v) * t;
     return out;
@@ -266,10 +272,6 @@ void Renderer3D::DrawFilledTriangle(Surface32& target,
     return;
   }
 
-  const Vec3 face_normal =
-      (b.view_pos - a.view_pos).Cross(c.view_pos - a.view_pos).Normalized();
-  const float light_intensity = 0.20f + 0.80f * std::abs(face_normal.z);
-
   for (int y = min_y; y <= max_y; ++y) {
     const float py = static_cast<float>(y) + 0.5f;
     for (int x = min_x; x <= max_x; ++x) {
@@ -298,6 +300,11 @@ void Renderer3D::DrawFilledTriangle(Surface32& target,
         const float v = w0 * a.v + w1 * b.v + w2 * c.v;
         base_color = SampleTexture(*instance.texture, u, v, instance.texture_wrap);
       }
+      const Vec3 interp_normal =
+          (a.view_normal * w0 + b.view_normal * w1 + c.view_normal * w2).Normalized();
+      const float ndotv = std::abs(interp_normal.z);
+      const float light_intensity = instance.texture ? (0.78f + 0.22f * ndotv)
+                                                     : (0.22f + 0.78f * ndotv);
       const uint32_t shaded_color = ModulateColor(base_color, light_intensity);
       target.SetBackPixel(x, y, shaded_color);
     }
