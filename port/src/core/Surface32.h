@@ -46,6 +46,14 @@ class Surface32 {
                           int w,
                           int h,
                           uint8_t intensity);
+  void AdditiveBlitScaledToBack(const uint32_t* src_pixels,
+                                int src_width,
+                                int src_height,
+                                int dst_x,
+                                int dst_y,
+                                int dst_w,
+                                int dst_h,
+                                uint8_t intensity);
 
   void SwapBuffers();
 

@@ -278,6 +278,52 @@ void Surface32::AdditiveBlitToBack(const uint32_t* src_pixels,
   }
 }
 
+void Surface32::AdditiveBlitScaledToBack(const uint32_t* src_pixels,
+                                         int src_width,
+                                         int src_height,
+                                         int dst_x,
+                                         int dst_y,
+                                         int dst_w,
+                                         int dst_h,
+                                         uint8_t intensity) {
+  if (!src_pixels || src_width <= 0 || src_height <= 0 || dst_w <= 0 || dst_h <= 0 ||
+      intensity == 0) {
+    return;
+  }
+
+  int clip_x0 = std::max(0, dst_x);
+  int clip_y0 = std::max(0, dst_y);
+  int clip_x1 = std::min(width_, dst_x + dst_w);
+  int clip_y1 = std::min(height_, dst_y + dst_h);
+  if (clip_x0 >= clip_x1 || clip_y0 >= clip_y1) {
+    return;
+  }
+
+  for (int y = clip_y0; y < clip_y1; ++y) {
+    const int rel_y = y - dst_y;
+    const int src_y_nearest =
+        std::clamp((rel_y * src_height) / dst_h, 0, src_height - 1);
+    uint32_t* dst_row = back_.data() + static_cast<size_t>(y) * width_;
+    for (int x = clip_x0; x < clip_x1; ++x) {
+      const int rel_x = x - dst_x;
+      const int src_x_nearest =
+          std::clamp((rel_x * src_width) / dst_w, 0, src_width - 1);
+      const uint32_t src =
+          src_pixels[static_cast<size_t>(src_y_nearest) * src_width + src_x_nearest];
+      const uint32_t dst = dst_row[x];
+
+      const int r = ClampToByte(static_cast<int>(ChannelR(dst)) +
+                                (static_cast<int>(ChannelR(src)) * intensity) / 255);
+      const int g = ClampToByte(static_cast<int>(ChannelG(dst)) +
+                                (static_cast<int>(ChannelG(src)) * intensity) / 255);
+      const int b = ClampToByte(static_cast<int>(ChannelB(dst)) +
+                                (static_cast<int>(ChannelB(src)) * intensity) / 255);
+      dst_row[x] = PackArgb(static_cast<uint8_t>(r), static_cast<uint8_t>(g),
+                            static_cast<uint8_t>(b));
+    }
+  }
+}
+
 void Surface32::SwapBuffers() {
   if (double_buffered_) {
     std::swap(front_, back_);
