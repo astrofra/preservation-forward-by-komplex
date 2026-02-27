@@ -74,43 +74,56 @@ void Renderer3D::DrawMesh(Surface32& target,
   const float center_x = (static_cast<float>(target_width_) - 1.0f) * 0.5f;
   const float center_y = (static_cast<float>(target_height_) - 1.0f) * 0.5f;
 
-  std::vector<ProjectedVertex> projected(mesh.positions.size());
+  std::vector<ProjectedVertex> transformed(mesh.positions.size());
   for (size_t i = 0; i < mesh.positions.size(); ++i) {
     Vec3 v = mesh.positions[i] * instance.uniform_scale;
     v = RotateXYZ(v, instance.rotation_radians);
     v = v + instance.translation;
     v = v - camera.position;
-    projected[i].view_pos = v;
+    transformed[i].view_pos = v;
+    transformed[i].z = v.z;
+  }
 
-    if (v.z <= camera.near_plane) {
-      projected[i].visible = false;
+  const float winding_sign = ComputeMeshWindingSign(mesh);
+
+  for (const Triangle& tri : mesh.triangles) {
+    const ProjectedVertex& a = transformed[static_cast<size_t>(tri.a)];
+    const ProjectedVertex& b = transformed[static_cast<size_t>(tri.b)];
+    const ProjectedVertex& c = transformed[static_cast<size_t>(tri.c)];
+
+    std::vector<ProjectedVertex> clipped =
+        ClipTriangleAgainstNearPlane(a, b, c, camera.near_plane);
+    if (clipped.size() < 3) {
       continue;
     }
 
-    const float inv_z = 1.0f / v.z;
-    projected[i].fx = center_x + v.x * focal_length * inv_z;
-    projected[i].fy = center_y - v.y * focal_length * inv_z;
-    projected[i].x = static_cast<int>(std::lround(projected[i].fx));
-    projected[i].y = static_cast<int>(std::lround(projected[i].fy));
-    projected[i].z = v.z;
-    projected[i].visible = true;
-  }
-
-  for (const Triangle& tri : mesh.triangles) {
-    const ProjectedVertex& a = projected[static_cast<size_t>(tri.a)];
-    const ProjectedVertex& b = projected[static_cast<size_t>(tri.b)];
-    const ProjectedVertex& c = projected[static_cast<size_t>(tri.c)];
-    if (!a.visible || !b.visible || !c.visible) {
+    if (instance.enable_backface_culling &&
+        !IsFrontFacing(clipped[0], clipped[1], clipped[2], winding_sign)) {
       continue;
+    }
+
+    for (ProjectedVertex& v : clipped) {
+      const float inv_z = 1.0f / v.view_pos.z;
+      v.fx = center_x + v.view_pos.x * focal_length * inv_z;
+      v.fy = center_y - v.view_pos.y * focal_length * inv_z;
+      v.x = static_cast<int>(std::lround(v.fx));
+      v.y = static_cast<int>(std::lround(v.fy));
+      v.z = v.view_pos.z;
+      v.visible = true;
     }
 
     if (instance.draw_fill) {
-      DrawFilledTriangle(target, a, b, c, instance.fill_color);
+      for (size_t i = 1; i + 1 < clipped.size(); ++i) {
+        DrawFilledTriangle(target, clipped[0], clipped[i], clipped[i + 1], instance.fill_color);
+      }
     }
+
     if (instance.draw_wire) {
-      DrawLine(target, a.x, a.y, b.x, b.y, instance.wire_color);
-      DrawLine(target, b.x, b.y, c.x, c.y, instance.wire_color);
-      DrawLine(target, c.x, c.y, a.x, a.y, instance.wire_color);
+      for (size_t i = 0; i < clipped.size(); ++i) {
+        const ProjectedVertex& p0 = clipped[i];
+        const ProjectedVertex& p1 = clipped[(i + 1) % clipped.size()];
+        DrawLine(target, p0.x, p0.y, p1.x, p1.y, instance.wire_color);
+      }
     }
   }
 }
@@ -125,6 +138,69 @@ void Renderer3D::EnsureDepthBuffer() {
 
 void Renderer3D::ClearDepthBuffer() {
   std::fill(depth_buffer_.begin(), depth_buffer_.end(), std::numeric_limits<float>::infinity());
+}
+
+float Renderer3D::ComputeMeshWindingSign(const Mesh& mesh) const {
+  float accum = 0.0f;
+  for (const Triangle& tri : mesh.triangles) {
+    const Vec3& a = mesh.positions[static_cast<size_t>(tri.a)];
+    const Vec3& b = mesh.positions[static_cast<size_t>(tri.b)];
+    const Vec3& c = mesh.positions[static_cast<size_t>(tri.c)];
+    const Vec3 n = (b - a).Cross(c - a);
+    const Vec3 centroid = (a + b + c) * (1.0f / 3.0f);
+    accum += n.Dot(centroid);
+  }
+  return (accum >= 0.0f) ? 1.0f : -1.0f;
+}
+
+std::vector<Renderer3D::ProjectedVertex> Renderer3D::ClipTriangleAgainstNearPlane(
+    const ProjectedVertex& a,
+    const ProjectedVertex& b,
+    const ProjectedVertex& c,
+    float near_plane) const {
+  auto inside = [near_plane](const ProjectedVertex& v) { return v.view_pos.z >= near_plane; };
+  auto intersect = [near_plane](const ProjectedVertex& s, const ProjectedVertex& e) {
+    ProjectedVertex out;
+    const float dz = e.view_pos.z - s.view_pos.z;
+    const float t = (std::abs(dz) <= 1e-6f)
+                        ? 0.0f
+                        : std::clamp((near_plane - s.view_pos.z) / dz, 0.0f, 1.0f);
+    out.view_pos = s.view_pos + (e.view_pos - s.view_pos) * t;
+    out.view_pos.z = near_plane;
+    out.z = out.view_pos.z;
+    return out;
+  };
+
+  std::vector<ProjectedVertex> input = {a, b, c};
+  std::vector<ProjectedVertex> output;
+  output.reserve(4);
+
+  for (size_t i = 0; i < input.size(); ++i) {
+    const ProjectedVertex& s = input[i];
+    const ProjectedVertex& e = input[(i + 1) % input.size()];
+    const bool s_inside = inside(s);
+    const bool e_inside = inside(e);
+
+    if (s_inside && e_inside) {
+      output.push_back(e);
+    } else if (s_inside && !e_inside) {
+      output.push_back(intersect(s, e));
+    } else if (!s_inside && e_inside) {
+      output.push_back(intersect(s, e));
+      output.push_back(e);
+    }
+  }
+  return output;
+}
+
+bool Renderer3D::IsFrontFacing(const ProjectedVertex& a,
+                               const ProjectedVertex& b,
+                               const ProjectedVertex& c,
+                               float winding_sign) const {
+  const Vec3 n = (b.view_pos - a.view_pos).Cross(c.view_pos - a.view_pos);
+  const Vec3 centroid = (a.view_pos + b.view_pos + c.view_pos) * (1.0f / 3.0f);
+  const float signed_facing = n.Dot(centroid) * winding_sign;
+  return signed_facing < 0.0f;
 }
 
 void Renderer3D::DrawFilledTriangle(Surface32& target,

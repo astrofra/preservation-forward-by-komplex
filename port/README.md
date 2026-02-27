@@ -32,7 +32,8 @@ Initial minimal 3D core now exists under `src/core/`:
 - `Surface32.h/.cpp` (software 32-bit framebuffer with double buffer semantics)
 - `Mesh.h/.cpp` (positions, optional texcoords, triangle indices)
 - `MeshLoaderIgu.h/.cpp` (loader for the `3DSRDR` text `.igu` mesh dumps used by forward)
-- `Camera.h`, `Renderer3D.h/.cpp` (software transform/projection + filled triangle raster + z-buffer + wire overlay)
+- `Camera.h`, `Renderer3D.h/.cpp` (software transform/projection + near-plane clipping + backface culling + filled triangle raster + z-buffer + wire overlay)
+- `Timeline.h/.cpp` (minimal keyframed scene driver feeding object/camera state)
 
 ## Notes
 
@@ -40,4 +41,5 @@ Initial minimal 3D core now exists under `src/core/`:
 - Presentation uses SDL texture upload + nearest filtering.
 - Lowres and nosound mode switches are intentionally omitted.
 - Runtime currently loads `../original/forward/meshes/half8.igu` (fallback to `octa8.igu`) and renders animated filled mesh with z-buffer and wire overlay.
+- Animation now comes from a minimal timeline driver (looped keyframes); this is the scaffold for porting the original demo sequence logic.
 - Audio is still deferred; next milestone is XM pipeline integration.

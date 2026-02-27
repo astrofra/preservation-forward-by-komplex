@@ -18,6 +18,7 @@ struct RenderInstance {
   uint32_t wire_color = 0xFFFFFFFFu;
   bool draw_fill = true;
   bool draw_wire = true;
+  bool enable_backface_culling = true;
 };
 
 class Renderer3D {
@@ -42,6 +43,17 @@ class Renderer3D {
 
   void EnsureDepthBuffer();
   void ClearDepthBuffer();
+  float ComputeMeshWindingSign(const Mesh& mesh) const;
+
+  std::vector<ProjectedVertex> ClipTriangleAgainstNearPlane(const ProjectedVertex& a,
+                                                            const ProjectedVertex& b,
+                                                            const ProjectedVertex& c,
+                                                            float near_plane) const;
+
+  bool IsFrontFacing(const ProjectedVertex& a,
+                     const ProjectedVertex& b,
+                     const ProjectedVertex& c,
+                     float winding_sign) const;
 
   void DrawFilledTriangle(Surface32& target,
                           const ProjectedVertex& a,

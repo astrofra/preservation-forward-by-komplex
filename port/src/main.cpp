@@ -15,6 +15,7 @@
 #include "core/MeshLoaderIgu.h"
 #include "core/Renderer3D.h"
 #include "core/Surface32.h"
+#include "core/Timeline.h"
 #include "core/Vec3.h"
 
 namespace {
@@ -24,6 +25,8 @@ using forward::core::Mesh;
 using forward::core::RenderInstance;
 using forward::core::Renderer3D;
 using forward::core::Surface32;
+using forward::core::TimelineDriver;
+using forward::core::TimelineOutput;
 using forward::core::Vec3;
 
 constexpr int kLogicalWidth = 512;
@@ -124,21 +127,21 @@ void UpdateWindowTitle(SDL_Window* window,
 void DrawFrame(Surface32& surface,
                const DemoState& state,
                const Mesh& mesh,
-               const Camera& camera,
+               Camera& camera,
                Renderer3D& renderer,
-               RenderInstance& instance) {
+               RenderInstance& instance,
+               const TimelineDriver& timeline) {
   surface.ClearBack(PackArgb(2, 3, 8));
 
-  const float t = static_cast<float>(state.timeline_seconds);
-  instance.rotation_radians.Set(t * 0.63f, t * 0.57f, t * 0.29f);
-  instance.fill_color = PackArgb(
-      static_cast<uint8_t>(90 + 90 * std::sin(t * 0.45f + 0.8f)),
-      static_cast<uint8_t>(120 + 80 * std::sin(t * 0.66f + 1.5f)),
-      static_cast<uint8_t>(180 + 70 * std::sin(t * 0.90f + 2.0f)));
-  instance.wire_color = PackArgb(
-      static_cast<uint8_t>(170 + 50 * std::sin(t * 0.7f)),
-      static_cast<uint8_t>(180 + 45 * std::sin(t * 1.1f + 1.3f)),
-      static_cast<uint8_t>(220 + 30 * std::sin(t * 1.7f + 2.1f)));
+  TimelineOutput timeline_output;
+  timeline.Evaluate(state.timeline_seconds, timeline_output);
+  instance.rotation_radians = timeline_output.rotation_radians;
+  instance.translation = timeline_output.translation;
+  instance.fill_color = timeline_output.fill_color;
+  instance.wire_color = timeline_output.wire_color;
+  instance.draw_fill = timeline_output.draw_fill;
+  instance.draw_wire = timeline_output.draw_wire;
+  camera.fov_degrees = timeline_output.camera_fov_degrees;
 
   renderer.DrawMesh(surface, mesh, camera, instance);
   surface.SwapBuffers();
@@ -175,9 +178,12 @@ int main() {
   RenderInstance instance;
   const float radius = mesh.BoundingRadius();
   instance.uniform_scale = (radius > 0.001f) ? (1.0f / radius) : 1.0f;
-  instance.translation = Vec3(0.0f, 0.0f, 2.4f);
+  instance.translation = Vec3(0.0f, 0.0f, 2.6f);
   instance.draw_fill = true;
   instance.draw_wire = true;
+  instance.enable_backface_culling = true;
+
+  TimelineDriver timeline;
 
   SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
 
@@ -278,7 +284,7 @@ int main() {
     }
     stats.simulated_ticks += static_cast<uint64_t>(ticks_this_frame);
 
-    DrawFrame(surface, state, mesh, camera, renderer_3d, instance);
+    DrawFrame(surface, state, mesh, camera, renderer_3d, instance, timeline);
 
     if (SDL_UpdateTexture(texture,
                           nullptr,

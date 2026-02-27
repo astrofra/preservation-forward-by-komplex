@@ -18,6 +18,7 @@ add_executable(forward_native
   src/core/MeshLoaderIgu.cpp
   src/core/Renderer3D.cpp
   src/core/Surface32.cpp
+  src/core/Timeline.cpp
 )
 
 target_include_directories(forward_native PRIVATE src)
