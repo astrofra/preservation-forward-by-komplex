@@ -103,16 +103,30 @@ void Renderer3D::DrawMesh(Surface32& target,
   std::vector<ProjectedVertex> transformed(mesh.positions.size());
   for (size_t i = 0; i < mesh.positions.size(); ++i) {
     Vec3 v = mesh.positions[i] * instance.uniform_scale;
-    v = RotateXYZ(v, instance.rotation_radians);
+    if (instance.use_basis_rotation) {
+      v = instance.basis_x * v.x + instance.basis_y * v.y + instance.basis_z * v.z;
+    } else {
+      v = RotateXYZ(v, instance.rotation_radians);
+    }
     v = v + instance.translation;
-    v = v - camera.position;
-    transformed[i].view_pos = v;
-    transformed[i].z = v.z;
+    const Vec3 rel = v - camera.position;
+    const Vec3 view(rel.Dot(camera.right), rel.Dot(camera.up), rel.Dot(camera.forward));
+    transformed[i].view_pos = view;
+    transformed[i].z = view.z;
 
     Vec3 normal = (mesh.normals.size() == mesh.positions.size()) ? mesh.normals[i]
                                                                   : mesh.positions[i].Normalized();
-    normal = RotateXYZ(normal, instance.rotation_radians).Normalized();
-    transformed[i].view_normal = normal;
+    if (instance.use_basis_rotation) {
+      normal =
+          (instance.basis_x * normal.x + instance.basis_y * normal.y + instance.basis_z * normal.z)
+              .Normalized();
+    } else {
+      normal = RotateXYZ(normal, instance.rotation_radians).Normalized();
+    }
+    transformed[i].view_normal = Vec3(normal.Dot(camera.right),
+                                      normal.Dot(camera.up),
+                                      normal.Dot(camera.forward))
+                                     .Normalized();
 
     if (instance.texture) {
       if (instance.use_mesh_uv && mesh.texcoords.size() == mesh.positions.size()) {

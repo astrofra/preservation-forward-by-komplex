@@ -14,6 +14,9 @@ struct Image32;
 
 struct RenderInstance {
   Vec3 rotation_radians{0.0f, 0.0f, 0.0f};
+  Vec3 basis_x{1.0f, 0.0f, 0.0f};
+  Vec3 basis_y{0.0f, 1.0f, 0.0f};
+  Vec3 basis_z{0.0f, 0.0f, 1.0f};
   Vec3 translation{0.0f, 0.0f, 0.0f};
   float uniform_scale = 1.0f;
   uint32_t fill_color = 0xFFB0D0FFu;
@@ -24,6 +27,7 @@ struct RenderInstance {
   bool draw_fill = true;
   bool draw_wire = true;
   bool enable_backface_culling = true;
+  bool use_basis_rotation = false;
 };
 
 class Renderer3D {

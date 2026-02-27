@@ -58,6 +58,8 @@ class Surface32 {
   void SwapBuffers();
 
   const uint32_t* FrontPixels() const { return front_.data(); }
+  const uint32_t* BackPixels() const { return back_.data(); }
+  uint32_t* BackPixelsMutable() { return back_.data(); }
 
  private:
   int width_ = 0;
