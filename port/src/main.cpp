@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstdint>
 #include <filesystem>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -42,12 +43,19 @@ struct RuntimeStats {
   uint64_t simulated_ticks = 0;
 };
 
+enum class SceneMode {
+  kMute95,
+  kFeta,
+};
+
 struct DemoState {
   double timeline_seconds = 0.0;
+  double scene_start_seconds = 0.0;
   bool paused = false;
   bool fullscreen = false;
   bool show_post = false;
   float feta_fov_degrees = 84.0f;  // horizontal FOV
+  SceneMode scene_mode = SceneMode::kFeta;
   std::string scene_label;
   std::string mesh_label;
   std::string post_label;
@@ -88,6 +96,36 @@ struct MmaamkaParticlePass {
   uint32_t rng_state = 0x1998u;
   bool initialized = false;
   bool enabled = false;
+};
+
+struct Mute95CreditPair {
+  Image32 first;
+  Image32 second;
+};
+
+struct Mute95SceneAssets {
+  std::array<Mute95CreditPair, 5> credits;
+  std::array<uint32_t, 256> palette{};
+  bool enabled = false;
+};
+
+struct Mute95Runtime {
+  int cell_w = 8;
+  int cell_h = 8;
+  int cols = 0;
+  int rows = 0;
+  std::vector<float> flow_x;
+  std::vector<float> flow_y;
+  std::vector<uint8_t> buffer_a;
+  std::vector<uint8_t> buffer_b;
+  bool current_is_a = true;
+  int frame_counter = 0;
+  int active_credit = -1;
+  int cue_step = -1;
+  double credit_start_seconds = -1.0;
+  double prev_scene_seconds = 0.0;
+  uint64_t java_random_state = 0u;
+  bool initialized = false;
 };
 
 uint32_t PackArgb(uint8_t r, uint8_t g, uint8_t b) {
@@ -186,6 +224,17 @@ std::string ResolveFirstExistingForwardPath(const std::array<std::string, N>& re
     }
   }
   return {};
+}
+
+bool LoadForwardImage(const std::string& relative_path, Image32* out_image, std::string* out_error) {
+  const std::string path = ResolveForwardAssetPath(relative_path);
+  if (path.empty()) {
+    if (out_error) {
+      *out_error = "asset not found: " + relative_path;
+    }
+    return false;
+  }
+  return forward::core::LoadImage32(path, *out_image, out_error);
 }
 
 void UpdateWindowTitle(SDL_Window* window,
@@ -321,6 +370,269 @@ float RandomRange(uint32_t* state, float min_value, float max_value) {
   const uint32_t r = NextRandomU32(state);
   const float unit = static_cast<float>(r & 0x00FFFFFFu) / static_cast<float>(0x01000000u);
   return min_value + (max_value - min_value) * unit;
+}
+
+void InitJavaRandomState(Mute95Runtime& runtime, uint64_t seed) {
+  constexpr uint64_t kMask = (1ull << 48ull) - 1ull;
+  runtime.java_random_state = (seed ^ 0x5DEECE66Dull) & kMask;
+}
+
+uint32_t JavaRandomNextBits(Mute95Runtime& runtime, int bits) {
+  constexpr uint64_t kMask = (1ull << 48ull) - 1ull;
+  runtime.java_random_state =
+      (runtime.java_random_state * 0x5DEECE66Dull + 0xBull) & kMask;
+  return static_cast<uint32_t>(runtime.java_random_state >> (48 - bits));
+}
+
+float JavaRandomNextFloat(Mute95Runtime& runtime) {
+  return static_cast<float>(JavaRandomNextBits(runtime, 24)) /
+         static_cast<float>(1u << 24u);
+}
+
+std::vector<uint8_t>& Mute95CurrentBuffer(Mute95Runtime& runtime) {
+  return runtime.current_is_a ? runtime.buffer_a : runtime.buffer_b;
+}
+
+const std::vector<uint8_t>& Mute95PrevBuffer(const Mute95Runtime& runtime) {
+  return runtime.current_is_a ? runtime.buffer_b : runtime.buffer_a;
+}
+
+void Mute95SwapBuffers(Mute95Runtime& runtime) {
+  runtime.current_is_a = !runtime.current_is_a;
+}
+
+bool LoadGifGlobalPalette(const std::string& path, std::array<uint32_t, 256>* out_palette) {
+  std::ifstream input(path, std::ios::binary);
+  if (!input.is_open()) {
+    return false;
+  }
+
+  uint8_t header[13] = {};
+  input.read(reinterpret_cast<char*>(header), sizeof(header));
+  if (input.gcount() != static_cast<std::streamsize>(sizeof(header))) {
+    return false;
+  }
+  if (!(header[0] == 'G' && header[1] == 'I' && header[2] == 'F')) {
+    return false;
+  }
+
+  const bool has_global_table = (header[10] & 0x80u) != 0u;
+  if (!has_global_table) {
+    return false;
+  }
+  const int global_size = 1 << ((header[10] & 0x07u) + 1);
+  if (global_size <= 0 || global_size > 256) {
+    return false;
+  }
+
+  std::array<uint8_t, 256 * 3> raw{};
+  const size_t bytes = static_cast<size_t>(global_size) * 3u;
+  input.read(reinterpret_cast<char*>(raw.data()), static_cast<std::streamsize>(bytes));
+  if (input.gcount() != static_cast<std::streamsize>(bytes)) {
+    return false;
+  }
+
+  for (int i = 0; i < 256; ++i) {
+    const size_t base = static_cast<size_t>(std::min(i, global_size - 1)) * 3u;
+    (*out_palette)[static_cast<size_t>(i)] = PackArgb(raw[base + 0], raw[base + 1], raw[base + 2]);
+  }
+  return true;
+}
+
+void InitializeMute95Runtime(Mute95Runtime& runtime) {
+  runtime.cols = kLogicalWidth / runtime.cell_w;
+  runtime.rows = kLogicalHeight / runtime.cell_h;
+  const size_t cell_count =
+      static_cast<size_t>(runtime.cols) * static_cast<size_t>(runtime.rows);
+  runtime.flow_x.assign(cell_count, 0.0f);
+  runtime.flow_y.assign(cell_count, 0.0f);
+
+  const size_t pixel_count =
+      static_cast<size_t>(kLogicalWidth) * static_cast<size_t>(kLogicalHeight);
+  runtime.buffer_a.assign(pixel_count, 0u);
+  runtime.buffer_b.assign(pixel_count, 0u);
+  runtime.current_is_a = true;
+  for (size_t i = 0; i < pixel_count; ++i) {
+    Mute95CurrentBuffer(runtime)[i] = static_cast<uint8_t>(i & 0xFFu);
+  }
+  InitJavaRandomState(runtime, 999ull);
+
+  runtime.frame_counter = 0;
+  runtime.active_credit = -1;
+  runtime.cue_step = -1;
+  runtime.credit_start_seconds = -1.0;
+  runtime.prev_scene_seconds = 0.0;
+  runtime.initialized = true;
+}
+
+void DrawMute95Credits(Surface32& surface,
+                       const Mute95SceneAssets& assets,
+                       Mute95Runtime& runtime,
+                       double scene_seconds) {
+  if (runtime.active_credit < 0 || runtime.active_credit >= static_cast<int>(assets.credits.size()) ||
+      runtime.credit_start_seconds < 0.0) {
+    return;
+  }
+
+  const double dt = scene_seconds - runtime.credit_start_seconds;
+  if (dt < 0.0 || dt > 9.0) {
+    return;
+  }
+
+  float alpha_first = 0.0f;
+  float alpha_second = 0.0f;
+  if (dt < 1.5) {
+    alpha_first = static_cast<float>(dt / 1.5);
+  } else if (dt < 4.0) {
+    alpha_first = 1.0f;
+    alpha_second = static_cast<float>((dt - 1.5) / (4.0 - 1.5));
+  } else if (dt < 6.0) {
+    alpha_first = 1.0f - static_cast<float>((dt - 4.0) / (6.0 - 4.0));
+    alpha_second = 1.0f;
+  } else {
+    alpha_second = 1.0f - static_cast<float>((dt - 6.0) / (9.0 - 6.0));
+  }
+
+  const Mute95CreditPair& pair = assets.credits[static_cast<size_t>(runtime.active_credit)];
+  const int dst_x = (kLogicalWidth - 256) / 2;
+  const int dst_y = (kLogicalHeight - 50) / 2;
+  const int src_x = 8;
+  const int src_y = 40;
+  const int copy_w = 256;
+  const int copy_h = 50;
+
+  if (!pair.first.Empty() && alpha_first > 0.0f) {
+    surface.AdditiveBlitToBack(
+        pair.first.pixels.data(),
+        pair.first.width,
+        pair.first.height,
+        src_x,
+        src_y,
+        dst_x,
+        dst_y,
+        copy_w,
+        copy_h,
+        static_cast<uint8_t>(std::clamp(alpha_first * 255.0f, 0.0f, 255.0f)));
+  }
+  if (!pair.second.Empty() && alpha_second > 0.0f) {
+    surface.AdditiveBlitToBack(
+        pair.second.pixels.data(),
+        pair.second.width,
+        pair.second.height,
+        src_x,
+        src_y,
+        dst_x,
+        dst_y,
+        copy_w,
+        copy_h,
+        static_cast<uint8_t>(std::clamp(alpha_second * 255.0f, 0.0f, 255.0f)));
+  }
+}
+
+void DrawMute95Frame(Surface32& surface,
+                     const DemoState& state,
+                     const Mute95SceneAssets& assets,
+                     Mute95Runtime& runtime) {
+  if (!assets.enabled) {
+    surface.ClearBack(PackArgb(0, 0, 0));
+    surface.SwapBuffers();
+    return;
+  }
+  if (!runtime.initialized) {
+    InitializeMute95Runtime(runtime);
+  }
+
+  const double scene_seconds = std::max(0.0, state.timeline_seconds - state.scene_start_seconds);
+
+  static constexpr std::array<double, 5> kCueSeconds = {3.0, 5.0, 7.0, 9.0, 11.0};
+  if (runtime.cue_step + 1 < static_cast<int>(kCueSeconds.size())) {
+    const int next_cue = runtime.cue_step + 1;
+    if (scene_seconds >= kCueSeconds[static_cast<size_t>(next_cue)]) {
+      runtime.cue_step = next_cue;
+      runtime.active_credit = next_cue;
+      runtime.credit_start_seconds = scene_seconds;
+    }
+  }
+
+  float dt = static_cast<float>(scene_seconds - runtime.prev_scene_seconds);
+  runtime.prev_scene_seconds = scene_seconds;
+  if (dt <= 0.0f || dt > 0.2f) {
+    dt = 1.0f / static_cast<float>(kTickHz);
+  }
+  const float strength = std::max(0.05f, dt * 10.0f);
+
+  const int cx = runtime.cols / 2;
+  const int cy = runtime.rows / 2;
+  const float phase_x = static_cast<float>(runtime.frame_counter % 4) * 0.2f;
+  const float phase_y = static_cast<float>(runtime.frame_counter % 5) * 0.2f;
+
+  std::vector<uint8_t>& current = Mute95CurrentBuffer(runtime);
+  const std::vector<uint8_t>& previous = Mute95PrevBuffer(runtime);
+
+  for (int gy = 0; gy < runtime.rows; ++gy) {
+    for (int gx = 0; gx < runtime.cols; ++gx) {
+      const size_t cell = static_cast<size_t>(gy) * static_cast<size_t>(runtime.cols) +
+                          static_cast<size_t>(gx);
+      const float prev_fx = runtime.flow_x[cell];
+      const float prev_fy = runtime.flow_y[cell];
+      runtime.flow_x[cell] += (static_cast<float>(gx - cx) * strength + phase_x);
+      runtime.flow_y[cell] += (static_cast<float>(gy - cy) * strength + phase_y);
+
+      const int shift_x = static_cast<int>(runtime.flow_x[cell]) - static_cast<int>(prev_fx);
+      const int shift_y = static_cast<int>(runtime.flow_y[cell]) - static_cast<int>(prev_fy);
+
+      const int dst_x0 = gx * runtime.cell_w;
+      const int dst_y0 = gy * runtime.cell_h;
+      const int src_x0 = dst_x0 - shift_x;
+      const int src_y0 = dst_y0 - shift_y;
+      if (src_x0 < 0 || src_y0 < 0 || src_x0 + runtime.cell_w > kLogicalWidth ||
+          src_y0 + runtime.cell_h > kLogicalHeight) {
+        continue;
+      }
+
+      for (int y = 0; y < runtime.cell_h; ++y) {
+        const size_t src_row =
+            static_cast<size_t>(src_y0 + y) * static_cast<size_t>(kLogicalWidth) +
+            static_cast<size_t>(src_x0);
+        const size_t dst_row =
+            static_cast<size_t>(dst_y0 + y) * static_cast<size_t>(kLogicalWidth) +
+            static_cast<size_t>(dst_x0);
+        for (int x = 0; x < runtime.cell_w; ++x) {
+          current[dst_row + static_cast<size_t>(x)] =
+              previous[src_row + static_cast<size_t>(x)];
+        }
+      }
+    }
+  }
+
+  const int sparkle_cap = std::min(static_cast<int>(scene_seconds * 1.8 + 22.0), 255);
+  for (int i = 0; i < 220; ++i) {
+    const size_t idx = static_cast<size_t>(
+        JavaRandomNextFloat(runtime) * static_cast<float>(current.size() - 1u));
+    const int boosted = std::min(sparkle_cap, static_cast<int>(current[idx]) + 45);
+    current[idx] = static_cast<uint8_t>(boosted);
+  }
+
+  for (size_t i = 0; i < current.size(); ++i) {
+    current[i] = static_cast<uint8_t>((static_cast<int>(current[i]) +
+                                       static_cast<int>(previous[i])) >>
+                                      1);
+  }
+
+  Mute95SwapBuffers(runtime);
+  ++runtime.frame_counter;
+
+  const std::vector<uint8_t>& display = Mute95CurrentBuffer(runtime);
+  for (int y = 0; y < kLogicalHeight; ++y) {
+    for (int x = 0; x < kLogicalWidth; ++x) {
+      const uint8_t idx = display[static_cast<size_t>(y) * static_cast<size_t>(kLogicalWidth) +
+                                  static_cast<size_t>(x)];
+      surface.SetBackPixel(x, y, assets.palette[idx]);
+    }
+  }
+
+  DrawMute95Credits(surface, assets, runtime, scene_seconds);
+  surface.SwapBuffers();
 }
 
 void EmitOneParticle(MmaamkaParticlePass& pass, const Vec3& emitter_world, float angle) {
@@ -479,17 +791,17 @@ void DrawMmaamkaParticles(Surface32& surface,
   }
 }
 
-void DrawFrame(Surface32& surface,
-               const DemoState& state,
-               const Mesh& mesh,
-               const KaaakmaBackgroundPass& background,
-               MmaamkaParticlePass& particles,
-               Camera& camera,
-               Renderer3D& renderer,
-               RenderInstance& mesh_instance,
-               RenderInstance& background_instance,
-               const FetaSceneAssets& feta,
-               const QuickWinPostLayer& post) {
+void DrawFetaFrame(Surface32& surface,
+                   const DemoState& state,
+                   const Mesh& mesh,
+                   const KaaakmaBackgroundPass& background,
+                   MmaamkaParticlePass& particles,
+                   Camera& camera,
+                   Renderer3D& renderer,
+                   RenderInstance& mesh_instance,
+                   RenderInstance& background_instance,
+                   const FetaSceneAssets& feta,
+                   const QuickWinPostLayer& post) {
   surface.ClearBack(PackArgb(2, 3, 8));
 
   const float t = static_cast<float>(state.timeline_seconds);
@@ -511,9 +823,39 @@ void DrawFrame(Surface32& surface,
   surface.SwapBuffers();
 }
 
+void DrawFrame(Surface32& surface,
+               const DemoState& state,
+               const Mute95SceneAssets& mute95_assets,
+               Mute95Runtime& mute95_runtime,
+               const Mesh& mesh,
+               const KaaakmaBackgroundPass& background,
+               MmaamkaParticlePass& particles,
+               Camera& camera,
+               Renderer3D& renderer,
+               RenderInstance& mesh_instance,
+               RenderInstance& background_instance,
+               const FetaSceneAssets& feta,
+               const QuickWinPostLayer& post) {
+  if (state.scene_mode == SceneMode::kMute95) {
+    DrawMute95Frame(surface, state, mute95_assets, mute95_runtime);
+    return;
+  }
+  DrawFetaFrame(surface,
+                state,
+                mesh,
+                background,
+                particles,
+                camera,
+                renderer,
+                mesh_instance,
+                background_instance,
+                feta,
+                post);
+}
+
 }  // namespace
 
-int main() {
+int main(int argc, char** argv) {
   if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_EVENTS) != 0) {
     std::cerr << "SDL_Init failed: " << SDL_GetError() << "\n";
     return 1;
@@ -550,8 +892,43 @@ int main() {
   RenderInstance background_instance;
 
   FetaSceneAssets feta;
+  Mute95SceneAssets mute95;
+  Mute95Runtime mute95_runtime;
   MmaamkaParticlePass particles;
   KaaakmaBackgroundPass background;
+  {
+    std::string image_error;
+    const std::array<std::pair<std::string, std::string>, 5> credit_files = {
+        std::pair<std::string, std::string>{"images/kosmos/sav1.jpg", "images/kosmos/sav2.jpg"},
+        std::pair<std::string, std::string>{"images/kosmos/jmag1.jpg", "images/kosmos/jmag2.jpg"},
+        std::pair<std::string, std::string>{"images/kosmos/jugi1.jpg", "images/kosmos/jugi2.jpg"},
+        std::pair<std::string, std::string>{"images/kosmos/anis1.jpg", "images/kosmos/anis2.jpg"},
+        std::pair<std::string, std::string>{"images/kosmos/car1.jpg", "images/kosmos/car2.jpg"},
+    };
+
+    bool all_credits_loaded = true;
+    for (size_t i = 0; i < credit_files.size(); ++i) {
+      const auto& pair = credit_files[i];
+      bool ok = LoadForwardImage(pair.first, &mute95.credits[i].first, &image_error);
+      if (!ok) {
+        std::cerr << "mute95 credit load failed: " << image_error << "\n";
+        all_credits_loaded = false;
+      }
+      ok = LoadForwardImage(pair.second, &mute95.credits[i].second, &image_error);
+      if (!ok) {
+        std::cerr << "mute95 credit load failed: " << image_error << "\n";
+        all_credits_loaded = false;
+      }
+    }
+
+    const std::string palette_path = ResolveForwardAssetPath("images/kosmos/krad3.gif");
+    const bool has_palette = !palette_path.empty() && LoadGifGlobalPalette(palette_path, &mute95.palette);
+    if (!has_palette) {
+      std::cerr << "mute95 palette load failed: unable to parse GIF global palette\n";
+    }
+    mute95.enabled = all_credits_loaded && has_palette;
+  }
+
   if (std::filesystem::path(mesh_path).filename().string() == "fetus.igu") {
     std::string image_error;
     const std::string babyenv_path = ResolveForwardAssetPath("images/babyenv.jpg");
@@ -663,15 +1040,35 @@ int main() {
   Renderer3D renderer_3d(kLogicalWidth, kLogicalHeight);
 
   DemoState state;
-  if (feta.enabled && background.enabled && particles.enabled) {
+  if (mute95.enabled) {
+    state.scene_mode = SceneMode::kMute95;
+    state.scene_label = "mute95";
+  } else if (feta.enabled && background.enabled && particles.enabled) {
+    state.scene_mode = SceneMode::kFeta;
     state.scene_label = "feta+kaaakma+mmaamka";
   } else if (feta.enabled) {
+    state.scene_mode = SceneMode::kFeta;
     state.scene_label = "feta";
   } else {
+    state.scene_mode = SceneMode::kFeta;
     state.scene_label = "fallback";
   }
   state.mesh_label = std::filesystem::path(mesh_path).filename().string();
   state.post_label = state.show_post && post.enabled ? "phorward" : "off";
+
+  for (int i = 1; i < argc; ++i) {
+    const std::string arg = argv[i];
+    if (arg == "--scene=mute95" || arg == "--mute95") {
+      if (mute95.enabled) {
+        state.scene_mode = SceneMode::kMute95;
+        state.scene_label = "mute95";
+      }
+    } else if (arg == "--scene=feta" || arg == "--feta") {
+      state.scene_mode = SceneMode::kFeta;
+      state.scene_label = feta.enabled ? "feta+kaaakma+mmaamka" : "feta-fallback";
+    }
+  }
+
   RuntimeStats stats;
 
   uint64_t perf_prev = SDL_GetPerformanceCounter();
@@ -712,6 +1109,20 @@ int main() {
           case SDLK_EQUALS:
             state.feta_fov_degrees = std::clamp(state.feta_fov_degrees + 1.0f, 40.0f, 120.0f);
             break;
+          case SDLK_1:
+            if (mute95.enabled) {
+              state.scene_mode = SceneMode::kMute95;
+              state.scene_label = "mute95";
+              state.scene_start_seconds = state.timeline_seconds;
+              mute95_runtime.initialized = false;
+            }
+            break;
+          case SDLK_2:
+            state.scene_mode = SceneMode::kFeta;
+            state.scene_label = feta.enabled ? "feta+kaaakma+mmaamka" : "feta-fallback";
+            state.scene_start_seconds = state.timeline_seconds;
+            particles.initialized = false;
+            break;
           default:
             break;
         }
@@ -738,6 +1149,8 @@ int main() {
 
     DrawFrame(surface,
               state,
+              mute95,
+              mute95_runtime,
               mesh,
               background,
               particles,
