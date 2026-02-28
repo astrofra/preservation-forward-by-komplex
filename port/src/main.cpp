@@ -91,6 +91,16 @@ struct DemoState {
   std::string post_label;
 };
 
+struct WatercubeValidationHarness {
+  bool enabled = false;
+  bool has_reference_dir = false;
+  std::filesystem::path output_dir;
+  std::filesystem::path reference_dir;
+  std::vector<int> checkpoints = {0x1004, 0x1100, 0x1200, 0x1210, 0x1220, 0x1230};
+  std::unordered_set<int> captured_rows;
+  int last_order_row = -1;
+};
+
 struct MusicState {
   bool enabled = false;
   bool has_mod1 = false;
@@ -2229,6 +2239,153 @@ bool RowCrossed(int previous_row, int current_row, int target_row) {
   return target_row > previous_row || target_row <= current_row;
 }
 
+std::string FormatOrderRowHex(int order_row) {
+  std::ostringstream ss;
+  ss << std::hex << std::setfill('0') << std::setw(4) << (order_row & 0xFFFF) << std::dec;
+  return ss.str();
+}
+
+bool WritePpmImage(const std::filesystem::path& output_path,
+                   const uint32_t* pixels,
+                   int width,
+                   int height) {
+  if (!pixels || width <= 0 || height <= 0) {
+    return false;
+  }
+  std::ofstream out(output_path, std::ios::binary);
+  if (!out.is_open()) {
+    return false;
+  }
+  out << "P6\n" << width << " " << height << "\n255\n";
+  for (int y = 0; y < height; ++y) {
+    for (int x = 0; x < width; ++x) {
+      const uint32_t c =
+          pixels[static_cast<size_t>(y) * static_cast<size_t>(width) + static_cast<size_t>(x)];
+      const char rgb[3] = {
+          static_cast<char>((c >> 16u) & 0xFFu),
+          static_cast<char>((c >> 8u) & 0xFFu),
+          static_cast<char>(c & 0xFFu),
+      };
+      out.write(rgb, 3);
+    }
+  }
+  return out.good();
+}
+
+bool TryLoadWatercubeReferenceFrame(const std::filesystem::path& ref_dir, int order_row, Image32* out) {
+  if (!out) {
+    return false;
+  }
+  const std::string id = FormatOrderRowHex(order_row);
+  const std::array<std::string, 4> stems = {"watercube_" + id, id, "0x" + id, "m2_" + id};
+  const std::array<std::string, 6> exts = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".ppm"};
+  std::string error;
+  for (const std::string& stem : stems) {
+    for (const std::string& ext : exts) {
+      const std::filesystem::path candidate = ref_dir / (stem + ext);
+      if (!std::filesystem::exists(candidate)) {
+        continue;
+      }
+      if (forward::core::LoadImage32(candidate.string(), *out, &error) && !out->Empty()) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+void CaptureWatercubeCheckpointFrame(const WatercubeValidationHarness& harness,
+                                     int order_row,
+                                     const XmTiming& timing,
+                                     const Surface32& surface,
+                                     const WatercubeRuntime& runtime) {
+  const std::string id = FormatOrderRowHex(order_row);
+  const std::filesystem::path native_path = harness.output_dir / ("watercube_" + id + "_native.ppm");
+  WritePpmImage(native_path, surface.FrontPixels(), kLogicalWidth, kLogicalHeight);
+
+  const std::filesystem::path metrics_path = harness.output_dir / ("watercube_" + id + "_metrics.txt");
+  std::ofstream metrics(metrics_path);
+  if (metrics.is_open()) {
+    metrics << "module_slot=" << timing.module_slot << "\n";
+    metrics << "order=0x" << std::hex << std::setw(2) << std::setfill('0') << (timing.order & 0xFF)
+            << std::dec << "\n";
+    metrics << "row=0x" << std::hex << std::setw(2) << std::setfill('0') << (timing.row & 0xFF)
+            << std::dec << "\n";
+    metrics << "order_row=0x" << id << "\n";
+    metrics << "clock_ms=" << timing.clock_time_ms << "\n";
+    metrics << "roll_impulse=" << runtime.roll_impulse << "\n";
+    metrics << "flash_amount=" << runtime.flash_amount << "\n";
+    metrics << "shock_amount=" << runtime.shock_amount << "\n";
+    metrics << "tex_strip_offset=" << runtime.tex_strip_offset << "\n";
+  }
+
+  if (harness.has_reference_dir) {
+    Image32 ref;
+    if (TryLoadWatercubeReferenceFrame(harness.reference_dir, order_row, &ref) && !ref.Empty()) {
+      const int out_w = ref.width + kLogicalWidth;
+      const int out_h = std::max(ref.height, kLogicalHeight);
+      std::vector<uint32_t> sidebyside(static_cast<size_t>(out_w) * static_cast<size_t>(out_h),
+                                       PackArgb(0, 0, 0));
+      for (int y = 0; y < ref.height; ++y) {
+        for (int x = 0; x < ref.width; ++x) {
+          sidebyside[static_cast<size_t>(y) * static_cast<size_t>(out_w) + static_cast<size_t>(x)] =
+              ref.pixels[static_cast<size_t>(y) * static_cast<size_t>(ref.width) +
+                         static_cast<size_t>(x)];
+        }
+      }
+      const uint32_t* native = surface.FrontPixels();
+      for (int y = 0; y < kLogicalHeight; ++y) {
+        for (int x = 0; x < kLogicalWidth; ++x) {
+          sidebyside[static_cast<size_t>(y) * static_cast<size_t>(out_w) +
+                     static_cast<size_t>(x + ref.width)] =
+              native[static_cast<size_t>(y) * static_cast<size_t>(kLogicalWidth) +
+                     static_cast<size_t>(x)];
+        }
+      }
+      const std::filesystem::path compare_path =
+          harness.output_dir / ("watercube_" + id + "_compare.ppm");
+      WritePpmImage(compare_path, sidebyside.data(), out_w, out_h);
+    }
+  }
+}
+
+void MaybeCaptureWatercubeCheckpoint(WatercubeValidationHarness* harness,
+                                     const DemoState& state,
+                                     const XmTiming& timing,
+                                     const Surface32& surface,
+                                     const WatercubeRuntime& runtime) {
+  if (!harness || !harness->enabled) {
+    return;
+  }
+  if (!timing.valid || timing.module_slot != 2) {
+    return;
+  }
+  if (state.scene_mode != SceneMode::kMute95DominaSequence ||
+      state.sequence_stage != SequenceStage::kWatercube) {
+    return;
+  }
+
+  const int order_row = PackOrderRow(timing.order, timing.row);
+  if (harness->last_order_row < 0) {
+    harness->last_order_row = order_row;
+  }
+
+  for (int checkpoint : harness->checkpoints) {
+    if (harness->captured_rows.find(checkpoint) != harness->captured_rows.end()) {
+      continue;
+    }
+    const bool reached =
+        (order_row == checkpoint) || RowCrossed(harness->last_order_row, order_row, checkpoint);
+    if (!reached) {
+      continue;
+    }
+    CaptureWatercubeCheckpointFrame(*harness, checkpoint, timing, surface, runtime);
+    harness->captured_rows.insert(checkpoint);
+    std::cerr << "watercube checkpoint captured: 0x" << FormatOrderRowHex(checkpoint) << "\n";
+  }
+  harness->last_order_row = order_row;
+}
+
 void InitializeKukotRuntime(KukotRuntime& runtime) {
   runtime.flash_intensity = 0.0f;
   runtime.flash_decay = 0.0f;
@@ -3814,14 +3971,42 @@ int main(int argc, char** argv) {
 
   bool disable_audio = false;
   bool verbose_audio = false;
+  WatercubeValidationHarness watercube_harness;
   for (int i = 1; i < argc; ++i) {
     const std::string arg = argv[i];
     if (arg == "--nosound" || arg == "nosound") {
       disable_audio = true;
     } else if (arg == "--verbose-audio") {
       verbose_audio = true;
+    } else if (arg == "--watercube-capture") {
+      watercube_harness.enabled = true;
+      watercube_harness.output_dir =
+          std::filesystem::path("documentation") / "watercube-checkpoints";
+    } else if (arg.rfind("--watercube-capture-dir=", 0) == 0) {
+      watercube_harness.enabled = true;
+      watercube_harness.output_dir = arg.substr(std::string("--watercube-capture-dir=").size());
+    } else if (arg.rfind("--watercube-reference-dir=", 0) == 0) {
+      watercube_harness.reference_dir =
+          std::filesystem::path(arg.substr(std::string("--watercube-reference-dir=").size()));
+      watercube_harness.has_reference_dir = true;
     }
   }
+  if (watercube_harness.enabled && watercube_harness.output_dir.empty()) {
+    watercube_harness.output_dir = std::filesystem::path("documentation") / "watercube-checkpoints";
+  }
+  if (watercube_harness.enabled) {
+    std::error_code ec;
+    std::filesystem::create_directories(watercube_harness.output_dir, ec);
+    if (ec) {
+      std::cerr << "watercube capture disabled: cannot create output dir "
+                << watercube_harness.output_dir.string() << "\n";
+      watercube_harness.enabled = false;
+    } else {
+      std::cerr << "watercube capture enabled: " << watercube_harness.output_dir.string() << "\n";
+    }
+  }
+  watercube_harness.captured_rows.clear();
+  watercube_harness.last_order_row = -1;
   if (disable_audio && verbose_audio) {
     std::cerr << "audio disabled by command line (--nosound)\n";
   }
@@ -4362,6 +4547,8 @@ int main(int argc, char** argv) {
                                                                  : "mute95->domina->saari->kukot"))
                                           : "mute95->domina";
         sequence_script_start_seconds = state.timeline_seconds;
+        watercube_harness.captured_rows.clear();
+        watercube_harness.last_order_row = -1;
       }
     } else if (arg == "--scene=feta" || arg == "--feta") {
       state.scene_mode = SceneMode::kFeta;
@@ -4474,6 +4661,8 @@ int main(int argc, char** argv) {
               kukot_runtime.initialized = false;
               maku_runtime.initialized = false;
               watercube_runtime.initialized = false;
+              watercube_harness.captured_rows.clear();
+              watercube_harness.last_order_row = -1;
               restart_sequence_audio();
             }
             break;
@@ -4585,6 +4774,20 @@ int main(int argc, char** argv) {
           watercube_runtime.initialized = false;
         }
       }
+
+      // Original script switches from watercube to feta at module 2 row 0x1300.
+      const bool should_switch_to_feta =
+          feta.enabled &&
+          ((xm_timing.valid && xm_timing.module_slot == 2 &&
+            PackOrderRow(xm_timing.order, xm_timing.row) >= kMod2ToFetaRow) ||
+           (!music.enabled &&
+            std::max(0.0, state.timeline_seconds - sequence_script_start_seconds) >= 66.0));
+      if (should_switch_to_feta) {
+        state.scene_mode = SceneMode::kFeta;
+        state.scene_label = "feta+kaaakma+mmaamka [script]";
+        state.scene_start_seconds = state.timeline_seconds;
+        particles.initialized = false;
+      }
     }
 
     DrawFrame(surface,
@@ -4616,6 +4819,9 @@ int main(int argc, char** argv) {
               halo_surface,
               feta,
               post);
+
+    MaybeCaptureWatercubeCheckpoint(
+        &watercube_harness, state, xm_timing, surface, watercube_runtime);
 
     if (SDL_UpdateTexture(texture,
                           nullptr,
