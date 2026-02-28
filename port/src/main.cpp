@@ -111,6 +111,16 @@ struct WatercubeValidationHarness {
   int last_order_row = -1;
 };
 
+struct FetaValidationHarness {
+  bool enabled = false;
+  bool has_reference_dir = false;
+  std::filesystem::path output_dir;
+  std::filesystem::path reference_dir;
+  std::vector<int> checkpoints = {0x1300, 0x1520, 0x1530, 0x1600};
+  std::unordered_set<int> captured_rows;
+  int last_order_row = -1;
+};
+
 struct MusicState {
   bool enabled = false;
   bool has_mod1 = false;
@@ -2691,6 +2701,143 @@ void MaybeCaptureWatercubeCheckpoint(WatercubeValidationHarness* harness,
   harness->last_order_row = order_row;
 }
 
+bool TryLoadFetaReferenceFrame(const std::filesystem::path& ref_dir,
+                               int order_row,
+                               Image32* out) {
+  if (!out) {
+    return false;
+  }
+  const std::string id = FormatOrderRowHex(order_row);
+  const std::array<std::string, 4> stems = {
+      "feta_" + id + "_reference",
+      "feta_" + id,
+      id,
+      "frame_" + id,
+  };
+  const std::array<std::string, 3> exts = {".png", ".ppm", ".jpg"};
+  std::string error;
+  for (const std::string& stem : stems) {
+    for (const std::string& ext : exts) {
+      const std::filesystem::path candidate = ref_dir / (stem + ext);
+      if (!std::filesystem::exists(candidate)) {
+        continue;
+      }
+      if (forward::core::LoadImage32(candidate.string(), *out, &error) && !out->Empty()) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+const char* SceneModeName(SceneMode mode) {
+  switch (mode) {
+    case SceneMode::kMute95:
+      return "mute95";
+    case SceneMode::kDomina:
+      return "domina";
+    case SceneMode::kMute95DominaSequence:
+      return "row";
+    case SceneMode::kSaari:
+      return "saari";
+    case SceneMode::kUppol:
+      return "uppol";
+    case SceneMode::kFeta:
+      return "feta";
+  }
+  return "unknown";
+}
+
+void CaptureFetaCheckpointFrame(const FetaValidationHarness& harness,
+                                int order_row,
+                                const DemoState& state,
+                                const XmTiming& timing,
+                                const Surface32& surface,
+                                const FetaRuntime& runtime) {
+  const std::string id = FormatOrderRowHex(order_row);
+  const std::filesystem::path native_path = harness.output_dir / ("feta_" + id + "_native.ppm");
+  WritePpmImage(native_path, surface.FrontPixels(), kLogicalWidth, kLogicalHeight);
+
+  const std::filesystem::path metrics_path = harness.output_dir / ("feta_" + id + "_metrics.txt");
+  std::ofstream metrics(metrics_path);
+  if (metrics.is_open()) {
+    metrics << "module_slot=" << timing.module_slot << "\n";
+    metrics << "order=0x" << std::hex << std::setw(2) << std::setfill('0') << (timing.order & 0xFF)
+            << std::dec << "\n";
+    metrics << "row=0x" << std::hex << std::setw(2) << std::setfill('0') << (timing.row & 0xFF)
+            << std::dec << "\n";
+    metrics << "order_row=0x" << id << "\n";
+    metrics << "clock_ms=" << timing.clock_time_ms << "\n";
+    metrics << "scene_mode=" << SceneModeName(state.scene_mode) << "\n";
+    metrics << "scene_seconds=" << std::max(0.0, state.timeline_seconds - state.scene_start_seconds) << "\n";
+    metrics << "palette_255_black=" << (runtime.palette_index_255_black ? 1 : 0) << "\n";
+    metrics << "blackfeta_start_seconds=" << runtime.blackfeta_start_seconds << "\n";
+    metrics << "blackmuna_start_seconds=" << runtime.blackmuna_start_seconds << "\n";
+    metrics << "next_script_event=" << runtime.next_script_event << "\n";
+  }
+
+  if (harness.has_reference_dir) {
+    Image32 ref;
+    if (TryLoadFetaReferenceFrame(harness.reference_dir, order_row, &ref) && !ref.Empty()) {
+      const int out_w = ref.width + kLogicalWidth;
+      const int out_h = std::max(ref.height, kLogicalHeight);
+      std::vector<uint32_t> sidebyside(static_cast<size_t>(out_w) * static_cast<size_t>(out_h),
+                                       PackArgb(0, 0, 0));
+      for (int y = 0; y < ref.height; ++y) {
+        for (int x = 0; x < ref.width; ++x) {
+          sidebyside[static_cast<size_t>(y) * static_cast<size_t>(out_w) + static_cast<size_t>(x)] =
+              ref.pixels[static_cast<size_t>(y) * static_cast<size_t>(ref.width) +
+                         static_cast<size_t>(x)];
+        }
+      }
+      const uint32_t* native = surface.FrontPixels();
+      for (int y = 0; y < kLogicalHeight; ++y) {
+        for (int x = 0; x < kLogicalWidth; ++x) {
+          sidebyside[static_cast<size_t>(y) * static_cast<size_t>(out_w) +
+                     static_cast<size_t>(x + ref.width)] =
+              native[static_cast<size_t>(y) * static_cast<size_t>(kLogicalWidth) +
+                     static_cast<size_t>(x)];
+        }
+      }
+      const std::filesystem::path compare_path = harness.output_dir / ("feta_" + id + "_compare.ppm");
+      WritePpmImage(compare_path, sidebyside.data(), out_w, out_h);
+    }
+  }
+}
+
+void MaybeCaptureFetaCheckpoint(FetaValidationHarness* harness,
+                                const DemoState& state,
+                                const XmTiming& timing,
+                                const Surface32& surface,
+                                const FetaRuntime& runtime) {
+  if (!harness || !harness->enabled) {
+    return;
+  }
+  if (!timing.valid || timing.module_slot != 2 || !state.script_driven) {
+    return;
+  }
+
+  const int order_row = PackOrderRow(timing.order, timing.row);
+  if (harness->last_order_row < 0) {
+    harness->last_order_row = order_row;
+  }
+
+  for (int checkpoint : harness->checkpoints) {
+    if (harness->captured_rows.find(checkpoint) != harness->captured_rows.end()) {
+      continue;
+    }
+    const bool reached =
+        (order_row == checkpoint) || RowCrossed(harness->last_order_row, order_row, checkpoint);
+    if (!reached) {
+      continue;
+    }
+    CaptureFetaCheckpointFrame(*harness, checkpoint, state, timing, surface, runtime);
+    harness->captured_rows.insert(checkpoint);
+    std::cerr << "feta checkpoint captured: 0x" << FormatOrderRowHex(checkpoint) << "\n";
+  }
+  harness->last_order_row = order_row;
+}
+
 void InitializeKukotRuntime(KukotRuntime& runtime) {
   runtime.flash_intensity = 0.0f;
   runtime.flash_decay = 0.0f;
@@ -4236,9 +4383,6 @@ void DrawFetaFrame(Surface32& surface,
 
   const float t = static_cast<float>(state.timeline_seconds);
   const double scene_seconds = std::max(0.0, state.timeline_seconds - state.scene_start_seconds);
-  if (state.script_driven && state.music_module_slot == 2 && state.music_order_row >= 0) {
-    RunFetaScriptAtOrderRow(feta_runtime, state.music_order_row, scene_seconds);
-  }
 
   camera.position = Vec3(0.0f, 0.0f, 0.0f);
   camera.right = Vec3(1.0f, 0.0f, 0.0f);
@@ -4499,6 +4643,7 @@ int main(int argc, char** argv) {
   bool disable_audio = false;
   bool verbose_audio = false;
   WatercubeValidationHarness watercube_harness;
+  FetaValidationHarness feta_harness;
   for (int i = 1; i < argc; ++i) {
     const std::string arg = argv[i];
     if (arg == "--nosound" || arg == "nosound") {
@@ -4516,6 +4661,16 @@ int main(int argc, char** argv) {
       watercube_harness.reference_dir =
           std::filesystem::path(arg.substr(std::string("--watercube-reference-dir=").size()));
       watercube_harness.has_reference_dir = true;
+    } else if (arg == "--feta-capture") {
+      feta_harness.enabled = true;
+      feta_harness.output_dir = std::filesystem::path("documentation") / "feta-checkpoints";
+    } else if (arg.rfind("--feta-capture-dir=", 0) == 0) {
+      feta_harness.enabled = true;
+      feta_harness.output_dir = arg.substr(std::string("--feta-capture-dir=").size());
+    } else if (arg.rfind("--feta-reference-dir=", 0) == 0) {
+      feta_harness.reference_dir =
+          std::filesystem::path(arg.substr(std::string("--feta-reference-dir=").size()));
+      feta_harness.has_reference_dir = true;
     }
   }
   if (watercube_harness.enabled && watercube_harness.output_dir.empty()) {
@@ -4532,8 +4687,24 @@ int main(int argc, char** argv) {
       std::cerr << "watercube capture enabled: " << watercube_harness.output_dir.string() << "\n";
     }
   }
+  if (feta_harness.enabled && feta_harness.output_dir.empty()) {
+    feta_harness.output_dir = std::filesystem::path("documentation") / "feta-checkpoints";
+  }
+  if (feta_harness.enabled) {
+    std::error_code ec;
+    std::filesystem::create_directories(feta_harness.output_dir, ec);
+    if (ec) {
+      std::cerr << "feta capture disabled: cannot create output dir "
+                << feta_harness.output_dir.string() << "\n";
+      feta_harness.enabled = false;
+    } else {
+      std::cerr << "feta capture enabled: " << feta_harness.output_dir.string() << "\n";
+    }
+  }
   watercube_harness.captured_rows.clear();
   watercube_harness.last_order_row = -1;
+  feta_harness.captured_rows.clear();
+  feta_harness.last_order_row = -1;
   if (disable_audio && verbose_audio) {
     std::cerr << "audio disabled by command line (--nosound)\n";
   }
@@ -5115,6 +5286,9 @@ int main(int argc, char** argv) {
         sequence_script_start_seconds = state.timeline_seconds;
         watercube_harness.captured_rows.clear();
         watercube_harness.last_order_row = -1;
+        feta_harness.captured_rows.clear();
+        feta_harness.last_order_row = -1;
+        feta_runtime.initialized = false;
       }
     } else if (arg == "--scene=feta" || arg == "--feta") {
       state.scene_mode = SceneMode::kFeta;
@@ -5239,6 +5413,8 @@ int main(int argc, char** argv) {
               feta_runtime.initialized = false;
               watercube_harness.captured_rows.clear();
               watercube_harness.last_order_row = -1;
+              feta_harness.captured_rows.clear();
+              feta_harness.last_order_row = -1;
               restart_sequence_audio();
             }
             break;
@@ -5317,6 +5493,18 @@ int main(int argc, char** argv) {
     state.music_module_slot = xm_timing.valid ? xm_timing.module_slot : 0;
     state.music_order_row = xm_timing.valid ? PackOrderRow(xm_timing.order, xm_timing.row) : -1;
 
+    // Feta script messages are emitted before feta is shown in the original script.
+    // Consume them at the global script level so palette/message state is ready at show row 0x1300.
+    if (state.script_driven && feta.enabled && state.music_module_slot == 2 && state.music_order_row >= 0) {
+      if (!feta_runtime.initialized) {
+        InitializeFetaRuntime(feta_runtime);
+      }
+      const double feta_scene_seconds = (state.scene_mode == SceneMode::kFeta)
+                                            ? std::max(0.0, state.timeline_seconds - state.scene_start_seconds)
+                                            : 0.0;
+      RunFetaScriptAtOrderRow(feta_runtime, state.music_order_row, feta_scene_seconds);
+    }
+
     if (state.scene_mode == SceneMode::kMute95DominaSequence) {
       SequenceStage desired = state.sequence_stage;
       if (music.enabled) {
@@ -5374,7 +5562,6 @@ int main(int argc, char** argv) {
         state.scene_label = "feta+kaaakma+mmaamka [script]";
         state.scene_start_seconds = state.timeline_seconds;
         particles.initialized = false;
-        feta_runtime.initialized = false;
       }
     }
 
@@ -5430,6 +5617,7 @@ int main(int argc, char** argv) {
 
     MaybeCaptureWatercubeCheckpoint(
         &watercube_harness, state, xm_timing, surface, watercube_runtime);
+    MaybeCaptureFetaCheckpoint(&feta_harness, state, xm_timing, surface, feta_runtime);
 
     if (SDL_UpdateTexture(texture,
                           nullptr,
