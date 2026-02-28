@@ -282,6 +282,22 @@ uint8_t UnpackR(uint32_t argb) { return static_cast<uint8_t>((argb >> 16u) & 0xF
 uint8_t UnpackG(uint32_t argb) { return static_cast<uint8_t>((argb >> 8u) & 0xFFu); }
 uint8_t UnpackB(uint32_t argb) { return static_cast<uint8_t>(argb & 0xFFu); }
 
+uint32_t LegacyPacked10ToArgb(uint32_t packed10) {
+  // Original Java renderer stores RGB in a 10-10-10 style integer and displays through
+  // a 28-bit DirectColorModel. This reproduces the effective 8-bit channels.
+  const uint8_t r = static_cast<uint8_t>((packed10 >> 20u) & 0xFFu);
+  const uint8_t g = static_cast<uint8_t>((packed10 >> 10u) & 0xFFu);
+  const uint8_t b = static_cast<uint8_t>(packed10 & 0xFFu);
+  return PackArgb(r, g, b);
+}
+
+uint32_t PackLegacy10(int r10, int g10, int b10) {
+  const uint32_t r = static_cast<uint32_t>(r10 & 0x3FF);
+  const uint32_t g = static_cast<uint32_t>(g10 & 0x3FF);
+  const uint32_t b = static_cast<uint32_t>(b10 & 0x3FF);
+  return (r << 20u) | (g << 10u) | b;
+}
+
 int PackOrderRow(int order, int row) {
   return ((order & 0xFF) << 8) | (row & 0xFF);
 }
@@ -535,10 +551,9 @@ Image32 BuildKukotRandomTile(uint32_t seed) {
       const int nr = static_cast<int>(20.0f + r0 * r0 * r0 * r0 * 200.0f);
       const int ng = static_cast<int>(26.0f + r1 * 50.0f);
       const int nb = static_cast<int>(22.0f + r2 * 26.0f);
+      const uint32_t packed10 = PackLegacy10(nr, ng, nb);
       out.pixels[static_cast<size_t>(y) * static_cast<size_t>(out.width) + static_cast<size_t>(x)] =
-          PackArgb(static_cast<uint8_t>(std::clamp(nr, 0, 255)),
-                   static_cast<uint8_t>(std::clamp(ng, 0, 255)),
-                   static_cast<uint8_t>(std::clamp(nb, 0, 255)));
+          LegacyPacked10ToArgb(packed10);
     }
   }
   return out;
@@ -2083,10 +2098,10 @@ void InitializeKukotRuntime(KukotRuntime& runtime) {
 
   runtime.flash_lut.resize(1000);
   for (uint32_t& c : runtime.flash_lut) {
-    const uint8_t r = static_cast<uint8_t>(NextRandomU32(&runtime.rng_state) % 38u);
-    const uint8_t g = static_cast<uint8_t>(NextRandomU32(&runtime.rng_state) % 16u);
-    const uint8_t b = static_cast<uint8_t>(NextRandomU32(&runtime.rng_state) % 87u);
-    c = PackArgb(r, g, b);
+    const int r = static_cast<int>(NextRandomU32(&runtime.rng_state) % 38u);
+    const int g = static_cast<int>(NextRandomU32(&runtime.rng_state) % 16u);
+    const int b = static_cast<int>(NextRandomU32(&runtime.rng_state) % 87u);
+    c = LegacyPacked10ToArgb(PackLegacy10(r, g, b));
   }
 
   runtime.flash_scanline_order.resize(static_cast<size_t>(kLogicalHeight));
@@ -2101,15 +2116,15 @@ void InitializeKukotRuntime(KukotRuntime& runtime) {
               runtime.flash_scanline_order[static_cast<size_t>(b)]);
   }
 
-  runtime.particles.assign(180, Particle{});
+  runtime.particles.assign(220, Particle{});
   const Vec3 center(-5.0f, 35.0f, 5.501f);
   for (Particle& p : runtime.particles) {
     p.position = center +
-                 Vec3(RandomRange(&runtime.rng_state, -55.0f, 55.0f),
-                      RandomRange(&runtime.rng_state, -55.0f, 55.0f),
-                      RandomRange(&runtime.rng_state, -55.0f, 55.0f));
-    p.size = RandomRange(&runtime.rng_state, 0.45f, 1.35f);
-    p.energy = RandomRange(&runtime.rng_state, 0.35f, 1.0f);
+                 Vec3(RandomRange(&runtime.rng_state, -160.0f, 160.0f),
+                      RandomRange(&runtime.rng_state, -120.0f, 120.0f),
+                      RandomRange(&runtime.rng_state, -180.0f, 180.0f));
+    p.size = RandomRange(&runtime.rng_state, 0.22f, 0.88f);
+    p.energy = RandomRange(&runtime.rng_state, 0.45f, 1.15f);
   }
 
   runtime.initialized = true;
@@ -2238,6 +2253,53 @@ void ApplyKukotFlashOverlay(Surface32& surface, KukotRuntime& runtime, int amoun
   }
 }
 
+void ApplyKukotHorizontalFeedbackBlur(Surface32& surface, float blend) {
+  const int n = std::clamp(static_cast<int>(31.0f * blend), 0, 31);
+  const int n2 = 32 - n;
+  if (n2 <= 0) {
+    return;
+  }
+  uint32_t* back = surface.BackPixelsMutable();
+  if (!back) {
+    return;
+  }
+  for (int y = 0; y < kLogicalHeight; ++y) {
+    uint32_t* row = back + static_cast<size_t>(y) * static_cast<size_t>(kLogicalWidth);
+    int prev_r = static_cast<int>(UnpackR(row[0])) >> 1;
+    int prev_g = static_cast<int>(UnpackG(row[0])) >> 1;
+    int prev_b = static_cast<int>(UnpackB(row[0])) >> 1;
+    for (int x = 0; x < kLogicalWidth; ++x) {
+      const uint32_t src = row[static_cast<size_t>(x)];
+      const int sr = static_cast<int>(UnpackR(src));
+      const int sg = static_cast<int>(UnpackG(src));
+      const int sb = static_cast<int>(UnpackB(src));
+      prev_r = (prev_r * n + sr * n2) >> 5;
+      prev_g = (prev_g * n + sg * n2) >> 5;
+      prev_b = (prev_b * n + sb * n2) >> 5;
+      row[static_cast<size_t>(x)] = PackArgb(static_cast<uint8_t>(std::clamp(prev_r, 0, 255)),
+                                             static_cast<uint8_t>(std::clamp(prev_g, 0, 255)),
+                                             static_cast<uint8_t>(std::clamp(prev_b, 0, 255)));
+    }
+  }
+}
+
+void ApplyKukotTemporalAddHalf(Surface32& surface) {
+  uint32_t* back = surface.BackPixelsMutable();
+  const uint32_t* front = surface.FrontPixels();
+  if (!back || !front) {
+    return;
+  }
+  const size_t count = static_cast<size_t>(kLogicalWidth) * static_cast<size_t>(kLogicalHeight);
+  for (size_t i = 0; i < count; ++i) {
+    const uint32_t cur = back[i];
+    const uint32_t prev = front[i];
+    const int r = std::min(255, static_cast<int>(UnpackR(cur)) + (static_cast<int>(UnpackR(prev)) >> 1));
+    const int g = std::min(255, static_cast<int>(UnpackG(cur)) + (static_cast<int>(UnpackG(prev)) >> 1));
+    const int b = std::min(255, static_cast<int>(UnpackB(cur)) + (static_cast<int>(UnpackB(prev)) >> 1));
+    back[i] = PackArgb(static_cast<uint8_t>(r), static_cast<uint8_t>(g), static_cast<uint8_t>(b));
+  }
+}
+
 void DrawKukotParticles(Surface32& surface,
                         const Camera& camera,
                         const KukotSceneAssets& kukot,
@@ -2265,11 +2327,11 @@ void DrawKukotParticles(Surface32& surface,
       continue;
     }
 
-    const float projected = (145.0f / std::max(depth, 2.0f)) * p.size;
-    const int sprite_size = std::clamp(static_cast<int>(std::lround(projected)), 2, 60);
-    const float intensity_f = (130.0f / std::max(depth, 1.0f)) * p.energy;
+    const float projected = (62.0f / std::max(depth, 3.0f)) * p.size;
+    const int sprite_size = std::clamp(static_cast<int>(std::lround(projected)), 1, 10);
+    const float intensity_f = (168.0f / std::max(depth, 1.6f)) * p.energy;
     const uint8_t intensity = static_cast<uint8_t>(
-        std::clamp(static_cast<int>(std::lround(intensity_f)), 10, 255));
+        std::clamp(static_cast<int>(std::lround(intensity_f)), 14, 240));
 
     surface.AdditiveBlitScaledToBack(kukot.flare.pixels.data(),
                                      kukot.flare.width,
@@ -2322,10 +2384,11 @@ void DrawKukotFrameAtTime(Surface32& surface,
     cam_pos = SampleSaariTrackAtMs(kukot.camera_track, t_ms);
     cam_target = SampleSaariTrackAtMs(kukot.target_track, t_ms);
   }
-  SetCameraLookAt(camera, cam_pos, cam_target, Vec3(0.0f, 1.0f, 0.0f));
+  // ASE camera tracks in FORWARD are authored in Z-up.
+  SetCameraLookAt(camera, cam_pos, cam_target, Vec3(0.0f, 0.0f, 1.0f));
   camera.fov_degrees = kukot.camera_fov_degrees;
 
-  surface.ClearBack(PackArgb(255, 255, 255));
+  surface.ClearBack(PackArgb(0, 0, 0));
 
   const int random_x = static_cast<int>(NextRandomU32(&runtime.rng_state) & 0xFFu);
   const int random_y = static_cast<int>(NextRandomU32(&runtime.rng_state) & 0x7Fu);
@@ -2374,7 +2437,9 @@ void DrawKukotFrameAtTime(Surface32& surface,
   }
 
   DrawKukotParticles(surface, camera, kukot, runtime, scene_seconds);
+  ApplyKukotHorizontalFeedbackBlur(surface, 0.875f);
   ApplyKukotFlashOverlay(surface, runtime, static_cast<int>(runtime.flash_intensity));
+  ApplyKukotTemporalAddHalf(surface);
   surface.SwapBuffers();
 }
 
