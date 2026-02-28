@@ -162,6 +162,21 @@ struct MmaamkaParticlePass {
   bool enabled = false;
 };
 
+struct FetaRuntime {
+  bool initialized = false;
+  bool palette_index_255_black = true;
+  bool current_indices_a = true;
+  std::array<uint32_t, 256> palette_packed10{};
+  std::vector<uint8_t> indices_a;
+  std::vector<uint8_t> indices_b;
+  std::vector<uint8_t> mesh_mask;
+  std::vector<uint32_t> packed_frame;
+  double blackfeta_start_seconds = 0.0;
+  double blackmuna_start_seconds = 0.0;
+  int last_order_row = -1;
+  int next_script_event = 0;
+};
+
 struct Mute95CreditPair {
   Image32 first;
   Image32 second;
@@ -4000,11 +4015,211 @@ void DrawMmaamkaParticles(Surface32& surface,
   }
 }
 
+void SetFetaPalette(FetaRuntime& runtime, bool force_index_255_black) {
+  runtime.palette_index_255_black = force_index_255_black;
+  for (int i = 0; i < 256; ++i) {
+    int r = std::min(255, i * 2);
+    int g = std::min(255, i * 3);
+    int b = i;
+    if (force_index_255_black && i == 255) {
+      r = 0;
+      g = 0;
+      b = 0;
+    }
+    runtime.palette_packed10[static_cast<size_t>(i)] =
+        legacy10::PackRgb8To10(static_cast<uint8_t>(r),
+                               static_cast<uint8_t>(g),
+                               static_cast<uint8_t>(b));
+  }
+}
+
+void InitializeFetaRuntime(FetaRuntime& runtime) {
+  const size_t pixel_count = static_cast<size_t>(kLogicalWidth) * static_cast<size_t>(kLogicalHeight);
+  runtime.indices_a.resize(pixel_count);
+  runtime.indices_b.resize(pixel_count);
+  runtime.mesh_mask.assign(pixel_count, 0u);
+  runtime.packed_frame.assign(pixel_count, 0u);
+  for (size_t i = 0; i < pixel_count; ++i) {
+    runtime.indices_a[i] = static_cast<uint8_t>(i & 0xFFu);
+    runtime.indices_b[i] = static_cast<uint8_t>(i & 0xFFu);
+  }
+  runtime.current_indices_a = true;
+  runtime.blackfeta_start_seconds = 0.0;
+  runtime.blackmuna_start_seconds = 0.0;
+  runtime.last_order_row = -1;
+  runtime.next_script_event = 0;
+  SetFetaPalette(runtime, true);
+  runtime.initialized = true;
+}
+
+void ApplyFetaMessage(FetaRuntime& runtime, const std::string& message, double scene_seconds) {
+  if (message == "1") {
+    SetFetaPalette(runtime, true);
+    return;
+  }
+  if (message == "2") {
+    SetFetaPalette(runtime, false);
+    return;
+  }
+  if (message == "blackfeta") {
+    runtime.blackfeta_start_seconds = scene_seconds;
+    return;
+  }
+  if (message == "blackmuna") {
+    runtime.blackmuna_start_seconds = scene_seconds;
+  }
+}
+
+void RunFetaScriptAtOrderRow(FetaRuntime& runtime, int order_row, double scene_seconds) {
+  if (order_row < 0) {
+    return;
+  }
+  struct FetaEvent {
+    int order_row;
+    const char* message;
+  };
+  static const std::array<FetaEvent, 3> kEvents = {{
+      {0x1230, "1"},
+      {0x1520, "blackfeta"},
+      {0x1530, "blackmuna"},
+  }};
+
+  const int previous_row = runtime.last_order_row;
+  if (runtime.last_order_row < 0) {
+    runtime.last_order_row = order_row;
+  }
+
+  while (runtime.next_script_event < static_cast<int>(kEvents.size())) {
+    const FetaEvent& ev = kEvents[static_cast<size_t>(runtime.next_script_event)];
+    bool reached = false;
+    if (previous_row < 0) {
+      reached = order_row >= ev.order_row;
+    } else {
+      reached = (order_row == ev.order_row) ||
+                RowCrossed(runtime.last_order_row, order_row, ev.order_row);
+    }
+    if (!reached) {
+      break;
+    }
+    ApplyFetaMessage(runtime, ev.message, scene_seconds);
+    ++runtime.next_script_event;
+  }
+  runtime.last_order_row = order_row;
+}
+
+void BuildFetaMeshMask(Surface32& mask_surface,
+                       const Mesh& mesh,
+                       const Camera& camera,
+                       Renderer3D& renderer,
+                       const RenderInstance& mesh_instance,
+                       FetaRuntime& runtime) {
+  mask_surface.ClearBack(PackArgb(0, 0, 0));
+  RenderInstance mask_instance = mesh_instance;
+  mask_instance.texture = nullptr;
+  mask_instance.use_mesh_uv = false;
+  mask_instance.texture_wrap = false;
+  mask_instance.texture_unlit = true;
+  mask_instance.fill_color = PackArgb(255, 255, 255);
+  mask_instance.wire_color = 0;
+  mask_instance.draw_fill = true;
+  mask_instance.draw_wire = false;
+  renderer.DrawMesh(mask_surface, mesh, camera, mask_instance);
+
+  const uint32_t* mask_pixels = mask_surface.BackPixels();
+  const size_t pixel_count = static_cast<size_t>(kLogicalWidth) * static_cast<size_t>(kLogicalHeight);
+  for (size_t i = 0; i < pixel_count; ++i) {
+    runtime.mesh_mask[i] = ((mask_pixels[i] & 0x00FFFFFFu) != 0u) ? 1u : 0u;
+  }
+}
+
+void ApplyFetaIndexedPostComposite(Surface32& surface,
+                                   FetaRuntime& runtime,
+                                   double scene_seconds) {
+  uint32_t* back = surface.BackPixelsMutable();
+  if (!back) {
+    return;
+  }
+
+  const size_t pixel_count = static_cast<size_t>(kLogicalWidth) * static_cast<size_t>(kLogicalHeight);
+  for (size_t i = 0; i < pixel_count; ++i) {
+    const uint32_t c = back[i];
+    runtime.packed_frame[i] = legacy10::PackRgb8To10(static_cast<uint8_t>((c >> 16u) & 0xFFu),
+                                                      static_cast<uint8_t>((c >> 8u) & 0xFFu),
+                                                      static_cast<uint8_t>(c & 0xFFu));
+  }
+
+  const std::vector<uint8_t>& src =
+      runtime.current_indices_a ? runtime.indices_a : runtime.indices_b;
+  std::vector<uint8_t>& dst =
+      runtime.current_indices_a ? runtime.indices_b : runtime.indices_a;
+
+  const double scale = 1.0 / 1.100000023841858;
+  const int n26 = static_cast<int>(scale * 65536.0);
+  const int n27 = 0;
+  const int n28 = 0;
+  const int n29 = static_cast<int>(scale * 65536.0);
+  const int cx = kLogicalWidth / 2;
+  const int cy = kLogicalHeight / 2;
+  int row_u = static_cast<int>((-(cx * scale) * 65536.0) + (cx * 65536.0));
+  int row_v = static_cast<int>((-(cy * scale) * 65536.0) + (cy * 65536.0));
+
+  const bool masked_mode = runtime.blackfeta_start_seconds == 0.0;
+  int dst_index = 0;
+  for (int y = 0; y < kLogicalHeight; ++y) {
+    int u = row_u;
+    int v = row_v;
+    for (int x = 0; x < kLogicalWidth; ++x) {
+      (void)x;
+      if (masked_mode && runtime.mesh_mask[static_cast<size_t>(dst_index)] != 0u) {
+        dst[static_cast<size_t>(dst_index)] = 255u;
+      } else {
+        const int sx = (u >> 16) & 0x1FF;
+        const int sy = (v >> 16) & 0x0FF;
+        const uint8_t idx =
+            static_cast<uint8_t>(src[static_cast<size_t>((sy << 9) | sx)] >> 1u);
+        dst[static_cast<size_t>(dst_index)] = idx;
+        if (idx != 0u) {
+          runtime.packed_frame[static_cast<size_t>(dst_index)] = legacy10::AddSaturating(
+              runtime.packed_frame[static_cast<size_t>(dst_index)],
+              runtime.palette_packed10[static_cast<size_t>(idx)]);
+        }
+      }
+      ++dst_index;
+      u += n26;
+      v += n27;
+    }
+    row_u += n28;
+    row_v += n29;
+  }
+  runtime.current_indices_a = !runtime.current_indices_a;
+
+  if (runtime.blackfeta_start_seconds != 0.0) {
+    int n = static_cast<int>(std::min(255.0, std::max(0.0, (scene_seconds - runtime.blackfeta_start_seconds) *
+                                                                0.7 * 255.0)));
+    int n2 = 0;
+    if (runtime.blackmuna_start_seconds != 0.0) {
+      n2 = static_cast<int>(std::min(
+          255.0, std::max(0.0, (scene_seconds - runtime.blackmuna_start_seconds) * 0.4 * 255.0)));
+    }
+    const uint32_t dark_feta = legacy10::PackColor24To10(static_cast<uint32_t>(n * 65793));
+    const uint32_t dark_muna = legacy10::PackColor24To10(static_cast<uint32_t>(n2 * 65793));
+    for (size_t i = 0; i < pixel_count; ++i) {
+      const uint32_t dark = (runtime.mesh_mask[i] != 0u) ? dark_feta : dark_muna;
+      runtime.packed_frame[i] = legacy10::SubSaturating(runtime.packed_frame[i], dark);
+    }
+  }
+
+  for (size_t i = 0; i < pixel_count; ++i) {
+    back[i] = legacy10::Unpack10ToArgb(runtime.packed_frame[i]);
+  }
+}
+
 void DrawFetaFrame(Surface32& surface,
                    const DemoState& state,
                    const Mesh& mesh,
                    const KaaakmaBackgroundPass& background,
                    MmaamkaParticlePass& particles,
+                   FetaRuntime& feta_runtime,
                    Camera& camera,
                    Renderer3D& renderer,
                    RenderInstance& mesh_instance,
@@ -4013,14 +4228,25 @@ void DrawFetaFrame(Surface32& surface,
                    Surface32& halo_surface,
                    const FetaSceneAssets& feta,
                    const QuickWinPostLayer& post) {
+  if (!feta_runtime.initialized) {
+    InitializeFetaRuntime(feta_runtime);
+  }
+
   surface.ClearBack(PackArgb(2, 3, 8));
 
   const float t = static_cast<float>(state.timeline_seconds);
+  const double scene_seconds = std::max(0.0, state.timeline_seconds - state.scene_start_seconds);
+  if (state.script_driven && state.music_module_slot == 2 && state.music_order_row >= 0) {
+    RunFetaScriptAtOrderRow(feta_runtime, state.music_order_row, scene_seconds);
+  }
+
   camera.position = Vec3(0.0f, 0.0f, 0.0f);
   camera.right = Vec3(1.0f, 0.0f, 0.0f);
   camera.up = Vec3(0.0f, 1.0f, 0.0f);
   camera.forward = Vec3(0.0f, 0.0f, 1.0f);
   camera.fov_degrees = state.feta_fov_degrees;
+
+  ConfigureFetaInstance(mesh_instance, feta, t);
 
   if (background.enabled) {
     ConfigureKaaakmaBackgroundInstance(background_instance, background, camera, t);
@@ -4058,11 +4284,14 @@ void DrawFetaFrame(Surface32& surface,
     }
   }
 
-  ConfigureFetaInstance(mesh_instance, feta, t);
   renderer.DrawMesh(surface, mesh, camera, mesh_instance);
 
   StepMmaamkaParticles(particles, state.timeline_seconds);
   DrawMmaamkaParticles(surface, camera, particles, state.timeline_seconds);
+
+  static Surface32 feta_mask_surface(kLogicalWidth, kLogicalHeight, true);
+  BuildFetaMeshMask(feta_mask_surface, mesh, camera, renderer, mesh_instance, feta_runtime);
+  ApplyFetaIndexedPostComposite(surface, feta_runtime, scene_seconds);
 
   DrawQuickWinPostLayer(surface, state, post);
   surface.SwapBuffers();
@@ -4167,6 +4396,7 @@ void DrawFrame(Surface32& surface,
                const Mesh& mesh,
                const KaaakmaBackgroundPass& background,
                MmaamkaParticlePass& particles,
+               FetaRuntime& feta_runtime,
                Camera& camera,
                Renderer3D& renderer,
                RenderInstance& mesh_instance,
@@ -4232,6 +4462,7 @@ void DrawFrame(Surface32& surface,
                 mesh,
                 background,
                 particles,
+                feta_runtime,
                 camera,
                 renderer,
                 mesh_instance,
@@ -4342,6 +4573,7 @@ int main(int argc, char** argv) {
   saari_object_instance.draw_wire = false;
 
   FetaSceneAssets feta;
+  FetaRuntime feta_runtime;
   Mute95SceneAssets mute95;
   Mute95Runtime mute95_runtime;
   DominaSceneAssets domina;
@@ -4888,6 +5120,9 @@ int main(int argc, char** argv) {
       state.scene_mode = SceneMode::kFeta;
       state.script_driven = false;
       state.scene_label = feta.enabled ? "feta+kaaakma+mmaamka" : "feta-fallback";
+      state.scene_start_seconds = state.timeline_seconds;
+      particles.initialized = false;
+      feta_runtime.initialized = false;
     }
   }
 
@@ -4971,6 +5206,7 @@ int main(int argc, char** argv) {
             state.scene_label = feta.enabled ? "feta+kaaakma+mmaamka" : "feta-fallback";
             state.scene_start_seconds = state.timeline_seconds;
             particles.initialized = false;
+            feta_runtime.initialized = false;
             break;
           case SDLK_3:
             if (domina.enabled) {
@@ -5000,6 +5236,7 @@ int main(int argc, char** argv) {
               kukot_runtime.initialized = false;
               maku_runtime.initialized = false;
               watercube_runtime.initialized = false;
+              feta_runtime.initialized = false;
               watercube_harness.captured_rows.clear();
               watercube_harness.last_order_row = -1;
               restart_sequence_audio();
@@ -5137,6 +5374,7 @@ int main(int argc, char** argv) {
         state.scene_label = "feta+kaaakma+mmaamka [script]";
         state.scene_start_seconds = state.timeline_seconds;
         particles.initialized = false;
+        feta_runtime.initialized = false;
       }
     }
 
@@ -5176,6 +5414,7 @@ int main(int argc, char** argv) {
               mesh,
               background,
               particles,
+              feta_runtime,
               camera,
               renderer_3d,
               mesh_instance,
