@@ -31,6 +31,8 @@ endif()
 add_executable(forward_native
   src/main.cpp
   src/core/Image32.cpp
+  src/core/GifIndexed.cpp
+  src/core/IndexedSurface8.cpp
   src/core/LegacyPacked10.cpp
   src/core/Mesh.cpp
   src/core/MeshLoaderIgu.cpp

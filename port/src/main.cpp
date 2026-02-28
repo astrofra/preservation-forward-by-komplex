@@ -8,6 +8,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <memory>
 #include <numeric>
 #include <sstream>
 #include <string>
@@ -17,7 +18,9 @@
 #include <vector>
 
 #include "core/Camera.h"
+#include "core/GifIndexed.h"
 #include "core/Image32.h"
+#include "core/IndexedSurface8.h"
 #include "core/LegacyPacked10.h"
 #include "core/Mesh.h"
 #include "core/MeshLoaderIgu.h"
@@ -29,6 +32,8 @@
 namespace {
 
 using forward::core::Camera;
+using forward::core::IndexedImage8;
+using forward::core::IndexedSurface8;
 using forward::core::Image32;
 using forward::core::Mesh;
 using forward::core::RenderInstance;
@@ -51,6 +56,9 @@ constexpr int kMod2ToKukotRow = 0x0700;
 constexpr int kMod2ToMakuRow = 0x0D00;
 constexpr int kMod2ToWatercubeRow = 0x1000;
 constexpr int kMod2ToFetaRow = 0x1300;
+constexpr int kMod2ToUppolRow = 0x1600;
+constexpr double kScriptFallbackToFetaSeconds = 66.0;
+constexpr double kScriptFallbackToUppolSeconds = 74.0;
 
 struct RuntimeStats {
   uint64_t rendered_frames = 0;
@@ -62,6 +70,7 @@ enum class SceneMode {
   kDomina,
   kMute95DominaSequence,
   kSaari,
+  kUppol,
   kFeta,
 };
 
@@ -86,6 +95,7 @@ struct DemoState {
   SequenceStage sequence_stage = SequenceStage::kMute95;
   int music_module_slot = 0;
   int music_order_row = -1;
+  bool script_driven = false;
   std::string scene_label;
   std::string mesh_label;
   std::string post_label;
@@ -118,6 +128,17 @@ struct FetaSceneAssets {
   Image32 babyenv;
   Image32 flare;
   bool enabled = false;
+};
+
+struct UppolSceneAssets {
+  IndexedImage8 phorward;
+  bool enabled = false;
+};
+
+struct UppolRuntime {
+  std::unique_ptr<IndexedSurface8> working;
+  int frame_counter = 0;
+  bool initialized = false;
 };
 
 struct KaaakmaBackgroundPass {
@@ -1523,6 +1544,275 @@ void DrawQuickWinPostLayer(Surface32& surface,
         static_cast<int>(t * 31.0f + static_cast<float>(post.secondary.height) * 0.3f);
     DrawScrollingLayer(surface, post.secondary, scroll_secondary, alpha_secondary);
   }
+}
+
+constexpr int kUppolLeft = 0;
+constexpr int kUppolRight = kLogicalWidth - 150;
+constexpr int kUppolCenter = (kUppolLeft + kUppolRight) / 2;
+constexpr int kUppolLineHeight = 26;
+constexpr double kUppolScrollSpeed = 25.0;
+constexpr int kUppolTextScale = 2;
+constexpr int kUppolGlyphWidth = 5 * kUppolTextScale;
+constexpr int kUppolGlyphHeight = 7 * kUppolTextScale;
+constexpr int kUppolGlyphAdvance = kUppolGlyphWidth + 1;
+constexpr uint32_t kUppolTextColor = 0xFFFFFFFFu;
+
+const std::array<std::string, 47> kUppolLines = {
+    "",
+    "forward",
+    "komplex",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "code",
+    "",
+    "saviour",
+    "jmagic",
+    "anis",
+    "",
+    "",
+    "graphics",
+    "",
+    "jugi",
+    "",
+    "",
+    "intro theme",
+    "",
+    "jugi",
+    "",
+    "",
+    "main theme",
+    "",
+    "carebear/orange",
+    "",
+    "",
+    "klunssi object",
+    "",
+    "reward",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "rebellion will not be televised",
+    "",
+    "",
+    "",
+    "__mailto:komplex@jyu.fi",
+    "__http://www.jyu.fi/komplex",
+    "",
+};
+
+enum class UppolAlign {
+  kCenter = 0,
+  kLeft = 1,
+  kRight = 2,
+  kLink = 3,
+};
+
+std::array<uint8_t, 7> UppolGlyphRows(char c) {
+  switch (c) {
+    case 'a': return {0x00, 0x00, 0x0E, 0x01, 0x0F, 0x11, 0x0F};
+    case 'b': return {0x10, 0x10, 0x1E, 0x11, 0x11, 0x11, 0x1E};
+    case 'c': return {0x00, 0x00, 0x0E, 0x10, 0x10, 0x11, 0x0E};
+    case 'd': return {0x01, 0x01, 0x0F, 0x11, 0x11, 0x11, 0x0F};
+    case 'e': return {0x00, 0x00, 0x0E, 0x11, 0x1F, 0x10, 0x0F};
+    case 'f': return {0x03, 0x04, 0x0E, 0x04, 0x04, 0x04, 0x04};
+    case 'g': return {0x00, 0x00, 0x0F, 0x11, 0x11, 0x0F, 0x01};
+    case 'h': return {0x10, 0x10, 0x1E, 0x11, 0x11, 0x11, 0x11};
+    case 'i': return {0x04, 0x00, 0x0C, 0x04, 0x04, 0x04, 0x0E};
+    case 'j': return {0x02, 0x00, 0x06, 0x02, 0x02, 0x12, 0x0C};
+    case 'k': return {0x10, 0x10, 0x12, 0x14, 0x18, 0x14, 0x12};
+    case 'l': return {0x0C, 0x04, 0x04, 0x04, 0x04, 0x04, 0x0E};
+    case 'm': return {0x00, 0x00, 0x1A, 0x15, 0x15, 0x15, 0x15};
+    case 'n': return {0x00, 0x00, 0x1E, 0x11, 0x11, 0x11, 0x11};
+    case 'o': return {0x00, 0x00, 0x0E, 0x11, 0x11, 0x11, 0x0E};
+    case 'p': return {0x00, 0x00, 0x1E, 0x11, 0x11, 0x1E, 0x10};
+    case 'q': return {0x00, 0x00, 0x0F, 0x11, 0x11, 0x0F, 0x01};
+    case 'r': return {0x00, 0x00, 0x1A, 0x14, 0x10, 0x10, 0x10};
+    case 's': return {0x00, 0x00, 0x0F, 0x10, 0x0E, 0x01, 0x1E};
+    case 't': return {0x04, 0x04, 0x1F, 0x04, 0x04, 0x04, 0x03};
+    case 'u': return {0x00, 0x00, 0x11, 0x11, 0x11, 0x13, 0x0D};
+    case 'v': return {0x00, 0x00, 0x11, 0x11, 0x11, 0x0A, 0x04};
+    case 'w': return {0x00, 0x00, 0x11, 0x15, 0x15, 0x15, 0x0A};
+    case 'x': return {0x00, 0x00, 0x11, 0x0A, 0x04, 0x0A, 0x11};
+    case 'y': return {0x00, 0x00, 0x11, 0x11, 0x0F, 0x01, 0x0E};
+    case 'z': return {0x00, 0x00, 0x1F, 0x02, 0x04, 0x08, 0x1F};
+    case '.': return {0x00, 0x00, 0x00, 0x00, 0x00, 0x0C, 0x0C};
+    case ':': return {0x00, 0x0C, 0x0C, 0x00, 0x0C, 0x0C, 0x00};
+    case '/': return {0x01, 0x02, 0x02, 0x04, 0x08, 0x08, 0x10};
+    case '@': return {0x0E, 0x11, 0x17, 0x15, 0x17, 0x10, 0x0E};
+    case '-': return {0x00, 0x00, 0x00, 0x1F, 0x00, 0x00, 0x00};
+    case '0': return {0x0E, 0x11, 0x13, 0x15, 0x19, 0x11, 0x0E};
+    case '1': return {0x04, 0x0C, 0x14, 0x04, 0x04, 0x04, 0x1F};
+    case '2': return {0x0E, 0x11, 0x01, 0x06, 0x08, 0x10, 0x1F};
+    case '3': return {0x1E, 0x01, 0x01, 0x0E, 0x01, 0x01, 0x1E};
+    case '4': return {0x02, 0x06, 0x0A, 0x12, 0x1F, 0x02, 0x02};
+    case '5': return {0x1F, 0x10, 0x1E, 0x01, 0x01, 0x11, 0x0E};
+    case '6': return {0x07, 0x08, 0x10, 0x1E, 0x11, 0x11, 0x0E};
+    case '7': return {0x1F, 0x01, 0x02, 0x04, 0x08, 0x08, 0x08};
+    case '8': return {0x0E, 0x11, 0x11, 0x0E, 0x11, 0x11, 0x0E};
+    case '9': return {0x0E, 0x11, 0x11, 0x0F, 0x01, 0x02, 0x1C};
+    default: return {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+  }
+}
+
+void DrawUppolGlyph(Surface32& surface, int x, int y, char c, uint32_t argb) {
+  const auto rows = UppolGlyphRows(c);
+  for (int gy = 0; gy < 7; ++gy) {
+    const uint8_t row = rows[static_cast<size_t>(gy)];
+    for (int gx = 0; gx < 5; ++gx) {
+      if ((row & (1u << (4 - gx))) == 0) {
+        continue;
+      }
+      const int px = x + gx * kUppolTextScale;
+      const int py = y + gy * kUppolTextScale;
+      for (int sy = 0; sy < kUppolTextScale; ++sy) {
+        for (int sx = 0; sx < kUppolTextScale; ++sx) {
+          surface.SetBackPixel(px + sx, py + sy, argb);
+        }
+      }
+      // Synthetic bold to mimic Java Font.BOLD appearance.
+      surface.SetBackPixel(px + kUppolTextScale, py, argb);
+      surface.SetBackPixel(px + kUppolTextScale, py + 1, argb);
+    }
+  }
+}
+
+int MeasureUppolTextWidth(const std::string& text) {
+  return static_cast<int>(text.size()) * kUppolGlyphAdvance;
+}
+
+void DrawUppolText(Surface32& surface, int baseline_y, int x, const std::string& text, uint32_t argb) {
+  const int top = baseline_y - kUppolGlyphHeight;
+  int pen_x = x;
+  for (char ch : text) {
+    const char lower = (ch >= 'A' && ch <= 'Z') ? static_cast<char>(ch - 'A' + 'a') : ch;
+    DrawUppolGlyph(surface, pen_x, top, lower, argb);
+    pen_x += kUppolGlyphAdvance;
+  }
+}
+
+void DrawUppolHLine(Surface32& surface, int x0, int x1, int y, uint32_t argb) {
+  if (x1 < x0) {
+    std::swap(x0, x1);
+  }
+  for (int x = x0; x <= x1; ++x) {
+    surface.SetBackPixel(x, y, argb);
+  }
+}
+
+std::string UppolLineAt(int index, UppolAlign* out_align, bool* out_finished) {
+  if (out_align) {
+    *out_align = UppolAlign::kCenter;
+  }
+  if (index < 0) {
+    return "";
+  }
+  if (index > static_cast<int>(kUppolLines.size()) - 1) {
+    if (out_finished) {
+      *out_finished = true;
+    }
+    return "";
+  }
+
+  std::string line = kUppolLines[static_cast<size_t>(index)];
+  if (line.rfind("l_", 0) == 0) {
+    line = line.substr(2);
+    if (out_align) {
+      *out_align = UppolAlign::kLeft;
+    }
+  } else if (line.rfind("r_", 0) == 0) {
+    line = line.substr(2);
+    if (out_align) {
+      *out_align = UppolAlign::kRight;
+    }
+  } else if (line.rfind("__", 0) == 0) {
+    line = line.substr(2);
+    if (out_align) {
+      *out_align = UppolAlign::kLink;
+    }
+  }
+  return line;
+}
+
+void InitializeUppolRuntime(UppolRuntime& runtime, const UppolSceneAssets& assets) {
+  if (!assets.enabled || assets.phorward.Empty()) {
+    runtime.initialized = false;
+    runtime.working.reset();
+    runtime.frame_counter = 0;
+    return;
+  }
+
+  runtime.working = std::make_unique<IndexedSurface8>(kLogicalWidth, kLogicalHeight);
+  std::array<uint8_t, 256> zero{};
+  runtime.working->SetPalette(zero, zero, assets.phorward.palette_b);
+  runtime.frame_counter = 0;
+  runtime.initialized = true;
+}
+
+void DrawUppolFrame(Surface32& surface,
+                    const DemoState& state,
+                    const UppolSceneAssets& assets,
+                    UppolRuntime& runtime) {
+  if (!assets.enabled || assets.phorward.Empty()) {
+    surface.ClearBack(PackArgb(0, 0, 0));
+    surface.SwapBuffers();
+    return;
+  }
+
+  if (!runtime.initialized || !runtime.working) {
+    InitializeUppolRuntime(runtime, assets);
+    if (!runtime.initialized || !runtime.working) {
+      surface.ClearBack(PackArgb(0, 0, 0));
+      surface.SwapBuffers();
+      return;
+    }
+  }
+
+  const int source_h = std::max(1, assets.phorward.height);
+  const int scroll_y = -((runtime.frame_counter * 256) % source_h);
+  runtime.working->BlitImageAt(assets.phorward, 0, scroll_y);
+  runtime.working->PresentToBack(surface);
+
+  const double scene_seconds = std::max(0.0, state.timeline_seconds - state.scene_start_seconds);
+  const double d = scene_seconds * kUppolScrollSpeed;
+  int n2 = static_cast<int>(d) - (kLogicalHeight + kUppolLineHeight);
+  const int n3 = kLogicalHeight / kUppolLineHeight + 2;
+  if (n2 / kUppolLineHeight + n3 >= static_cast<int>(kUppolLines.size())) {
+    n2 = (static_cast<int>(kUppolLines.size()) - n3) * kUppolLineHeight;
+  }
+  int n4 = kUppolLineHeight - (n2 % kUppolLineHeight);
+  const int n5 = n2 / kUppolLineHeight;
+
+  for (int i = 0; i < n3; ++i) {
+    bool finished = false;
+    UppolAlign align = UppolAlign::kCenter;
+    const std::string line = UppolLineAt(i + n5, &align, &finished);
+    (void)finished;
+    const int text_w = MeasureUppolTextWidth(line);
+    const int centered_x = kUppolCenter - (text_w >> 1);
+    const int baseline_y = n4 - 5;
+
+    if (align == UppolAlign::kLeft) {
+      DrawUppolText(surface, baseline_y, kUppolLeft, line, kUppolTextColor);
+    } else if (align == UppolAlign::kRight) {
+      DrawUppolText(surface, baseline_y, kUppolRight - text_w, line, kUppolTextColor);
+    } else if (align == UppolAlign::kLink) {
+      DrawUppolHLine(surface, centered_x, centered_x + text_w, n4 - 4, kUppolTextColor);
+      DrawUppolText(surface, baseline_y, centered_x, line, kUppolTextColor);
+    } else {
+      DrawUppolText(surface, baseline_y, centered_x, line, kUppolTextColor);
+    }
+    n4 += kUppolLineHeight;
+  }
+
+  surface.SwapBuffers();
+  ++runtime.frame_counter;
 }
 
 Vec3 FetaTranslationAtTime(float timeline_seconds) {
@@ -3872,6 +4162,8 @@ void DrawFrame(Surface32& surface,
                MakuRuntime& maku_runtime,
                const WatercubeSceneAssets& watercube_assets,
                WatercubeRuntime& watercube_runtime,
+               const UppolSceneAssets& uppol_assets,
+               UppolRuntime& uppol_runtime,
                const Mesh& mesh,
                const KaaakmaBackgroundPass& background,
                MmaamkaParticlePass& particles,
@@ -3905,6 +4197,10 @@ void DrawFrame(Surface32& surface,
                    saari_backdrop_instance,
                    saari_terrain_instance,
                    saari_object_instance);
+    return;
+  }
+  if (state.scene_mode == SceneMode::kUppol) {
+    DrawUppolFrame(surface, state, uppol_assets, uppol_runtime);
     return;
   }
   if (state.scene_mode == SceneMode::kMute95DominaSequence) {
@@ -4058,6 +4354,8 @@ int main(int argc, char** argv) {
   MakuRuntime maku_runtime;
   WatercubeSceneAssets watercube;
   WatercubeRuntime watercube_runtime;
+  UppolSceneAssets uppol;
+  UppolRuntime uppol_runtime;
   MmaamkaParticlePass particles;
   KaaakmaBackgroundPass background;
   {
@@ -4376,6 +4674,22 @@ int main(int argc, char** argv) {
     watercube.enabled = textures_ok && tracks_ok && objects_ok;
   }
 
+  {
+    const std::string uppol_path = ResolveForwardAssetPath("images/phorward.gif");
+    std::string uppol_error;
+    if (!uppol_path.empty() &&
+        forward::core::LoadGifIndexed8FirstFrame(uppol_path, &uppol.phorward, &uppol_error) &&
+        !uppol.phorward.Empty()) {
+      uppol.enabled = true;
+    } else {
+      if (uppol_path.empty()) {
+        std::cerr << "uppol source load failed: images/phorward.gif not found\n";
+      } else {
+        std::cerr << "uppol source load failed: " << uppol_error << "\n";
+      }
+    }
+  }
+
   QuickWinPostLayer post;
 
   const std::string phorward_path = ResolveForwardAssetPath("images/phorward.gif");
@@ -4488,31 +4802,40 @@ int main(int argc, char** argv) {
   if (mute95.enabled && domina.enabled && saari.enabled) {
     state.scene_mode = SceneMode::kMute95DominaSequence;
     state.sequence_stage = SequenceStage::kMute95;
+    state.script_driven = true;
     state.scene_label =
-        (maku.enabled && watercube.enabled)   ? "mute95->domina->saari->kukot->maku->watercube"
-        : (maku.enabled)                      ? "mute95->domina->saari->kukot->maku"
-                                              : "mute95->domina->saari->kukot";
+        (maku.enabled && watercube.enabled)
+            ? "mute95->domina->saari->kukot->maku->watercube->feta->uppol"
+            : (maku.enabled) ? "mute95->domina->saari->kukot->maku->feta->uppol"
+                             : "mute95->domina->saari->kukot->feta->uppol";
   } else if (mute95.enabled && domina.enabled) {
     state.scene_mode = SceneMode::kMute95DominaSequence;
     state.sequence_stage = SequenceStage::kMute95;
+    state.script_driven = true;
     state.scene_label = "mute95->domina";
   } else if (mute95.enabled) {
     state.scene_mode = SceneMode::kMute95;
+    state.script_driven = false;
     state.scene_label = "mute95";
   } else if (domina.enabled) {
     state.scene_mode = SceneMode::kDomina;
+    state.script_driven = false;
     state.scene_label = "domina";
   } else if (saari.enabled) {
     state.scene_mode = SceneMode::kSaari;
+    state.script_driven = false;
     state.scene_label = "saari";
   } else if (feta.enabled && background.enabled && particles.enabled) {
     state.scene_mode = SceneMode::kFeta;
+    state.script_driven = false;
     state.scene_label = "feta+kaaakma+mmaamka";
   } else if (feta.enabled) {
     state.scene_mode = SceneMode::kFeta;
+    state.script_driven = false;
     state.scene_label = "feta";
   } else {
     state.scene_mode = SceneMode::kFeta;
+    state.script_driven = false;
     state.scene_label = "fallback";
   }
   state.mesh_label = std::filesystem::path(mesh_path).filename().string();
@@ -4524,27 +4847,38 @@ int main(int argc, char** argv) {
     if (arg == "--scene=mute95" || arg == "--mute95") {
       if (mute95.enabled) {
         state.scene_mode = SceneMode::kMute95;
+        state.script_driven = false;
         state.scene_label = "mute95";
       }
     } else if (arg == "--scene=domina" || arg == "--domina") {
       if (domina.enabled) {
         state.scene_mode = SceneMode::kDomina;
+        state.script_driven = false;
         state.scene_label = "domina";
       }
     } else if (arg == "--scene=saari" || arg == "--saari") {
       if (saari.enabled) {
         state.scene_mode = SceneMode::kSaari;
+        state.script_driven = false;
         state.scene_label = "saari";
+      }
+    } else if (arg == "--scene=uppol" || arg == "--uppol") {
+      if (uppol.enabled) {
+        state.scene_mode = SceneMode::kUppol;
+        state.script_driven = false;
+        state.scene_label = "uppol";
       }
     } else if (arg == "--scene=row" || arg == "--row" || arg == "--scene=script" ||
                arg == "--script") {
       if (mute95.enabled && domina.enabled) {
         state.scene_mode = SceneMode::kMute95DominaSequence;
         state.sequence_stage = SequenceStage::kMute95;
+        state.script_driven = true;
         state.scene_label = saari.enabled ? ((maku.enabled && watercube.enabled)
-                                                 ? "mute95->domina->saari->kukot->maku->watercube"
-                                                 : (maku.enabled ? "mute95->domina->saari->kukot->maku"
-                                                                 : "mute95->domina->saari->kukot"))
+                                                 ? "mute95->domina->saari->kukot->maku->watercube->feta->uppol"
+                                                 : (maku.enabled
+                                                        ? "mute95->domina->saari->kukot->maku->feta->uppol"
+                                                        : "mute95->domina->saari->kukot->feta->uppol"))
                                           : "mute95->domina";
         sequence_script_start_seconds = state.timeline_seconds;
         watercube_harness.captured_rows.clear();
@@ -4552,6 +4886,7 @@ int main(int argc, char** argv) {
       }
     } else if (arg == "--scene=feta" || arg == "--feta") {
       state.scene_mode = SceneMode::kFeta;
+      state.script_driven = false;
       state.scene_label = feta.enabled ? "feta+kaaakma+mmaamka" : "feta-fallback";
     }
   }
@@ -4624,6 +4959,7 @@ int main(int argc, char** argv) {
           case SDLK_1:
             if (mute95.enabled) {
               state.scene_mode = SceneMode::kMute95;
+              state.script_driven = false;
               state.scene_label = "mute95";
               state.scene_start_seconds = state.timeline_seconds;
               mute95_runtime.initialized = false;
@@ -4631,6 +4967,7 @@ int main(int argc, char** argv) {
             break;
           case SDLK_2:
             state.scene_mode = SceneMode::kFeta;
+            state.script_driven = false;
             state.scene_label = feta.enabled ? "feta+kaaakma+mmaamka" : "feta-fallback";
             state.scene_start_seconds = state.timeline_seconds;
             particles.initialized = false;
@@ -4638,6 +4975,7 @@ int main(int argc, char** argv) {
           case SDLK_3:
             if (domina.enabled) {
               state.scene_mode = SceneMode::kDomina;
+              state.script_driven = false;
               state.scene_label = "domina";
               state.scene_start_seconds = state.timeline_seconds;
               domina_runtime.initialized = false;
@@ -4647,11 +4985,12 @@ int main(int argc, char** argv) {
             if (mute95.enabled && domina.enabled) {
               state.scene_mode = SceneMode::kMute95DominaSequence;
               state.sequence_stage = SequenceStage::kMute95;
+              state.script_driven = true;
               state.scene_label = saari.enabled ? ((maku.enabled && watercube.enabled)
-                                                       ? "mute95->domina->saari->kukot->maku->watercube"
+                                                       ? "mute95->domina->saari->kukot->maku->watercube->feta->uppol"
                                                        : (maku.enabled
-                                                              ? "mute95->domina->saari->kukot->maku"
-                                                              : "mute95->domina->saari->kukot"))
+                                                              ? "mute95->domina->saari->kukot->maku->feta->uppol"
+                                                              : "mute95->domina->saari->kukot->feta->uppol"))
                                                 : "mute95->domina";
               state.scene_start_seconds = state.timeline_seconds;
               sequence_script_start_seconds = state.timeline_seconds;
@@ -4669,6 +5008,7 @@ int main(int argc, char** argv) {
           case SDLK_5:
             if (saari.enabled) {
               state.scene_mode = SceneMode::kSaari;
+              state.script_driven = false;
               state.scene_label = "saari";
               state.scene_start_seconds = state.timeline_seconds;
               saari_runtime.initialized = false;
@@ -4682,6 +5022,15 @@ int main(int argc, char** argv) {
           case SDLK_7:
             if (state.scene_mode == SceneMode::kSaari) {
               TriggerSaariMessage(saari_runtime, false);  // "suh0"
+            }
+            break;
+          case SDLK_8:
+            if (uppol.enabled) {
+              state.scene_mode = SceneMode::kUppol;
+              state.script_driven = false;
+              state.scene_label = "uppol";
+              state.scene_start_seconds = state.timeline_seconds;
+              uppol_runtime.initialized = false;
             }
             break;
           default:
@@ -4748,17 +5097,17 @@ int main(int argc, char** argv) {
         state.sequence_stage = desired;
         state.scene_start_seconds = state.timeline_seconds;
         if (desired == SequenceStage::kMute95) {
-          state.scene_label = "mute95->domina->saari->kukot->maku->watercube [mute95]";
+          state.scene_label = "mute95->domina->saari->kukot->maku->watercube->feta->uppol [mute95]";
         } else if (desired == SequenceStage::kDomina) {
-          state.scene_label = "mute95->domina->saari->kukot->maku->watercube [domina]";
+          state.scene_label = "mute95->domina->saari->kukot->maku->watercube->feta->uppol [domina]";
         } else if (desired == SequenceStage::kSaari) {
-          state.scene_label = "mute95->domina->saari->kukot->maku->watercube [saari]";
+          state.scene_label = "mute95->domina->saari->kukot->maku->watercube->feta->uppol [saari]";
         } else if (desired == SequenceStage::kKukot) {
-          state.scene_label = "mute95->domina->saari->kukot->maku->watercube [kukot]";
+          state.scene_label = "mute95->domina->saari->kukot->maku->watercube->feta->uppol [kukot]";
         } else if (desired == SequenceStage::kMaku) {
-          state.scene_label = "mute95->domina->saari->kukot->maku->watercube [maku]";
+          state.scene_label = "mute95->domina->saari->kukot->maku->watercube->feta->uppol [maku]";
         } else {
-          state.scene_label = "mute95->domina->saari->kukot->maku->watercube [watercube]";
+          state.scene_label = "mute95->domina->saari->kukot->maku->watercube->feta->uppol [watercube]";
         }
         if (desired == SequenceStage::kMute95) {
           mute95_runtime.initialized = false;
@@ -4781,12 +5130,30 @@ int main(int argc, char** argv) {
           ((xm_timing.valid && xm_timing.module_slot == 2 &&
             PackOrderRow(xm_timing.order, xm_timing.row) >= kMod2ToFetaRow) ||
            (!music.enabled &&
-            std::max(0.0, state.timeline_seconds - sequence_script_start_seconds) >= 66.0));
+            std::max(0.0, state.timeline_seconds - sequence_script_start_seconds) >=
+                kScriptFallbackToFetaSeconds));
       if (should_switch_to_feta) {
         state.scene_mode = SceneMode::kFeta;
         state.scene_label = "feta+kaaakma+mmaamka [script]";
         state.scene_start_seconds = state.timeline_seconds;
         particles.initialized = false;
+      }
+    }
+
+    if (state.script_driven && state.scene_mode == SceneMode::kFeta) {
+      // Original script switches from feta to uppol at module 2 row 0x1600.
+      const bool should_switch_to_uppol =
+          uppol.enabled &&
+          ((xm_timing.valid && xm_timing.module_slot == 2 &&
+            PackOrderRow(xm_timing.order, xm_timing.row) >= kMod2ToUppolRow) ||
+           (!music.enabled &&
+            std::max(0.0, state.timeline_seconds - sequence_script_start_seconds) >=
+                kScriptFallbackToUppolSeconds));
+      if (should_switch_to_uppol) {
+        state.scene_mode = SceneMode::kUppol;
+        state.scene_label = "uppol [script]";
+        state.scene_start_seconds = state.timeline_seconds;
+        uppol_runtime.initialized = false;
       }
     }
 
@@ -4804,6 +5171,8 @@ int main(int argc, char** argv) {
               maku_runtime,
               watercube,
               watercube_runtime,
+              uppol,
+              uppol_runtime,
               mesh,
               background,
               particles,
