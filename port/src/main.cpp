@@ -67,12 +67,15 @@ enum class SequenceStage {
 struct DemoState {
   double timeline_seconds = 0.0;
   double scene_start_seconds = 0.0;
+  double frame_dt_seconds = 1.0 / 60.0;
   bool paused = false;
   bool fullscreen = false;
   bool show_post = false;
   float feta_fov_degrees = 84.0f;  // horizontal FOV
   SceneMode scene_mode = SceneMode::kFeta;
   SequenceStage sequence_stage = SequenceStage::kMute95;
+  int music_module_slot = 0;
+  int music_order_row = -1;
   std::string scene_label;
   std::string mesh_label;
   std::string post_label;
@@ -1347,7 +1350,9 @@ void DrawMute95Credits(Surface32& surface,
 void DrawMute95FrameAtTime(Surface32& surface,
                            const Mute95SceneAssets& assets,
                            Mute95Runtime& runtime,
-                           double scene_seconds) {
+                           double scene_seconds,
+                           double frame_dt_seconds,
+                           int order_row) {
   if (!assets.enabled) {
     surface.ClearBack(PackArgb(0, 0, 0));
     surface.SwapBuffers();
@@ -1357,20 +1362,28 @@ void DrawMute95FrameAtTime(Surface32& surface,
     InitializeMute95Runtime(runtime);
   }
 
+  static constexpr std::array<int, 5> kCueRows = {0x0300, 0x0500, 0x0700, 0x0900, 0x0B00};
   static constexpr std::array<double, 5> kCueSeconds = {3.0, 5.0, 7.0, 9.0, 11.0};
-  if (runtime.cue_step + 1 < static_cast<int>(kCueSeconds.size())) {
+  if (runtime.cue_step + 1 < static_cast<int>(kCueRows.size())) {
     const int next_cue = runtime.cue_step + 1;
-    if (scene_seconds >= kCueSeconds[static_cast<size_t>(next_cue)]) {
+    const bool trigger_from_rows =
+        (order_row >= 0 && order_row >= kCueRows[static_cast<size_t>(next_cue)]);
+    const bool trigger_from_seconds =
+        (order_row < 0 && scene_seconds >= kCueSeconds[static_cast<size_t>(next_cue)]);
+    if (trigger_from_rows || trigger_from_seconds) {
       runtime.cue_step = next_cue;
       runtime.active_credit = next_cue;
       runtime.credit_start_seconds = scene_seconds;
     }
   }
 
-  float dt = static_cast<float>(scene_seconds - runtime.prev_scene_seconds);
+  float dt = static_cast<float>(frame_dt_seconds);
+  if (dt <= 0.0f || dt > 0.2f) {
+    dt = static_cast<float>(scene_seconds - runtime.prev_scene_seconds);
+  }
   runtime.prev_scene_seconds = scene_seconds;
   if (dt <= 0.0f || dt > 0.2f) {
-    dt = 1.0f / static_cast<float>(kTickHz);
+    dt = 1.0f / 60.0f;
   }
   const float strength = std::max(0.05f, dt * 10.0f);
 
@@ -1453,7 +1466,8 @@ void DrawMute95Frame(Surface32& surface,
                      const Mute95SceneAssets& assets,
                      Mute95Runtime& runtime) {
   const double scene_seconds = std::max(0.0, state.timeline_seconds - state.scene_start_seconds);
-  DrawMute95FrameAtTime(surface, assets, runtime, scene_seconds);
+  const int order_row = (state.music_module_slot == 1) ? state.music_order_row : -1;
+  DrawMute95FrameAtTime(surface, assets, runtime, scene_seconds, state.frame_dt_seconds, order_row);
 }
 
 void InitializeDominaRuntime(DominaRuntime& runtime) {
@@ -1964,7 +1978,9 @@ void DrawMute95DominaSequenceFrame(Surface32& surface,
   const double sequence_seconds = std::max(0.0, state.timeline_seconds - state.scene_start_seconds);
 
   if (state.sequence_stage == SequenceStage::kMute95) {
-    DrawMute95FrameAtTime(surface, mute95_assets, mute95_runtime, sequence_seconds);
+    const int order_row = (state.music_module_slot == 1) ? state.music_order_row : -1;
+    DrawMute95FrameAtTime(
+        surface, mute95_assets, mute95_runtime, sequence_seconds, state.frame_dt_seconds, order_row);
     return;
   }
   if (state.sequence_stage == SequenceStage::kDomina || !saari_assets.enabled) {
@@ -2081,14 +2097,16 @@ int main(int argc, char** argv) {
   }
 
   bool disable_audio = false;
+  bool verbose_audio = false;
   for (int i = 1; i < argc; ++i) {
     const std::string arg = argv[i];
     if (arg == "--nosound" || arg == "nosound") {
       disable_audio = true;
-      break;
+    } else if (arg == "--verbose-audio") {
+      verbose_audio = true;
     }
   }
-  if (disable_audio) {
+  if (disable_audio && verbose_audio) {
     std::cerr << "audio disabled by command line (--nosound)\n";
   }
 
@@ -2342,8 +2360,10 @@ int main(int argc, char** argv) {
         std::cerr << "audio module setup failed: " << audio_error << "\n";
       } else {
         music.enabled = true;
-        const char* driver = SDL_GetCurrentAudioDriver();
-        std::cerr << "audio enabled via SDL driver: " << (driver ? driver : "unknown") << "\n";
+        if (verbose_audio) {
+          const char* driver = SDL_GetCurrentAudioDriver();
+          std::cerr << "audio enabled via SDL driver: " << (driver ? driver : "unknown") << "\n";
+        }
       }
     }
   }
@@ -2585,6 +2605,7 @@ int main(int argc, char** argv) {
     const double frame_dt =
         static_cast<double>(perf_now - perf_prev) / static_cast<double>(perf_freq);
     perf_prev = perf_now;
+    state.frame_dt_seconds = frame_dt;
 
     accumulator += frame_dt;
     title_elapsed += frame_dt;
@@ -2618,6 +2639,8 @@ int main(int argc, char** argv) {
         state.timeline_seconds = static_cast<double>(xm_timing.clock_time_ms) / 1000.0;
       }
     }
+    state.music_module_slot = xm_timing.valid ? xm_timing.module_slot : 0;
+    state.music_order_row = xm_timing.valid ? PackOrderRow(xm_timing.order, xm_timing.row) : -1;
 
     if (state.scene_mode == SceneMode::kMute95DominaSequence) {
       SequenceStage desired = state.sequence_stage;
