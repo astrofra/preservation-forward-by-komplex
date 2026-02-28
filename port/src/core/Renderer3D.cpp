@@ -317,8 +317,10 @@ void Renderer3D::DrawFilledTriangle(Surface32& target,
       const Vec3 interp_normal =
           (a.view_normal * w0 + b.view_normal * w1 + c.view_normal * w2).Normalized();
       const float ndotv = std::abs(interp_normal.z);
-      const float light_intensity = instance.texture ? (0.78f + 0.22f * ndotv)
-                                                     : (0.22f + 0.78f * ndotv);
+      const float light_intensity = instance.texture_unlit
+                                        ? 1.0f
+                                        : (instance.texture ? (0.78f + 0.22f * ndotv)
+                                                            : (0.22f + 0.78f * ndotv));
       const uint32_t shaded_color = ModulateColor(base_color, light_intensity);
       target.SetBackPixel(x, y, shaded_color);
     }

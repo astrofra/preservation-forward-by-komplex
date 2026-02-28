@@ -24,6 +24,7 @@ struct RenderInstance {
   const Image32* texture = nullptr;
   bool use_mesh_uv = true;
   bool texture_wrap = true;
+  bool texture_unlit = false;
   bool draw_fill = true;
   bool draw_wire = true;
   bool enable_backface_culling = true;

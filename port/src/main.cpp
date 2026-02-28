@@ -18,6 +18,7 @@
 
 #include "core/Camera.h"
 #include "core/Image32.h"
+#include "core/LegacyPacked10.h"
 #include "core/Mesh.h"
 #include "core/MeshLoaderIgu.h"
 #include "core/Renderer3D.h"
@@ -36,6 +37,7 @@ using forward::core::Surface32;
 using forward::core::Vec3;
 using forward::core::XmPlayer;
 using forward::core::XmTiming;
+namespace legacy10 = forward::core::legacy10;
 
 constexpr int kLogicalWidth = 512;
 constexpr int kLogicalHeight = 256;
@@ -47,6 +49,8 @@ constexpr int kMute95ToDominaRow = 0x0D00;
 constexpr int kMod1ToMod2Row = 0x1024;
 constexpr int kMod2ToKukotRow = 0x0700;
 constexpr int kMod2ToMakuRow = 0x0D00;
+constexpr int kMod2ToWatercubeRow = 0x1000;
+constexpr int kMod2ToFetaRow = 0x1300;
 
 struct RuntimeStats {
   uint64_t rendered_frames = 0;
@@ -67,6 +71,7 @@ enum class SequenceStage {
   kSaari,
   kKukot,
   kMaku,
+  kWatercube,
 };
 
 struct DemoState {
@@ -216,6 +221,23 @@ struct MakuSceneAssets {
   bool enabled = false;
 };
 
+struct WatercubeSceneAssets {
+  Image32 panel_overlay;
+  Image32 scroll_texture;
+  Image32 box_texture;
+  Image32 ring_texture;
+  Image32 ripple_texture;
+  Image32 env_texture;
+  float camera_fov_degrees = 80.0f;
+  std::vector<SaariSceneAssets::TrackKey> camera_track;
+  std::vector<SaariSceneAssets::TrackKey> target_track;
+  std::vector<SaariSceneAssets::AnimatedObject> animated_objects;
+  Mesh kluns1;
+  Mesh kluns2;
+  bool has_kluns2 = false;
+  bool enabled = false;
+};
+
 struct KukotSceneAssets {
   Image32 object_texture;
   Image32 random_tile;
@@ -249,6 +271,51 @@ struct MakuRuntime {
   float flash_intensity = 0.0f;
   float flash_decay = 0.0f;
   int next_script_event = 0;
+  bool initialized = false;
+};
+
+struct WatercubeRuntime {
+  int ripple_width = 256;
+  int ripple_height = 256;
+  int panel_width = 128;
+  int panel_height = 128;
+
+  std::vector<uint32_t> ripple_a;
+  std::vector<uint32_t> ripple_b;
+  std::vector<uint32_t> ripple_combined;
+  std::vector<uint32_t> ring_texture_10;
+  int ring_width = 0;
+  int ring_height = 0;
+  std::vector<uint32_t> ripple_texture_10;
+  std::vector<uint32_t> panel_overlay_10;
+  int panel_overlay_width = 0;
+  int panel_overlay_height = 0;
+  std::vector<uint32_t> panel_buffer_10;
+  Image32 water_dynamic_argb;
+  Image32 panel_dynamic_argb;
+  std::vector<uint32_t> flash_lut_10;
+  std::vector<int> flash_scanline_order;
+  std::vector<uint32_t> frame_packed_10;
+  int panel_scale = 2;
+  float kluns1_rot_x = 0.7f;
+  float kluns1_rot_z = 0.0f;
+  float kluns2_rot_x = -0.7f;
+  float kluns2_rot_z = 0.0f;
+
+  uint32_t rng_state = 0x57415445u;  // "WATE"
+  uint64_t java_random_state = 0ull;
+  int frame_counter = 0;
+  bool source_is_b = true;
+
+  float flash_amount = 0.0f;
+  float flash_decay = 0.0f;
+  float roll_impulse = 0.0f;
+  float shock_amount = 0.0f;
+  float shock_decay = 0.0f;
+  int tex_strip_offset = 0;
+
+  int next_script_event = 0;
+  int last_order_row = -1;
   bool initialized = false;
 };
 
@@ -299,6 +366,33 @@ uint32_t PackLegacy10(int r10, int g10, int b10) {
   return (r << 20u) | (g << 10u) | b;
 }
 
+void ConvertArgbImageToPacked10(const Image32& image, std::vector<uint32_t>* out_packed10) {
+  if (!out_packed10) {
+    return;
+  }
+  if (image.Empty()) {
+    out_packed10->clear();
+    return;
+  }
+  out_packed10->resize(image.pixels.size());
+  for (size_t i = 0; i < image.pixels.size(); ++i) {
+    const uint32_t c = image.pixels[i];
+    (*out_packed10)[i] = legacy10::PackRgb8To10(
+        static_cast<uint8_t>((c >> 16u) & 0xFFu),
+        static_cast<uint8_t>((c >> 8u) & 0xFFu),
+        static_cast<uint8_t>(c & 0xFFu));
+  }
+}
+
+void EnsureArgbImageStorage(Image32* image, int width, int height) {
+  if (!image || width <= 0 || height <= 0) {
+    return;
+  }
+  image->width = width;
+  image->height = height;
+  image->pixels.assign(static_cast<size_t>(width) * static_cast<size_t>(height), PackArgb(0, 0, 0));
+}
+
 int PackOrderRow(int order, int row) {
   return ((order & 0xFF) << 8) | (row & 0xFF);
 }
@@ -307,6 +401,7 @@ SequenceStage DetermineSequenceStage(const XmTiming& timing,
                                      bool saari_enabled,
                                      bool kukot_enabled,
                                      bool maku_enabled,
+                                     bool watercube_enabled,
                                      double fallback_script_seconds) {
   if (timing.valid) {
     const int order_row = PackOrderRow(timing.order, timing.row);
@@ -325,10 +420,13 @@ SequenceStage DetermineSequenceStage(const XmTiming& timing,
     if (!maku_enabled) {
       return kukot_enabled ? SequenceStage::kKukot : SequenceStage::kSaari;
     }
-    if (!kukot_enabled) {
+    if (order_row < kMod2ToWatercubeRow || !watercube_enabled) {
       return SequenceStage::kMaku;
     }
-    return SequenceStage::kMaku;
+    if (order_row < kMod2ToFetaRow) {
+      return SequenceStage::kWatercube;
+    }
+    return SequenceStage::kWatercube;
   }
 
   if (fallback_script_seconds < 13.0) {
@@ -346,7 +444,10 @@ SequenceStage DetermineSequenceStage(const XmTiming& timing,
     }
     return SequenceStage::kKukot;
   }
-  return SequenceStage::kMaku;
+  if (fallback_script_seconds < 58.0 || !watercube_enabled) {
+    return SequenceStage::kMaku;
+  }
+  return SequenceStage::kWatercube;
 }
 
 SDL_Rect ComputePresentationRect(SDL_Renderer* renderer) {
@@ -841,7 +942,7 @@ bool ParseSaariAseCameraTracks(const std::string& path,
       const float z = std::stof(tokens[4]);
       if (active_node == "Camera01") {
         out_camera->push_back({time_ms, Vec3(x, y, z)});
-      } else if (active_node == "Camera01.Target") {
+      } else if (active_node == "Camera01.Target" || active_node == "Camera01.target") {
         out_target->push_back({time_ms, Vec3(x, y, z)});
       }
     }
@@ -1502,6 +1603,45 @@ float JavaRandomNextFloat(Mute95Runtime& runtime) {
          static_cast<float>(1u << 24u);
 }
 
+void InitJavaRandomStateRaw(uint64_t* state, uint64_t seed) {
+  if (!state) {
+    return;
+  }
+  constexpr uint64_t kMask = (1ull << 48ull) - 1ull;
+  *state = (seed ^ 0x5DEECE66Dull) & kMask;
+}
+
+uint32_t JavaRandomNextBitsRaw(uint64_t* state, int bits) {
+  if (!state) {
+    return 0u;
+  }
+  constexpr uint64_t kMask = (1ull << 48ull) - 1ull;
+  *state = (*state * 0x5DEECE66Dull + 0xBull) & kMask;
+  return static_cast<uint32_t>(*state >> (48 - bits));
+}
+
+double JavaRandomNextDoubleRaw(uint64_t* state) {
+  const uint64_t a = static_cast<uint64_t>(JavaRandomNextBitsRaw(state, 26));
+  const uint64_t b = static_cast<uint64_t>(JavaRandomNextBitsRaw(state, 27));
+  return static_cast<double>((a << 27u) | b) / static_cast<double>(1ull << 53u);
+}
+
+int JavaRandomNextIntBoundRaw(uint64_t* state, int bound) {
+  if (bound <= 0) {
+    return 0;
+  }
+  if ((bound & (bound - 1)) == 0) {
+    return static_cast<int>((bound * static_cast<int64_t>(JavaRandomNextBitsRaw(state, 31))) >> 31);
+  }
+  int bits = 0;
+  int value = 0;
+  do {
+    bits = static_cast<int>(JavaRandomNextBitsRaw(state, 31));
+    value = bits % bound;
+  } while (bits - value + (bound - 1) < 0);
+  return value;
+}
+
 std::vector<uint8_t>& Mute95CurrentBuffer(Mute95Runtime& runtime) {
   return runtime.current_is_a ? runtime.buffer_a : runtime.buffer_b;
 }
@@ -1978,7 +2118,7 @@ void DrawSaariFrameAtTime(Surface32& surface,
     cam_pos = SampleSaariTrackAtMs(saari.camera_track, t_ms);
     cam_target = SampleSaariTrackAtMs(saari.target_track, t_ms);
   }
-  SetCameraLookAt(camera, cam_pos, cam_target, Vec3(0.0f, 1.0f, 0.0f));
+  SetCameraLookAt(camera, cam_pos, cam_target, Vec3(0.0f, 0.0f, 1.0f));
   camera.fov_degrees = saari.camera_fov_degrees;
 
   surface.ClearBack(PackArgb(220, 230, 245));
@@ -2634,7 +2774,7 @@ void DrawMakuFrameAtTime(Surface32& surface,
     cam_pos = SampleSaariTrackAtMs(maku.camera_track, t_ms);
     cam_target = SampleSaariTrackAtMs(maku.target_track, t_ms);
   }
-  SetCameraLookAt(camera, cam_pos, cam_target, Vec3(0.0f, 1.0f, 0.0f));
+  SetCameraLookAt(camera, cam_pos, cam_target, Vec3(0.0f, 0.0f, 1.0f));
   ApplyCameraRoll(camera, runtime.roll_angle);
   camera.fov_degrees = maku.camera_fov_degrees;
 
@@ -2701,6 +2841,605 @@ void DrawMakuFrameAtTime(Surface32& surface,
   }
 
   surface.SwapBuffers();
+}
+
+void InitializeWatercubeRuntime(const WatercubeSceneAssets& watercube, WatercubeRuntime& runtime) {
+  runtime.ripple_width = (!watercube.ripple_texture.Empty()) ? watercube.ripple_texture.width : 256;
+  runtime.ripple_height = (!watercube.ripple_texture.Empty()) ? watercube.ripple_texture.height : 256;
+  runtime.panel_width = 128;
+  runtime.panel_height = 128;
+
+  const size_t ripple_count =
+      static_cast<size_t>(runtime.ripple_width) * static_cast<size_t>(runtime.ripple_height);
+  runtime.ripple_a.assign(ripple_count, 0u);
+  runtime.ripple_b.assign(ripple_count, 0u);
+  runtime.ripple_combined.assign(ripple_count, 0u);
+
+  runtime.ring_width = watercube.ring_texture.width;
+  runtime.ring_height = watercube.ring_texture.height;
+  ConvertArgbImageToPacked10(watercube.ring_texture, &runtime.ring_texture_10);
+
+  ConvertArgbImageToPacked10(watercube.ripple_texture, &runtime.ripple_texture_10);
+  if (runtime.ripple_texture_10.size() != ripple_count) {
+    runtime.ripple_texture_10.assign(ripple_count, legacy10::PackRgb8To10(8, 22, 34));
+  }
+
+  runtime.panel_overlay_width = watercube.panel_overlay.width;
+  runtime.panel_overlay_height = watercube.panel_overlay.height;
+  ConvertArgbImageToPacked10(watercube.panel_overlay, &runtime.panel_overlay_10);
+  runtime.panel_buffer_10.assign(
+      static_cast<size_t>(runtime.panel_width) * static_cast<size_t>(runtime.panel_height), 0u);
+  runtime.frame_packed_10.assign(
+      static_cast<size_t>(kLogicalWidth) * static_cast<size_t>(kLogicalHeight), 0u);
+  runtime.panel_scale = std::max(1, kLogicalHeight / 128);
+
+  EnsureArgbImageStorage(&runtime.water_dynamic_argb, runtime.ripple_width, runtime.ripple_height);
+  EnsureArgbImageStorage(&runtime.panel_dynamic_argb, runtime.panel_width, runtime.panel_height);
+
+  InitJavaRandomStateRaw(&runtime.java_random_state, 0x1998u);
+  runtime.rng_state = 0x57415445u;
+  runtime.frame_counter = 0;
+  runtime.source_is_b = true;
+  runtime.kluns1_rot_x = 0.7f;
+  runtime.kluns1_rot_z = 0.0f;
+  runtime.kluns2_rot_x = -0.7f;
+  runtime.kluns2_rot_z = 0.0f;
+  runtime.flash_amount = 0.0f;
+  runtime.flash_decay = 0.0f;
+  runtime.roll_impulse = 0.0f;
+  runtime.shock_amount = 0.0f;
+  runtime.shock_decay = 0.0f;
+  runtime.tex_strip_offset = 0;
+  runtime.next_script_event = 0;
+  runtime.last_order_row = -1;
+
+  runtime.flash_lut_10.assign(1000, 0u);
+  for (uint32_t& c : runtime.flash_lut_10) {
+    const int r = static_cast<int>(JavaRandomNextDoubleRaw(&runtime.java_random_state) * 68.0);
+    const int g = static_cast<int>(JavaRandomNextDoubleRaw(&runtime.java_random_state) * 56.0);
+    const int b = static_cast<int>(JavaRandomNextDoubleRaw(&runtime.java_random_state) * 37.0);
+    c = PackLegacy10(r, g, b);
+  }
+  runtime.flash_scanline_order.resize(static_cast<size_t>(kLogicalHeight));
+  for (int i = 0; i < kLogicalHeight; ++i) {
+    runtime.flash_scanline_order[static_cast<size_t>(i)] = i;
+  }
+  for (int i = 0; i < 3000; ++i) {
+    const int n4 = i % static_cast<int>(runtime.flash_scanline_order.size());
+    const int n8 = static_cast<int>(
+        JavaRandomNextDoubleRaw(&runtime.java_random_state) *
+        static_cast<double>(runtime.flash_scanline_order.size() - 2));
+    std::swap(runtime.flash_scanline_order[static_cast<size_t>(n4)],
+              runtime.flash_scanline_order[static_cast<size_t>(std::clamp(
+                  n8, 0, static_cast<int>(runtime.flash_scanline_order.size()) - 1))]);
+  }
+  runtime.initialized = true;
+}
+
+void ApplyWatercubeMessage(WatercubeRuntime& runtime, const std::string& message) {
+  if (message == "suh") {
+    runtime.flash_amount = 50.0f;
+    runtime.flash_decay = 200.0f;
+    return;
+  }
+  if (message == "suh0") {
+    runtime.flash_amount = 100.0f;
+    runtime.flash_decay = 150.0f;
+    return;
+  }
+  if (message == "suh1") {
+    runtime.flash_amount = 128.0f;
+    runtime.flash_decay = 120.0f;
+    return;
+  }
+  if (message == "suh2") {
+    runtime.flash_amount = 256.0f;
+    runtime.flash_decay = 90.0f;
+    return;
+  }
+  if (message == "rok") {
+    runtime.roll_impulse = 1.0f;
+    return;
+  }
+  if (message == "pum") {
+    runtime.shock_amount = 100.0f;
+    runtime.shock_decay = 130.0f;
+    return;
+  }
+  if (message == "tex0") {
+    runtime.tex_strip_offset = -80;
+    return;
+  }
+  if (message == "tex1") {
+    runtime.tex_strip_offset = -160;
+    return;
+  }
+  if (message == "tex2") {
+    runtime.tex_strip_offset = -240;
+    return;
+  }
+  if (message == "tex3") {
+    runtime.tex_strip_offset = -320;
+  }
+}
+
+void RunWatercubeScriptAtOrderRow(WatercubeRuntime& runtime, int order_row) {
+  if (order_row < 0) {
+    return;
+  }
+  struct WatercubeEvent {
+    int order_row;
+    const char* message;
+  };
+  static const std::array<WatercubeEvent, 18> kEvents = {{
+      {0x1004, "pum"},
+      {0x1008, "rok"},
+      {0x100C, "suh"},
+      {0x1030, "pum"},
+      {0x1100, "rok"},
+      {0x1100, "pum"},
+      {0x1110, "suh0"},
+      {0x1128, "suh0"},
+      {0x1130, "suh0"},
+      {0x1200, "suh1"},
+      {0x1200, "pum"},
+      {0x1200, "rok"},
+      {0x1210, "suh0"},
+      {0x1210, "tex0"},
+      {0x1220, "suh1"},
+      {0x1220, "tex1"},
+      {0x1230, "suh0"},
+      {0x1230, "tex2"},
+  }};
+
+  if (runtime.last_order_row < 0) {
+    runtime.last_order_row = order_row;
+  }
+
+  while (runtime.next_script_event < static_cast<int>(kEvents.size())) {
+    const WatercubeEvent& ev = kEvents[static_cast<size_t>(runtime.next_script_event)];
+    const bool reached = (order_row == ev.order_row) ||
+                         RowCrossed(runtime.last_order_row, order_row, ev.order_row);
+    if (!reached) {
+      break;
+    }
+    ApplyWatercubeMessage(runtime, ev.message);
+    ++runtime.next_script_event;
+  }
+  runtime.last_order_row = order_row;
+}
+
+void WatercubeInjectRing(WatercubeRuntime& runtime) {
+  if (runtime.ring_texture_10.empty() || runtime.ripple_b.empty()) {
+    return;
+  }
+  for (int i = 0; i < 1; ++i) {
+    const int x = 106 + static_cast<int>(
+                              10.0 * -std::sin(static_cast<double>(i + runtime.frame_counter) / 6.24));
+    const int y = 106 + static_cast<int>(
+                              15.0 * std::cos(static_cast<double>(2 * i + runtime.frame_counter) / 6.24));
+    legacy10::AdditiveBlit(runtime.ring_texture_10.data(),
+                           runtime.ring_width,
+                           runtime.ring_height,
+                           0,
+                           0,
+                           runtime.ripple_b.data(),
+                           runtime.ripple_width,
+                           runtime.ripple_height,
+                           x,
+                           y,
+                           runtime.ring_width,
+                           runtime.ring_height);
+  }
+}
+
+void WatercubeWaveStep(const std::vector<uint32_t>& src, std::vector<uint32_t>* dst, int width, int height) {
+  if (!dst || src.empty() || dst->empty() || width < 4 || height < 4) {
+    return;
+  }
+
+  const int n3_start = width * 2;
+  const int n4 = width + width;
+  const int n5 = static_cast<int>(legacy10::kCarryMask);
+  const int n6 = n4 - 2;
+  const int n7 = n4 + 2;
+  const int n8 = n4 + n4;
+
+  int n3 = n3_start;
+  for (int n9 = 2; n9 < height - 2; n9 += 2) {
+    int n10 = n3 - n4 + 1;
+    int n11 = n3 + 1;
+    for (int n12 = 1; n12 < width - 1; n12 += 2) {
+      const int n14 = static_cast<int>(src[static_cast<size_t>(n10)]) +
+                      static_cast<int>(src[static_cast<size_t>(n10 + n6)]) +
+                      static_cast<int>(src[static_cast<size_t>(n10 + n7)]) +
+                      static_cast<int>(src[static_cast<size_t>(n10 + n8)]);
+      const int n15 = static_cast<int>((*dst)[static_cast<size_t>(n11)]);
+      const int n16 = (n14 >> 1) + n5 - n15;
+      const int n17 = n16 & n5;
+      const int n13 = n16 & (n17 - (n17 >> 8));
+      (*dst)[static_cast<size_t>(n11 - width)] = static_cast<uint32_t>(n13);
+      (*dst)[static_cast<size_t>(n11 - width + 1)] = static_cast<uint32_t>(n13);
+      (*dst)[static_cast<size_t>(n11++)] = static_cast<uint32_t>(n13);
+      (*dst)[static_cast<size_t>(n11++)] = static_cast<uint32_t>(n13);
+      n10 += 2;
+    }
+    n3 += 2 * width;
+  }
+}
+
+void ApplyWatercubeFlashNoise(Surface32& surface, WatercubeRuntime& runtime, int amount_signed) {
+  if (amount_signed == 0 || runtime.flash_lut_10.empty() || runtime.flash_scanline_order.empty()) {
+    return;
+  }
+
+  int amount = std::abs(amount_signed);
+  if (amount > kLogicalHeight) {
+    amount = kLogicalHeight - 1;
+  }
+  if (amount <= 0) {
+    return;
+  }
+
+  uint32_t* back = surface.BackPixelsMutable();
+  if (!back) {
+    return;
+  }
+
+  const size_t count = static_cast<size_t>(kLogicalWidth) * static_cast<size_t>(kLogicalHeight);
+  if (runtime.frame_packed_10.size() != count) {
+    runtime.frame_packed_10.resize(count);
+  }
+  for (size_t i = 0; i < count; ++i) {
+    const uint32_t c = back[i];
+    runtime.frame_packed_10[i] = legacy10::PackRgb8To10(
+        static_cast<uint8_t>((c >> 16u) & 0xFFu),
+        static_cast<uint8_t>((c >> 8u) & 0xFFu),
+        static_cast<uint8_t>(c & 0xFFu));
+  }
+
+  const int lut_len = static_cast<int>(runtime.flash_lut_10.size());
+  const int line_perm_len = static_cast<int>(runtime.flash_scanline_order.size());
+  const int random_line_offset = JavaRandomNextIntBoundRaw(&runtime.java_random_state, lut_len);
+
+  for (int i = 0; i < amount; ++i) {
+    const int y = runtime.flash_scanline_order[static_cast<size_t>((i + random_line_offset) % line_perm_len)];
+    const int noise_start =
+        JavaRandomNextIntBoundRaw(&runtime.java_random_state, std::max(1, lut_len - 1 - kLogicalWidth));
+    int dst_idx = y * kLogicalWidth;
+    int src_idx = noise_start;
+    const int src_end = noise_start + kLogicalWidth;
+    if (amount_signed > 0) {
+      while (src_idx < src_end) {
+        runtime.frame_packed_10[static_cast<size_t>(dst_idx)] =
+            legacy10::AddSaturating(runtime.frame_packed_10[static_cast<size_t>(dst_idx)],
+                                    runtime.flash_lut_10[static_cast<size_t>(src_idx)]);
+        ++dst_idx;
+        ++src_idx;
+      }
+    } else {
+      while (src_idx < src_end) {
+        runtime.frame_packed_10[static_cast<size_t>(dst_idx)] =
+            legacy10::SubSaturating(runtime.frame_packed_10[static_cast<size_t>(dst_idx)],
+                                    runtime.flash_lut_10[static_cast<size_t>(src_idx)]);
+        ++dst_idx;
+        ++src_idx;
+      }
+    }
+  }
+
+  legacy10::ConvertBufferToArgb(runtime.frame_packed_10.data(), back, count);
+}
+
+void AdditiveBlitAdditiveMode49(Surface32& surface,
+                                Surface32& layer_surface,
+                                const Mesh& mesh,
+                                const Camera& camera,
+                                const RenderInstance& instance,
+                                Renderer3D& renderer) {
+  layer_surface.ClearBack(PackArgb(0, 0, 0));
+  renderer.DrawMesh(layer_surface, mesh, camera, instance);
+  layer_surface.SwapBuffers();
+  surface.AdditiveBlitToBack(layer_surface.FrontPixels(),
+                             kLogicalWidth,
+                             kLogicalHeight,
+                             0,
+                             0,
+                             0,
+                             0,
+                             kLogicalWidth,
+                             kLogicalHeight,
+                             255);
+}
+
+void ComposeWatercubePanelBuffer(WatercubeRuntime& runtime) {
+  if (runtime.panel_overlay_10.empty() || runtime.panel_buffer_10.empty()) {
+    return;
+  }
+  const int panel_x =
+      -292 + static_cast<int>(JavaRandomNextDoubleRaw(&runtime.java_random_state) * 20.0) - 20;
+  const int panel_y =
+      -80 + static_cast<int>(JavaRandomNextDoubleRaw(&runtime.java_random_state) * 40.0) - 20;
+  legacy10::AdditiveBlit(runtime.panel_overlay_10.data(),
+                         runtime.panel_overlay_width,
+                         runtime.panel_overlay_height,
+                         0,
+                         0,
+                         runtime.panel_buffer_10.data(),
+                         runtime.panel_width,
+                         runtime.panel_height,
+                         panel_x,
+                         panel_y,
+                         runtime.panel_overlay_width,
+                         runtime.panel_overlay_height);
+  legacy10::ShiftChannelsRight(runtime.panel_buffer_10.data(), runtime.panel_buffer_10.size(), 1);
+  legacy10::ConvertBufferToArgb(runtime.panel_buffer_10.data(),
+                                runtime.panel_dynamic_argb.pixels.data(),
+                                runtime.panel_buffer_10.size());
+}
+
+void ApplyWatercubeShockOverlay(Surface32& surface,
+                                const WatercubeSceneAssets& watercube,
+                                WatercubeRuntime& runtime) {
+  if (runtime.shock_amount <= 0.0f) {
+    return;
+  }
+  const int n = -static_cast<int>(JavaRandomNextDoubleRaw(&runtime.java_random_state) * 384.0);
+  const int n2 = -static_cast<int>(JavaRandomNextDoubleRaw(&runtime.java_random_state) * 352.0);
+  surface.AdditiveBlitToBack(watercube.scroll_texture.pixels.data(),
+                             watercube.scroll_texture.width,
+                             watercube.scroll_texture.height,
+                             0,
+                             0,
+                             n,
+                             n2,
+                             watercube.scroll_texture.width,
+                             watercube.scroll_texture.height,
+                             255);
+  surface.AdditiveBlitToBack(watercube.scroll_texture.pixels.data(),
+                             watercube.scroll_texture.width,
+                             watercube.scroll_texture.height,
+                             0,
+                             0,
+                             n + 640,
+                             n2,
+                             watercube.scroll_texture.width,
+                             watercube.scroll_texture.height,
+                             255);
+  surface.AdditiveBlitToBack(watercube.scroll_texture.pixels.data(),
+                             watercube.scroll_texture.width,
+                             watercube.scroll_texture.height,
+                             0,
+                             0,
+                             n + 640,
+                             n2 + 480,
+                             watercube.scroll_texture.width,
+                             watercube.scroll_texture.height,
+                             255);
+  surface.AdditiveBlitToBack(watercube.scroll_texture.pixels.data(),
+                             watercube.scroll_texture.width,
+                             watercube.scroll_texture.height,
+                             0,
+                             0,
+                             n,
+                             n2 + 480,
+                             watercube.scroll_texture.width,
+                             watercube.scroll_texture.height,
+                             255);
+}
+
+void DrawWatercubeFrameAtTime(Surface32& surface,
+                              Surface32& watercube_layer_surface,
+                              const DemoState& state,
+                              const WatercubeSceneAssets& watercube,
+                              WatercubeRuntime& runtime,
+                              Camera& camera,
+                              Renderer3D& renderer,
+                              RenderInstance& object_instance,
+                              double scene_seconds,
+                              bool trigger_script_messages) {
+  if (!watercube.enabled || watercube.animated_objects.empty() || watercube.scroll_texture.Empty() ||
+      watercube.box_texture.Empty() || watercube.panel_overlay.Empty() || watercube.ring_texture.Empty() ||
+      watercube.ripple_texture.Empty()) {
+    surface.ClearBack(PackArgb(0, 0, 0));
+    surface.SwapBuffers();
+    return;
+  }
+  if (!runtime.initialized) {
+    InitializeWatercubeRuntime(watercube, runtime);
+  }
+
+  const int order_row = (state.music_module_slot == 2) ? state.music_order_row : -1;
+  if (trigger_script_messages) {
+    RunWatercubeScriptAtOrderRow(runtime, order_row);
+  }
+
+  const float dt = static_cast<float>(std::clamp(state.frame_dt_seconds, 1.0 / 240.0, 0.1));
+  runtime.frame_counter += 1;
+  runtime.kluns1_rot_x += 0.02f;
+  runtime.kluns1_rot_z += 0.07f;
+  if (watercube.has_kluns2) {
+    runtime.kluns2_rot_x -= 0.02f;
+    runtime.kluns2_rot_z += 0.07f;
+  }
+
+  WatercubeInjectRing(runtime);
+  if (runtime.source_is_b) {
+    WatercubeWaveStep(runtime.ripple_b, &runtime.ripple_a, runtime.ripple_width, runtime.ripple_height);
+    runtime.ripple_combined = runtime.ripple_texture_10;
+    legacy10::AdditiveBlit(runtime.ripple_a.data(),
+                           runtime.ripple_width,
+                           runtime.ripple_height,
+                           0,
+                           0,
+                           runtime.ripple_combined.data(),
+                           runtime.ripple_width,
+                           runtime.ripple_height,
+                           0,
+                           0,
+                           runtime.ripple_width,
+                           runtime.ripple_height);
+  } else {
+    WatercubeWaveStep(runtime.ripple_a, &runtime.ripple_b, runtime.ripple_width, runtime.ripple_height);
+    runtime.ripple_combined = runtime.ripple_texture_10;
+    legacy10::AdditiveBlit(runtime.ripple_b.data(),
+                           runtime.ripple_width,
+                           runtime.ripple_height,
+                           0,
+                           0,
+                           runtime.ripple_combined.data(),
+                           runtime.ripple_width,
+                           runtime.ripple_height,
+                           0,
+                           0,
+                           runtime.ripple_width,
+                           runtime.ripple_height);
+  }
+  runtime.source_is_b = !runtime.source_is_b;
+  legacy10::ConvertBufferToArgb(runtime.ripple_combined.data(),
+                                runtime.water_dynamic_argb.pixels.data(),
+                                runtime.ripple_combined.size());
+
+  const double t_eval_seconds = scene_seconds * 1.8 + 2.0;
+  const double t_ms = t_eval_seconds * 1000.0;
+
+  Vec3 cam_pos(0.0f, -80.0f, 20.0f);
+  Vec3 cam_target(0.0f, 0.0f, 0.0f);
+  if (!watercube.camera_track.empty() && !watercube.target_track.empty()) {
+    cam_pos = SampleSaariTrackAtMs(watercube.camera_track, t_ms);
+    cam_target = SampleSaariTrackAtMs(watercube.target_track, t_ms);
+  }
+  SetCameraLookAt(camera, cam_pos, cam_target, Vec3(0.0f, 0.0f, 1.0f));
+  ApplyCameraRoll(camera, runtime.roll_impulse * 2.0f * kPi);
+  camera.fov_degrees = watercube.camera_fov_degrees;
+
+  surface.ClearBack(PackArgb(0, 0, 0));
+
+  object_instance.uniform_scale = 1.0f;
+  object_instance.fill_color = PackArgb(255, 255, 255);
+  object_instance.wire_color = 0;
+  object_instance.draw_fill = true;
+  object_instance.draw_wire = false;
+  object_instance.use_mesh_uv = true;
+  object_instance.texture_wrap = true;
+  object_instance.texture_unlit = false;
+  object_instance.enable_backface_culling = true;
+
+  for (const SaariSceneAssets::AnimatedObject& obj : watercube.animated_objects) {
+    if (obj.mesh.Empty()) {
+      continue;
+    }
+    Vec3 obj_pos = obj.base_position;
+    if (!obj.position_track.empty()) {
+      obj_pos = SampleSaariTrackAtMs(obj.position_track, t_ms);
+    }
+    Quat obj_rot = obj.base_rotation;
+    if (!obj.rotation_track.empty()) {
+      obj_rot = SampleSaariRotationTrackAtMs(obj.rotation_track, t_ms, obj.base_rotation);
+    }
+    object_instance.translation = obj_pos;
+    SetRenderInstanceBasisFromQuat(object_instance, obj_rot);
+    if (obj.name == "TriPatch01") {
+      object_instance.texture = &runtime.water_dynamic_argb;
+      object_instance.texture_unlit = true;
+      AdditiveBlitAdditiveMode49(surface, watercube_layer_surface, obj.mesh, camera, object_instance, renderer);
+    } else {
+      object_instance.texture = &watercube.box_texture;
+      object_instance.texture_unlit = false;
+      renderer.DrawMesh(surface, obj.mesh, camera, object_instance);
+    }
+  }
+
+  object_instance.use_basis_rotation = false;
+  object_instance.uniform_scale = 0.45f;
+  object_instance.texture = &watercube.env_texture;
+  object_instance.texture_unlit = false;
+  if (!watercube.kluns1.Empty()) {
+    object_instance.translation = Vec3(0.0f, 0.0f, 20.0f);
+    object_instance.rotation_radians = Vec3(runtime.kluns1_rot_x, 0.0f, runtime.kluns1_rot_z);
+    renderer.DrawMesh(surface, watercube.kluns1, camera, object_instance);
+  }
+  if (watercube.has_kluns2 && !watercube.kluns2.Empty()) {
+    object_instance.translation = Vec3(0.0f, 0.0f, -20.0f);
+    object_instance.rotation_radians = Vec3(runtime.kluns2_rot_x, 0.0f, runtime.kluns2_rot_z);
+    renderer.DrawMesh(surface, watercube.kluns2, camera, object_instance);
+  }
+
+  ComposeWatercubePanelBuffer(runtime);
+  if (runtime.panel_scale == 2) {
+    surface.AdditiveBlitScaledToBack(runtime.panel_dynamic_argb.pixels.data(),
+                                     runtime.panel_dynamic_argb.width,
+                                     runtime.panel_dynamic_argb.height,
+                                     126 * runtime.panel_scale,
+                                     0,
+                                     128 * runtime.panel_scale,
+                                     128 * runtime.panel_scale,
+                                     255);
+  } else {
+    surface.AdditiveBlitScaledToBack(runtime.panel_dynamic_argb.pixels.data(),
+                                     runtime.panel_dynamic_argb.width,
+                                     runtime.panel_dynamic_argb.height,
+                                     126 * runtime.panel_scale,
+                                     0,
+                                     128,
+                                     128,
+                                     255);
+  }
+
+  surface.AdditiveBlitScaledToBack(watercube.scroll_texture.pixels.data(),
+                                   watercube.scroll_texture.width,
+                                   watercube.scroll_texture.height,
+                                   static_cast<int>(-scene_seconds * 135.0),
+                                   -260,
+                                   1280,
+                                   960,
+                                   255);
+  if (runtime.tex_strip_offset != 0) {
+    surface.AdditiveBlitToBack(watercube.scroll_texture.pixels.data(),
+                               watercube.scroll_texture.width,
+                               watercube.scroll_texture.height,
+                               0,
+                               0,
+                               -200,
+                               runtime.tex_strip_offset,
+                               watercube.scroll_texture.width,
+                               watercube.scroll_texture.height,
+                               255);
+  }
+
+  runtime.roll_impulse *= 0.917f;
+  if (runtime.flash_amount > 0.0f) {
+    ApplyWatercubeFlashNoise(surface, runtime, static_cast<int>(runtime.flash_amount));
+    runtime.flash_amount = std::max(0.0f, runtime.flash_amount - runtime.flash_decay * dt);
+  }
+  if (runtime.shock_amount > 0.0f) {
+    ApplyWatercubeShockOverlay(surface, watercube, runtime);
+    runtime.shock_amount = std::max(0.0f, runtime.shock_amount - runtime.shock_decay * dt);
+  }
+
+  surface.SwapBuffers();
+}
+
+void DrawWatercubeFrameAtTime(Surface32& surface,
+                              const DemoState& state,
+                              const WatercubeSceneAssets& watercube,
+                              WatercubeRuntime& runtime,
+                              Camera& camera,
+                              Renderer3D& renderer,
+                              RenderInstance& object_instance,
+                              double scene_seconds,
+                              bool trigger_script_messages) {
+  static Surface32 watercube_layer_surface(kLogicalWidth, kLogicalHeight, true);
+  DrawWatercubeFrameAtTime(surface,
+                           watercube_layer_surface,
+                           state,
+                           watercube,
+                           runtime,
+                           camera,
+                           renderer,
+                           object_instance,
+                           scene_seconds,
+                           trigger_script_messages);
 }
 
 Vec3 RotateXSimple(const Vec3& v, float angle) {
@@ -2894,11 +3633,14 @@ void DrawMute95DominaSequenceFrame(Surface32& surface,
                                    KukotRuntime& kukot_runtime,
                                    const MakuSceneAssets& maku_assets,
                                    MakuRuntime& maku_runtime,
+                                   const WatercubeSceneAssets& watercube_assets,
+                                   WatercubeRuntime& watercube_runtime,
                                    Camera& camera,
                                    Renderer3D& renderer,
                                    RenderInstance& saari_backdrop_instance,
                                    RenderInstance& saari_terrain_instance,
-                                   RenderInstance& saari_object_instance) {
+                                   RenderInstance& saari_object_instance,
+                                   RenderInstance& watercube_object_instance) {
   const double sequence_seconds = std::max(0.0, state.timeline_seconds - state.scene_start_seconds);
 
   if (state.sequence_stage == SequenceStage::kMute95) {
@@ -2935,6 +3677,18 @@ void DrawMute95DominaSequenceFrame(Surface32& surface,
                         true);
     return;
   }
+  if (state.sequence_stage == SequenceStage::kWatercube) {
+    DrawWatercubeFrameAtTime(surface,
+                             state,
+                             watercube_assets,
+                             watercube_runtime,
+                             camera,
+                             renderer,
+                             watercube_object_instance,
+                             sequence_seconds,
+                             true);
+    return;
+  }
   DrawSaariFrameAtTime(surface,
                        saari_assets,
                        saari_runtime,
@@ -2959,6 +3713,8 @@ void DrawFrame(Surface32& surface,
                KukotRuntime& kukot_runtime,
                const MakuSceneAssets& maku_assets,
                MakuRuntime& maku_runtime,
+               const WatercubeSceneAssets& watercube_assets,
+               WatercubeRuntime& watercube_runtime,
                const Mesh& mesh,
                const KaaakmaBackgroundPass& background,
                MmaamkaParticlePass& particles,
@@ -2970,6 +3726,7 @@ void DrawFrame(Surface32& surface,
                RenderInstance& saari_backdrop_instance,
                RenderInstance& saari_terrain_instance,
                RenderInstance& saari_object_instance,
+               RenderInstance& watercube_object_instance,
                Surface32& halo_surface,
                const FetaSceneAssets& feta,
                const QuickWinPostLayer& post) {
@@ -3006,11 +3763,14 @@ void DrawFrame(Surface32& surface,
                                   kukot_runtime,
                                   maku_assets,
                                   maku_runtime,
+                                  watercube_assets,
+                                  watercube_runtime,
                                   camera,
                                   renderer,
                                   saari_backdrop_instance,
                                   saari_terrain_instance,
-                                  saari_object_instance);
+                                  saari_object_instance,
+                                  watercube_object_instance);
     return;
   }
 
@@ -3089,6 +3849,7 @@ int main(int argc, char** argv) {
   RenderInstance saari_backdrop_instance;
   RenderInstance saari_terrain_instance;
   RenderInstance saari_object_instance;
+  RenderInstance watercube_object_instance;
   saari_backdrop_instance.enable_backface_culling = false;
   saari_backdrop_instance.draw_fill = true;
   saari_backdrop_instance.draw_wire = false;
@@ -3110,6 +3871,8 @@ int main(int argc, char** argv) {
   KukotRuntime kukot_runtime;
   MakuSceneAssets maku;
   MakuRuntime maku_runtime;
+  WatercubeSceneAssets watercube;
+  WatercubeRuntime watercube_runtime;
   MmaamkaParticlePass particles;
   KaaakmaBackgroundPass background;
   {
@@ -3361,6 +4124,73 @@ int main(int argc, char** argv) {
     maku.enabled = mesh_ok && !maku.terrain_texture.Empty() && tracks_ok;
   }
 
+  {
+    std::string image_error;
+    bool textures_ok = true;
+    textures_ok &= LoadForwardImage("images/1.jpg", &watercube.panel_overlay, &image_error);
+    if (watercube.panel_overlay.Empty()) {
+      std::cerr << "watercube panel overlay load failed: " << image_error << "\n";
+      textures_ok = false;
+    }
+    textures_ok &= LoadForwardImage("images/txt1.jpg", &watercube.scroll_texture, &image_error);
+    if (watercube.scroll_texture.Empty()) {
+      std::cerr << "watercube scroll texture load failed: " << image_error << "\n";
+      textures_ok = false;
+    }
+    textures_ok &= LoadForwardImage("images/reunus2.jpg", &watercube.box_texture, &image_error);
+    if (watercube.box_texture.Empty()) {
+      std::cerr << "watercube box texture load failed: " << image_error << "\n";
+      textures_ok = false;
+    }
+    textures_ok &= LoadForwardImage("images/rinku2.jpg", &watercube.ring_texture, &image_error);
+    if (watercube.ring_texture.Empty()) {
+      std::cerr << "watercube ring texture load failed: " << image_error << "\n";
+      textures_ok = false;
+    }
+    textures_ok &= LoadForwardImage("images/riple2.jpg", &watercube.ripple_texture, &image_error);
+    if (watercube.ripple_texture.Empty()) {
+      std::cerr << "watercube ripple texture load failed: " << image_error << "\n";
+      textures_ok = false;
+    }
+
+    if (!LoadForwardImage("images/env3.jpg", &watercube.env_texture, &image_error)) {
+      std::cerr << "watercube env texture load failed: " << image_error << "\n";
+    }
+
+    const std::string watercube_ase_path = ResolveForwardAssetPath("asses/nosto3.ase");
+    bool tracks_ok = false;
+    bool objects_ok = false;
+    if (!watercube_ase_path.empty()) {
+      tracks_ok = ParseSaariAseCameraTracks(watercube_ase_path,
+                                            &watercube.camera_track,
+                                            &watercube.target_track,
+                                            &watercube.camera_fov_degrees);
+      static const std::vector<std::string> kWatercubeObjectNames = {"Box01", "TriPatch01"};
+      objects_ok =
+          ParseAseAnimatedObjects(watercube_ase_path, kWatercubeObjectNames, &watercube.animated_objects);
+    }
+    if (!tracks_ok) {
+      std::cerr << "watercube camera tracks parse failed\n";
+    }
+    if (!objects_ok) {
+      std::cerr << "watercube ASE object parse failed\n";
+    } else {
+      std::cerr << "watercube ASE objects loaded: " << watercube.animated_objects.size() << "\n";
+    }
+
+    const std::string kluns1_path = ResolveForwardAssetPath("meshes/kluns1.igu");
+    if (!kluns1_path.empty() && !forward::core::LoadIguMesh(kluns1_path, watercube.kluns1, &mesh_error)) {
+      std::cerr << "watercube kluns1 load failed: " << mesh_error << "\n";
+      watercube.kluns1.Clear();
+    }
+    const std::string kluns2_path = ResolveForwardAssetPath("meshes/kluns2.igu");
+    if (!kluns2_path.empty() && forward::core::LoadIguMesh(kluns2_path, watercube.kluns2, &mesh_error)) {
+      watercube.has_kluns2 = !watercube.kluns2.Empty();
+    }
+
+    watercube.enabled = textures_ok && tracks_ok && objects_ok;
+  }
+
   QuickWinPostLayer post;
 
   const std::string phorward_path = ResolveForwardAssetPath("images/phorward.gif");
@@ -3473,8 +4303,10 @@ int main(int argc, char** argv) {
   if (mute95.enabled && domina.enabled && saari.enabled) {
     state.scene_mode = SceneMode::kMute95DominaSequence;
     state.sequence_stage = SequenceStage::kMute95;
-    state.scene_label = maku.enabled ? "mute95->domina->saari->kukot->maku"
-                                     : "mute95->domina->saari->kukot";
+    state.scene_label =
+        (maku.enabled && watercube.enabled)   ? "mute95->domina->saari->kukot->maku->watercube"
+        : (maku.enabled)                      ? "mute95->domina->saari->kukot->maku"
+                                              : "mute95->domina->saari->kukot";
   } else if (mute95.enabled && domina.enabled) {
     state.scene_mode = SceneMode::kMute95DominaSequence;
     state.sequence_stage = SequenceStage::kMute95;
@@ -3524,10 +4356,11 @@ int main(int argc, char** argv) {
       if (mute95.enabled && domina.enabled) {
         state.scene_mode = SceneMode::kMute95DominaSequence;
         state.sequence_stage = SequenceStage::kMute95;
-        state.scene_label = saari.enabled
-                                ? (maku.enabled ? "mute95->domina->saari->kukot->maku"
-                                                : "mute95->domina->saari->kukot")
-                                : "mute95->domina";
+        state.scene_label = saari.enabled ? ((maku.enabled && watercube.enabled)
+                                                 ? "mute95->domina->saari->kukot->maku->watercube"
+                                                 : (maku.enabled ? "mute95->domina->saari->kukot->maku"
+                                                                 : "mute95->domina->saari->kukot"))
+                                          : "mute95->domina";
         sequence_script_start_seconds = state.timeline_seconds;
       }
     } else if (arg == "--scene=feta" || arg == "--feta") {
@@ -3627,10 +4460,12 @@ int main(int argc, char** argv) {
             if (mute95.enabled && domina.enabled) {
               state.scene_mode = SceneMode::kMute95DominaSequence;
               state.sequence_stage = SequenceStage::kMute95;
-              state.scene_label = saari.enabled
-                                      ? (maku.enabled ? "mute95->domina->saari->kukot->maku"
-                                                      : "mute95->domina->saari->kukot")
-                                      : "mute95->domina";
+              state.scene_label = saari.enabled ? ((maku.enabled && watercube.enabled)
+                                                       ? "mute95->domina->saari->kukot->maku->watercube"
+                                                       : (maku.enabled
+                                                              ? "mute95->domina->saari->kukot->maku"
+                                                              : "mute95->domina->saari->kukot"))
+                                                : "mute95->domina";
               state.scene_start_seconds = state.timeline_seconds;
               sequence_script_start_seconds = state.timeline_seconds;
               mute95_runtime.initialized = false;
@@ -3638,6 +4473,7 @@ int main(int argc, char** argv) {
               saari_runtime.initialized = false;
               kukot_runtime.initialized = false;
               maku_runtime.initialized = false;
+              watercube_runtime.initialized = false;
               restart_sequence_audio();
             }
             break;
@@ -3710,27 +4546,30 @@ int main(int argc, char** argv) {
       SequenceStage desired = state.sequence_stage;
       if (music.enabled) {
         if (xm_timing.valid) {
-          desired = DetermineSequenceStage(xm_timing, saari.enabled, kukot.enabled, maku.enabled, 0.0);
+          desired =
+              DetermineSequenceStage(xm_timing, saari.enabled, kukot.enabled, maku.enabled, watercube.enabled, 0.0);
         }
       } else {
         const double fallback_script_seconds =
             std::max(0.0, state.timeline_seconds - sequence_script_start_seconds);
         desired = DetermineSequenceStage(
-            xm_timing, saari.enabled, kukot.enabled, maku.enabled, fallback_script_seconds);
+            xm_timing, saari.enabled, kukot.enabled, maku.enabled, watercube.enabled, fallback_script_seconds);
       }
       if (desired != state.sequence_stage) {
         state.sequence_stage = desired;
         state.scene_start_seconds = state.timeline_seconds;
         if (desired == SequenceStage::kMute95) {
-          state.scene_label = "mute95->domina->saari->kukot->maku [mute95]";
+          state.scene_label = "mute95->domina->saari->kukot->maku->watercube [mute95]";
         } else if (desired == SequenceStage::kDomina) {
-          state.scene_label = "mute95->domina->saari->kukot->maku [domina]";
+          state.scene_label = "mute95->domina->saari->kukot->maku->watercube [domina]";
         } else if (desired == SequenceStage::kSaari) {
-          state.scene_label = "mute95->domina->saari->kukot->maku [saari]";
+          state.scene_label = "mute95->domina->saari->kukot->maku->watercube [saari]";
         } else if (desired == SequenceStage::kKukot) {
-          state.scene_label = "mute95->domina->saari->kukot->maku [kukot]";
+          state.scene_label = "mute95->domina->saari->kukot->maku->watercube [kukot]";
+        } else if (desired == SequenceStage::kMaku) {
+          state.scene_label = "mute95->domina->saari->kukot->maku->watercube [maku]";
         } else {
-          state.scene_label = "mute95->domina->saari->kukot->maku [maku]";
+          state.scene_label = "mute95->domina->saari->kukot->maku->watercube [watercube]";
         }
         if (desired == SequenceStage::kMute95) {
           mute95_runtime.initialized = false;
@@ -3740,8 +4579,10 @@ int main(int argc, char** argv) {
           saari_runtime.initialized = false;
         } else if (desired == SequenceStage::kKukot) {
           kukot_runtime.initialized = false;
-        } else {
+        } else if (desired == SequenceStage::kMaku) {
           maku_runtime.initialized = false;
+        } else {
+          watercube_runtime.initialized = false;
         }
       }
     }
@@ -3758,6 +4599,8 @@ int main(int argc, char** argv) {
               kukot_runtime,
               maku,
               maku_runtime,
+              watercube,
+              watercube_runtime,
               mesh,
               background,
               particles,
@@ -3769,6 +4612,7 @@ int main(int argc, char** argv) {
               saari_backdrop_instance,
               saari_terrain_instance,
               saari_object_instance,
+              watercube_object_instance,
               halo_surface,
               feta,
               post);
