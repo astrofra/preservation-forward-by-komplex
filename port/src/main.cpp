@@ -457,6 +457,14 @@ Quat QuatFromAxisAngle(const Vec3& axis, float angle_radians) {
   return QuatNormalize(Quat{n.x * s, n.y * s, n.z * s, std::cos(half)});
 }
 
+Quat BuildSaariKlunssiScriptedRotation(float t_seconds) {
+  // Java maajmka: identity, then X/Y/Z matrix rotations with f/3, 2f/3, 3f/3.
+  const Quat qx = QuatFromAxisAngle(Vec3(1.0f, 0.0f, 0.0f), t_seconds / 3.0f);
+  const Quat qy = QuatFromAxisAngle(Vec3(0.0f, 1.0f, 0.0f), t_seconds * (2.0f / 3.0f));
+  const Quat qz = QuatFromAxisAngle(Vec3(0.0f, 0.0f, 1.0f), t_seconds);
+  return QuatNormalize(QuatMul(qz, QuatMul(qy, qx)));
+}
+
 Vec3 RotateByQuat(const Vec3& v, const Quat& q) {
   const Quat p{v.x, v.y, v.z, 0.0f};
   const Quat out = QuatMul(QuatMul(q, p), QuatConjugate(q));
@@ -1634,6 +1642,8 @@ void DrawSaariFrameAtTime(Surface32& surface,
 
   if (!saari.animated_objects.empty()) {
     const Quat meditate_pi = QuatFromAxisAngle(Vec3(0.0f, 0.0f, 1.0f), kPi);
+    const float t_scene = static_cast<float>(scene_seconds);
+    const Quat klunssi_scripted = BuildSaariKlunssiScriptedRotation(t_scene);
     object_instance.uniform_scale = 1.0f;
     object_instance.fill_color = PackArgb(255, 255, 255);
     object_instance.wire_color = 0;
@@ -1656,7 +1666,11 @@ void DrawSaariFrameAtTime(Surface32& surface,
       if (!obj.rotation_track.empty()) {
         obj_rot = SampleSaariRotationTrackAtMs(obj.rotation_track, t_ms, obj.base_rotation);
       }
-      if (obj.name == "meditate") {
+      if (obj.name == "klunssi") {
+        // Java override: clear matrix and apply scripted per-frame rotations.
+        obj_rot = klunssi_scripted;
+      } else if (obj.name == "meditate") {
+        // Java override: add constant Z rotation on top of track orientation.
         obj_rot = QuatNormalize(QuatMul(meditate_pi, obj_rot));
       }
 
