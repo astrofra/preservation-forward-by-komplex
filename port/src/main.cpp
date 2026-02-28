@@ -21,6 +21,7 @@
 #include "core/Renderer3D.h"
 #include "core/Surface32.h"
 #include "core/Vec3.h"
+#include "core/XmPlayer.h"
 
 namespace {
 
@@ -31,6 +32,8 @@ using forward::core::RenderInstance;
 using forward::core::Renderer3D;
 using forward::core::Surface32;
 using forward::core::Vec3;
+using forward::core::XmPlayer;
+using forward::core::XmTiming;
 
 constexpr int kLogicalWidth = 512;
 constexpr int kLogicalHeight = 256;
@@ -38,6 +41,9 @@ constexpr int kWindowScale = 1;  // 1x1 mode only
 constexpr double kTickHz = 50.0;
 constexpr double kTickDtSeconds = 1.0 / kTickHz;
 constexpr float kPi = 3.14159265358979323846f;
+constexpr int kMute95ToDominaRow = 0x0D00;
+constexpr int kMod1ToMod2Row = 0x1024;
+constexpr int kMod2ToSaariRow = 0x0700;
 
 struct RuntimeStats {
   uint64_t rendered_frames = 0;
@@ -52,6 +58,12 @@ enum class SceneMode {
   kFeta,
 };
 
+enum class SequenceStage {
+  kMute95,
+  kDomina,
+  kSaari,
+};
+
 struct DemoState {
   double timeline_seconds = 0.0;
   double scene_start_seconds = 0.0;
@@ -60,9 +72,17 @@ struct DemoState {
   bool show_post = false;
   float feta_fov_degrees = 84.0f;  // horizontal FOV
   SceneMode scene_mode = SceneMode::kFeta;
+  SequenceStage sequence_stage = SequenceStage::kMute95;
   std::string scene_label;
   std::string mesh_label;
   std::string post_label;
+};
+
+struct MusicState {
+  bool enabled = false;
+  bool has_mod1 = false;
+  bool has_mod2 = false;
+  bool module2_started = false;
 };
 
 struct QuickWinPostLayer {
@@ -199,6 +219,33 @@ uint32_t PackArgb(uint8_t r, uint8_t g, uint8_t b) {
 uint8_t UnpackR(uint32_t argb) { return static_cast<uint8_t>((argb >> 16u) & 0xFFu); }
 uint8_t UnpackG(uint32_t argb) { return static_cast<uint8_t>((argb >> 8u) & 0xFFu); }
 uint8_t UnpackB(uint32_t argb) { return static_cast<uint8_t>(argb & 0xFFu); }
+
+int PackOrderRow(int order, int row) {
+  return ((order & 0xFF) << 8) | (row & 0xFF);
+}
+
+SequenceStage DetermineSequenceStage(const XmTiming& timing,
+                                     bool saari_enabled,
+                                     double fallback_script_seconds) {
+  if (timing.valid) {
+    const int order_row = PackOrderRow(timing.order, timing.row);
+    if (timing.module_slot <= 1) {
+      return (order_row < kMute95ToDominaRow) ? SequenceStage::kMute95 : SequenceStage::kDomina;
+    }
+    if (!saari_enabled || order_row < kMod2ToSaariRow) {
+      return SequenceStage::kDomina;
+    }
+    return SequenceStage::kSaari;
+  }
+
+  if (fallback_script_seconds < 13.0) {
+    return SequenceStage::kMute95;
+  }
+  if (fallback_script_seconds < 29.0 || !saari_enabled) {
+    return SequenceStage::kDomina;
+  }
+  return SequenceStage::kSaari;
+}
 
 SDL_Rect ComputePresentationRect(SDL_Renderer* renderer) {
   int output_w = 0;
@@ -975,6 +1022,8 @@ void SetCameraLookAt(Camera& camera, const Vec3& position, const Vec3& target, c
 void UpdateWindowTitle(SDL_Window* window,
                        const DemoState& state,
                        const RuntimeStats& stats,
+                       const MusicState& music,
+                       const XmTiming& timing,
                        double elapsed_since_last_title) {
   const double fps = static_cast<double>(stats.rendered_frames) /
                      std::max(elapsed_since_last_title, 0.0001);
@@ -982,6 +1031,19 @@ void UpdateWindowTitle(SDL_Window* window,
                      std::max(elapsed_since_last_title, 0.0001);
 
   std::ostringstream title;
+  std::string audio_label = "off";
+  if (music.enabled) {
+    if (timing.valid) {
+      std::ostringstream ss;
+      ss << "m" << timing.module_slot << " "
+         << std::hex << std::setfill('0') << std::setw(2) << (timing.order & 0xFF)
+         << ":" << std::setw(2) << (timing.row & 0xFF) << std::dec;
+      audio_label = ss.str();
+    } else {
+      audio_label = "sync-pending";
+    }
+  }
+
   title << "forward native harness | "
         << (state.paused ? "paused" : "running")
         << " | fps " << std::fixed << std::setprecision(1) << fps
@@ -989,7 +1051,7 @@ void UpdateWindowTitle(SDL_Window* window,
         << " | fov " << std::fixed << std::setprecision(1) << state.feta_fov_degrees
         << " | scene " << state.scene_label << " | mesh " << state.mesh_label
         << " | logical " << kLogicalWidth << "x"
-        << kLogicalHeight << " | post " << state.post_label << " | audio pending";
+        << kLogicalHeight << " | post " << state.post_label << " | audio " << audio_label;
 
   SDL_SetWindowTitle(window, title.str().c_str());
 }
@@ -1899,21 +1961,16 @@ void DrawMute95DominaSequenceFrame(Surface32& surface,
                                    RenderInstance& saari_backdrop_instance,
                                    RenderInstance& saari_terrain_instance,
                                    RenderInstance& saari_object_instance) {
-  const double script_seconds = std::max(0.0, state.timeline_seconds - state.scene_start_seconds);
+  const double sequence_seconds = std::max(0.0, state.timeline_seconds - state.scene_start_seconds);
 
-  // Script order in forward.java: show mute95 -> show domina -> show saari.
-  if (script_seconds < 13.0) {
-    DrawMute95FrameAtTime(surface, mute95_assets, mute95_runtime, script_seconds);
+  if (state.sequence_stage == SequenceStage::kMute95) {
+    DrawMute95FrameAtTime(surface, mute95_assets, mute95_runtime, sequence_seconds);
     return;
   }
-
-  if (script_seconds < 29.0 || !saari_assets.enabled) {
-    const double domina_seconds = script_seconds - 13.0;
-    DrawDominaFrameAtTime(surface, domina_assets, domina_runtime, domina_seconds, true);
+  if (state.sequence_stage == SequenceStage::kDomina || !saari_assets.enabled) {
+    DrawDominaFrameAtTime(surface, domina_assets, domina_runtime, sequence_seconds, true);
     return;
   }
-
-  const double saari_seconds = script_seconds - 29.0;
   DrawSaariFrameAtTime(surface,
                        saari_assets,
                        saari_runtime,
@@ -1922,7 +1979,7 @@ void DrawMute95DominaSequenceFrame(Surface32& surface,
                        saari_backdrop_instance,
                        saari_terrain_instance,
                        saari_object_instance,
-                       saari_seconds,
+                       sequence_seconds,
                        true);
 }
 
@@ -2003,7 +2060,7 @@ void DrawFrame(Surface32& surface,
 }  // namespace
 
 int main(int argc, char** argv) {
-  if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_EVENTS) != 0) {
+  if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_TIMER | SDL_INIT_EVENTS) != 0) {
     std::cerr << "SDL_Init failed: " << SDL_GetError() << "\n";
     return 1;
   }
@@ -2021,6 +2078,18 @@ int main(int argc, char** argv) {
     std::cerr << "LoadIguMesh failed: " << mesh_error << "\n";
     SDL_Quit();
     return 1;
+  }
+
+  bool disable_audio = false;
+  for (int i = 1; i < argc; ++i) {
+    const std::string arg = argv[i];
+    if (arg == "--nosound" || arg == "nosound") {
+      disable_audio = true;
+      break;
+    }
+  }
+  if (disable_audio) {
+    std::cerr << "audio disabled by command line (--nosound)\n";
   }
 
   Camera camera;
@@ -2247,6 +2316,38 @@ int main(int argc, char** argv) {
     }
   }
 
+  XmPlayer xm_player;
+  MusicState music;
+  XmTiming xm_timing;
+  if (!disable_audio) {
+    std::string audio_error;
+    const std::string mod1_path = ResolveForwardAssetPath("mods/kuninga.xm");
+    const std::string mod2_path = ResolveForwardAssetPath("mods/jarnomix.xm");
+    music.has_mod1 = !mod1_path.empty();
+    music.has_mod2 = !mod2_path.empty();
+
+    if (!music.has_mod1) {
+      std::cerr << "audio init: missing mods/kuninga.xm\n";
+    }
+    if (!music.has_mod2) {
+      std::cerr << "audio init: missing mods/jarnomix.xm\n";
+    }
+
+    if (music.has_mod1 && music.has_mod2) {
+      if (!xm_player.Initialize(44100, 1024, &audio_error)) {
+        std::cerr << "audio init failed: " << audio_error << "\n";
+      } else if (!xm_player.LoadModule(1, mod1_path, &audio_error) ||
+                 !xm_player.LoadModule(2, mod2_path, &audio_error) ||
+                 !xm_player.StartModule(1, false, &audio_error)) {
+        std::cerr << "audio module setup failed: " << audio_error << "\n";
+      } else {
+        music.enabled = true;
+        const char* driver = SDL_GetCurrentAudioDriver();
+        std::cerr << "audio enabled via SDL driver: " << (driver ? driver : "unknown") << "\n";
+      }
+    }
+  }
+
   SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
 
   const int initial_w = kLogicalWidth * kWindowScale;
@@ -2296,9 +2397,11 @@ int main(int argc, char** argv) {
   DemoState state;
   if (mute95.enabled && domina.enabled && saari.enabled) {
     state.scene_mode = SceneMode::kMute95DominaSequence;
+    state.sequence_stage = SequenceStage::kMute95;
     state.scene_label = "mute95->domina->saari";
   } else if (mute95.enabled && domina.enabled) {
     state.scene_mode = SceneMode::kMute95DominaSequence;
+    state.sequence_stage = SequenceStage::kMute95;
     state.scene_label = "mute95->domina";
   } else if (mute95.enabled) {
     state.scene_mode = SceneMode::kMute95;
@@ -2321,6 +2424,7 @@ int main(int argc, char** argv) {
   }
   state.mesh_label = std::filesystem::path(mesh_path).filename().string();
   state.post_label = state.show_post && post.enabled ? "phorward" : "off";
+  double sequence_script_start_seconds = state.timeline_seconds;
 
   for (int i = 1; i < argc; ++i) {
     const std::string arg = argv[i];
@@ -2343,7 +2447,9 @@ int main(int argc, char** argv) {
                arg == "--script") {
       if (mute95.enabled && domina.enabled) {
         state.scene_mode = SceneMode::kMute95DominaSequence;
+        state.sequence_stage = SequenceStage::kMute95;
         state.scene_label = saari.enabled ? "mute95->domina->saari" : "mute95->domina";
+        sequence_script_start_seconds = state.timeline_seconds;
       }
     } else if (arg == "--scene=feta" || arg == "--feta") {
       state.scene_mode = SceneMode::kFeta;
@@ -2359,6 +2465,28 @@ int main(int argc, char** argv) {
   double title_elapsed = 0.0;
   bool running = true;
 
+  auto restart_sequence_audio = [&]() {
+    if (!music.enabled) {
+      return;
+    }
+    std::string audio_error;
+    if (!xm_player.StartModule(1, false, &audio_error)) {
+      std::cerr << "audio restart failed: " << audio_error << "\n";
+      music.enabled = false;
+      return;
+    }
+    music.module2_started = false;
+    xm_player.SetPaused(state.paused);
+    xm_timing = xm_player.GetTiming();
+  };
+
+  if (music.enabled) {
+    xm_player.SetPaused(state.paused);
+    if (state.scene_mode == SceneMode::kMute95DominaSequence) {
+      restart_sequence_audio();
+    }
+  }
+
   while (running) {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
@@ -2373,6 +2501,9 @@ int main(int argc, char** argv) {
             break;
           case SDLK_SPACE:
             state.paused = !state.paused;
+            if (music.enabled) {
+              xm_player.SetPaused(state.paused);
+            }
             break;
           case SDLK_f:
             state.fullscreen = !state.fullscreen;
@@ -2416,11 +2547,14 @@ int main(int argc, char** argv) {
           case SDLK_4:
             if (mute95.enabled && domina.enabled) {
               state.scene_mode = SceneMode::kMute95DominaSequence;
+              state.sequence_stage = SequenceStage::kMute95;
               state.scene_label = saari.enabled ? "mute95->domina->saari" : "mute95->domina";
               state.scene_start_seconds = state.timeline_seconds;
+              sequence_script_start_seconds = state.timeline_seconds;
               mute95_runtime.initialized = false;
               domina_runtime.initialized = false;
               saari_runtime.initialized = false;
+              restart_sequence_audio();
             }
             break;
           case SDLK_5:
@@ -2457,13 +2591,57 @@ int main(int argc, char** argv) {
 
     int ticks_this_frame = 0;
     while (accumulator >= kTickDtSeconds) {
-      if (!state.paused) {
+      if (!state.paused && !music.enabled) {
         state.timeline_seconds += kTickDtSeconds;
       }
       accumulator -= kTickDtSeconds;
       ++ticks_this_frame;
     }
     stats.simulated_ticks += static_cast<uint64_t>(ticks_this_frame);
+
+    if (music.enabled) {
+      xm_timing = xm_player.GetTiming();
+
+      if (xm_timing.valid && xm_timing.module_slot == 1 && !music.module2_started &&
+          PackOrderRow(xm_timing.order, xm_timing.row) >= kMod1ToMod2Row) {
+        std::string audio_error;
+        if (!xm_player.StartModule(2, true, &audio_error)) {
+          std::cerr << "audio switch-to-mod2 failed: " << audio_error << "\n";
+          music.enabled = false;
+        } else {
+          music.module2_started = true;
+          xm_timing = xm_player.GetTiming();
+        }
+      }
+
+      if (!state.paused && xm_timing.valid) {
+        state.timeline_seconds = static_cast<double>(xm_timing.clock_time_ms) / 1000.0;
+      }
+    }
+
+    if (state.scene_mode == SceneMode::kMute95DominaSequence) {
+      SequenceStage desired = state.sequence_stage;
+      if (music.enabled) {
+        if (xm_timing.valid) {
+          desired = DetermineSequenceStage(xm_timing, saari.enabled, 0.0);
+        }
+      } else {
+        const double fallback_script_seconds =
+            std::max(0.0, state.timeline_seconds - sequence_script_start_seconds);
+        desired = DetermineSequenceStage(xm_timing, saari.enabled, fallback_script_seconds);
+      }
+      if (desired != state.sequence_stage) {
+        state.sequence_stage = desired;
+        state.scene_start_seconds = state.timeline_seconds;
+        if (desired == SequenceStage::kMute95) {
+          mute95_runtime.initialized = false;
+        } else if (desired == SequenceStage::kDomina) {
+          domina_runtime.initialized = false;
+        } else {
+          saari_runtime.initialized = false;
+        }
+      }
+    }
 
     DrawFrame(surface,
               state,
@@ -2506,13 +2684,14 @@ int main(int argc, char** argv) {
     ++stats.rendered_frames;
 
     if (title_elapsed >= 0.5) {
-      UpdateWindowTitle(window, state, stats, title_elapsed);
+      UpdateWindowTitle(window, state, stats, music, xm_timing, title_elapsed);
       stats.rendered_frames = 0;
       stats.simulated_ticks = 0;
       title_elapsed = 0.0;
     }
   }
 
+  xm_player.Shutdown();
   SDL_DestroyTexture(texture);
   SDL_DestroyRenderer(renderer_sdl);
   SDL_DestroyWindow(window);

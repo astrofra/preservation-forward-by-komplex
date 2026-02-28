@@ -1,6 +1,6 @@
 # forward native harness (macOS ARM first step)
 
-This is the no-audio native harness for starting the C++ port on modern systems.
+This is the native harness for starting the C++ port on modern systems.
 
 Current focus is the original `1x1` visual path (`512x256` logical buffer at full-quality sampling).
 
@@ -8,6 +8,7 @@ Current focus is the original `1x1` visual path (`512x256` logical buffer at ful
 
 ```bash
 cd port
+# libxmp is required (Homebrew: brew install libxmp)
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j
 ```
@@ -45,4 +46,10 @@ Initial minimal 3D core now exists under `src/core/`:
 - Runtime now prefers `../original/forward/meshes/fetus.igu` (fallback to `half8.igu` then `octa8.igu`).
 - First forward-looking scene pass (`feta`-inspired): `fetus.igu` rendered with `images/babyenv.jpg` texturing and `images/flare1.jpg` additive flare layer.
 - Quick-win original asset emergence: post layer now uses `images/phorward.gif` (and `images/back.gif` fallback for secondary blending) with scroll/fade compositing.
-- Audio is still deferred; next milestone is XM pipeline integration.
+- XM playback/timing is now integrated through `libxmp` using the original modules:
+  - `mods/kuninga.xm` (mod1)
+  - `mods/jarnomix.xm` (mod2)
+- Scripted sequence mode (`mute95 -> domina -> saari`) now follows module row cues:
+  - mute95 -> domina at `0x0d00` on mod1
+  - switch to mod2 at `0x1024` on mod1
+  - domina -> saari at `0x0700` on mod2
