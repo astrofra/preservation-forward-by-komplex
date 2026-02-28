@@ -43,7 +43,7 @@ constexpr double kTickDtSeconds = 1.0 / kTickHz;
 constexpr float kPi = 3.14159265358979323846f;
 constexpr int kMute95ToDominaRow = 0x0D00;
 constexpr int kMod1ToMod2Row = 0x1024;
-constexpr int kMod2ToSaariRow = 0x0700;
+constexpr int kMod2ToKukotRow = 0x0700;
 
 struct RuntimeStats {
   uint64_t rendered_frames = 0;
@@ -62,6 +62,7 @@ enum class SequenceStage {
   kMute95,
   kDomina,
   kSaari,
+  kKukot,
 };
 
 struct DemoState {
@@ -235,10 +236,13 @@ SequenceStage DetermineSequenceStage(const XmTiming& timing,
     if (timing.module_slot <= 1) {
       return (order_row < kMute95ToDominaRow) ? SequenceStage::kMute95 : SequenceStage::kDomina;
     }
-    if (!saari_enabled || order_row < kMod2ToSaariRow) {
+    if (!saari_enabled) {
       return SequenceStage::kDomina;
     }
-    return SequenceStage::kSaari;
+    if (order_row < kMod2ToKukotRow) {
+      return SequenceStage::kSaari;
+    }
+    return SequenceStage::kKukot;
   }
 
   if (fallback_script_seconds < 13.0) {
@@ -1783,6 +1787,29 @@ void DrawSaariFrame(Surface32& surface,
                        true);
 }
 
+void DrawKukotPlaceholderFrame(Surface32& surface,
+                               const DemoState& state,
+                               const SaariSceneAssets& saari,
+                               SaariRuntime& runtime,
+                               Camera& camera,
+                               Renderer3D& renderer,
+                               RenderInstance& backdrop_instance,
+                               RenderInstance& terrain_instance,
+                               RenderInstance& object_instance) {
+  const double scene_seconds = std::max(0.0, state.timeline_seconds - state.scene_start_seconds);
+  // Placeholder until real kukot is ported: keep rendering pipeline alive with saari assets.
+  DrawSaariFrameAtTime(surface,
+                       saari,
+                       runtime,
+                       camera,
+                       renderer,
+                       backdrop_instance,
+                       terrain_instance,
+                       object_instance,
+                       scene_seconds,
+                       false);
+}
+
 Vec3 RotateXSimple(const Vec3& v, float angle) {
   const float s = std::sin(angle);
   const float c = std::cos(angle);
@@ -1985,6 +2012,18 @@ void DrawMute95DominaSequenceFrame(Surface32& surface,
   }
   if (state.sequence_stage == SequenceStage::kDomina || !saari_assets.enabled) {
     DrawDominaFrameAtTime(surface, domina_assets, domina_runtime, sequence_seconds, true);
+    return;
+  }
+  if (state.sequence_stage == SequenceStage::kKukot) {
+    DrawKukotPlaceholderFrame(surface,
+                              state,
+                              saari_assets,
+                              saari_runtime,
+                              camera,
+                              renderer,
+                              saari_backdrop_instance,
+                              saari_terrain_instance,
+                              saari_object_instance);
     return;
   }
   DrawSaariFrameAtTime(surface,
@@ -2418,7 +2457,7 @@ int main(int argc, char** argv) {
   if (mute95.enabled && domina.enabled && saari.enabled) {
     state.scene_mode = SceneMode::kMute95DominaSequence;
     state.sequence_stage = SequenceStage::kMute95;
-    state.scene_label = "mute95->domina->saari";
+    state.scene_label = "mute95->domina->saari->kukot";
   } else if (mute95.enabled && domina.enabled) {
     state.scene_mode = SceneMode::kMute95DominaSequence;
     state.sequence_stage = SequenceStage::kMute95;
@@ -2468,7 +2507,7 @@ int main(int argc, char** argv) {
       if (mute95.enabled && domina.enabled) {
         state.scene_mode = SceneMode::kMute95DominaSequence;
         state.sequence_stage = SequenceStage::kMute95;
-        state.scene_label = saari.enabled ? "mute95->domina->saari" : "mute95->domina";
+        state.scene_label = saari.enabled ? "mute95->domina->saari->kukot" : "mute95->domina";
         sequence_script_start_seconds = state.timeline_seconds;
       }
     } else if (arg == "--scene=feta" || arg == "--feta") {
@@ -2568,7 +2607,7 @@ int main(int argc, char** argv) {
             if (mute95.enabled && domina.enabled) {
               state.scene_mode = SceneMode::kMute95DominaSequence;
               state.sequence_stage = SequenceStage::kMute95;
-              state.scene_label = saari.enabled ? "mute95->domina->saari" : "mute95->domina";
+              state.scene_label = saari.enabled ? "mute95->domina->saari->kukot" : "mute95->domina";
               state.scene_start_seconds = state.timeline_seconds;
               sequence_script_start_seconds = state.timeline_seconds;
               mute95_runtime.initialized = false;
@@ -2657,10 +2696,22 @@ int main(int argc, char** argv) {
         state.sequence_stage = desired;
         state.scene_start_seconds = state.timeline_seconds;
         if (desired == SequenceStage::kMute95) {
+          state.scene_label = "mute95->domina->saari->kukot [mute95]";
+        } else if (desired == SequenceStage::kDomina) {
+          state.scene_label = "mute95->domina->saari->kukot [domina]";
+        } else if (desired == SequenceStage::kSaari) {
+          state.scene_label = "mute95->domina->saari->kukot [saari]";
+        } else {
+          state.scene_label = "mute95->domina->saari->kukot [kukot-wip]";
+        }
+        if (desired == SequenceStage::kMute95) {
           mute95_runtime.initialized = false;
         } else if (desired == SequenceStage::kDomina) {
           domina_runtime.initialized = false;
+        } else if (desired == SequenceStage::kSaari) {
+          saari_runtime.initialized = false;
         } else {
+          // kukot placeholder currently reuses saari assets/runtime for continuity.
           saari_runtime.initialized = false;
         }
       }
