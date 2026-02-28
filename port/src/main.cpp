@@ -257,6 +257,7 @@ struct KukotRuntime {
   std::vector<uint32_t> flash_lut;
   std::vector<int> flash_scanline_order;
   std::vector<Particle> particles;
+  std::vector<Mesh> deformed_meshes;
   float flash_intensity = 0.0f;
   float flash_decay = 0.0f;
   int next_script_event = 0;
@@ -2116,17 +2117,19 @@ void InitializeKukotRuntime(KukotRuntime& runtime) {
               runtime.flash_scanline_order[static_cast<size_t>(b)]);
   }
 
-  runtime.particles.assign(220, Particle{});
+  runtime.particles.assign(180, Particle{});
   const Vec3 center(-5.0f, 35.0f, 5.501f);
+  constexpr float kSpawnSpread = 110.0f;
   for (Particle& p : runtime.particles) {
     p.position = center +
-                 Vec3(RandomRange(&runtime.rng_state, -160.0f, 160.0f),
-                      RandomRange(&runtime.rng_state, -120.0f, 120.0f),
-                      RandomRange(&runtime.rng_state, -180.0f, 180.0f));
-    p.size = RandomRange(&runtime.rng_state, 0.22f, 0.88f);
-    p.energy = RandomRange(&runtime.rng_state, 0.45f, 1.15f);
+                 Vec3(RandomRange(&runtime.rng_state, -0.5f * kSpawnSpread, 0.5f * kSpawnSpread),
+                      RandomRange(&runtime.rng_state, -0.5f * kSpawnSpread, 0.5f * kSpawnSpread),
+                      RandomRange(&runtime.rng_state, -0.5f * kSpawnSpread, 0.5f * kSpawnSpread));
+    p.size = RandomRange(&runtime.rng_state, 0.92f, 1.08f);
+    p.energy = RandomRange(&runtime.rng_state, 0.90f, 1.10f);
   }
 
+  runtime.deformed_meshes.clear();
   runtime.initialized = true;
 }
 
@@ -2300,38 +2303,76 @@ void ApplyKukotTemporalAddHalf(Surface32& surface) {
   }
 }
 
+void ApplyKukotProceduralDeformation(const Mesh& source, float phase, Mesh* out_mesh) {
+  if (!out_mesh) {
+    return;
+  }
+  if (source.Empty()) {
+    out_mesh->Clear();
+    return;
+  }
+
+  if (out_mesh->triangles.size() != source.triangles.size()) {
+    out_mesh->triangles = source.triangles;
+  }
+  if (out_mesh->texcoords.size() != source.texcoords.size()) {
+    out_mesh->texcoords = source.texcoords;
+  }
+  out_mesh->positions.resize(source.positions.size());
+  out_mesh->normals.clear();
+
+  // Java kukot path (mmajmmk.kKAMAJa, jAkKAma=2):
+  // pivot (0,0.8,0), then per-vertex XY rotation:
+  // angle = |p|^2 * 0.015 * sin(phase + p.z * 0.1)
+  // with phase coming from kAMAJaK(f*1.9).
+  constexpr float kPivotY = 0.8f;
+  constexpr float kWaveScale = 0.015f;
+  constexpr float kZPhase = 0.1f;
+  for (size_t i = 0; i < source.positions.size(); ++i) {
+    Vec3 p = source.positions[i];
+    p.y -= kPivotY;
+    const float radius_sq = p.LengthSq();
+    const float angle = radius_sq * kWaveScale * std::sin(phase + p.z * kZPhase);
+    const float s = std::sin(angle);
+    const float c = std::cos(angle);
+    const float x = p.x * c - p.y * s;
+    const float y = p.y * c + p.x * s;
+    p.x = x;
+    p.y = y + kPivotY;
+    out_mesh->positions[i] = p;
+  }
+  out_mesh->RebuildVertexNormals();
+}
+
 void DrawKukotParticles(Surface32& surface,
                         const Camera& camera,
                         const KukotSceneAssets& kukot,
                         KukotRuntime& runtime,
                         double scene_seconds) {
+  (void)scene_seconds;
   if (kukot.flare.Empty() || runtime.particles.empty()) {
     return;
   }
 
-  const float t = static_cast<float>(scene_seconds);
-  const float rot_y = t * 0.22f;
-  const float rot_x = 0.11f * std::sin(t * 0.37f);
-  const Vec3 center(-5.0f, 35.0f, 5.501f);
+  const float near_depth = 1.4f;
+  const float far_depth = 150.0f;
 
   for (const Particle& p : runtime.particles) {
-    Vec3 world = p.position - center;
-    world = RotateYSimple(world, rot_y);
-    world = RotateXSimple(world, rot_x);
-    world = world + center;
-
     int sx = 0;
     int sy = 0;
     float depth = 1.0f;
-    if (!ProjectPointToScreen(camera, world, &sx, &sy, &depth)) {
+    if (!ProjectPointToScreen(camera, p.position, &sx, &sy, &depth)) {
+      continue;
+    }
+    if (depth <= near_depth || depth >= far_depth) {
       continue;
     }
 
-    const float projected = (62.0f / std::max(depth, 3.0f)) * p.size;
-    const int sprite_size = std::clamp(static_cast<int>(std::lround(projected)), 1, 10);
-    const float intensity_f = (168.0f / std::max(depth, 1.6f)) * p.energy;
+    const float projected = (512.0f / std::max(depth, near_depth)) * p.size;
+    const int sprite_size = std::clamp(static_cast<int>(std::lround(projected)), 2, 72);
+    const float intensity_f = 255.0f * p.energy;
     const uint8_t intensity = static_cast<uint8_t>(
-        std::clamp(static_cast<int>(std::lround(intensity_f)), 14, 240));
+        std::clamp(static_cast<int>(std::lround(intensity_f)), 96, 255));
 
     surface.AdditiveBlitScaledToBack(kukot.flare.pixels.data(),
                                      kukot.flare.width,
@@ -2419,7 +2460,13 @@ void DrawKukotFrameAtTime(Surface32& surface,
   object_instance.texture_wrap = true;
   object_instance.enable_backface_culling = true;
 
-  for (const SaariSceneAssets::AnimatedObject& obj : kukot.animated_objects) {
+  if (runtime.deformed_meshes.size() != kukot.animated_objects.size()) {
+    runtime.deformed_meshes.resize(kukot.animated_objects.size());
+  }
+  const float deform_phase = static_cast<float>(scene_seconds * 1.9);
+
+  for (size_t i = 0; i < kukot.animated_objects.size(); ++i) {
+    const SaariSceneAssets::AnimatedObject& obj = kukot.animated_objects[i];
     if (obj.mesh.Empty()) {
       continue;
     }
@@ -2433,7 +2480,10 @@ void DrawKukotFrameAtTime(Surface32& surface,
     }
     object_instance.translation = obj_pos;
     SetRenderInstanceBasisFromQuat(object_instance, obj_rot);
-    renderer.DrawMesh(surface, obj.mesh, camera, object_instance);
+
+    Mesh& deformed_mesh = runtime.deformed_meshes[i];
+    ApplyKukotProceduralDeformation(obj.mesh, deform_phase, &deformed_mesh);
+    renderer.DrawMesh(surface, deformed_mesh, camera, object_instance);
   }
 
   DrawKukotParticles(surface, camera, kukot, runtime, scene_seconds);
