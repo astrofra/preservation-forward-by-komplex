@@ -257,7 +257,9 @@ struct SaariSceneAssets {
   };
 
   Mesh terrain;
+  Mesh sea;
   Image32 terrain_texture;
+  Image32 water_texture;
   Mesh backdrop_mesh;
   Image32 backdrop_texture;
   float backdrop_scale = 1.0f;
@@ -629,6 +631,26 @@ Image32 ExtractTopHalf(const Image32& src) {
   return out;
 }
 
+Image32 ExtractBottomHalf(const Image32& src) {
+  if (src.Empty() || src.height < 2) {
+    return {};
+  }
+  const int half_h = src.height / 2;
+  const int start_y = src.height - half_h;
+  Image32 out;
+  out.width = src.width;
+  out.height = half_h;
+  out.pixels.resize(static_cast<size_t>(out.width) * static_cast<size_t>(out.height));
+  for (int y = 0; y < half_h; ++y) {
+    const size_t src_row = static_cast<size_t>(start_y + y) * static_cast<size_t>(src.width);
+    const size_t dst_row = static_cast<size_t>(y) * static_cast<size_t>(out.width);
+    for (int x = 0; x < out.width; ++x) {
+      out.pixels[dst_row + static_cast<size_t>(x)] = src.pixels[src_row + static_cast<size_t>(x)];
+    }
+  }
+  return out;
+}
+
 Image32 ExtractRect(const Image32& src, int x, int y, int w, int h) {
   if (src.Empty() || w <= 0 || h <= 0) {
     return {};
@@ -768,8 +790,70 @@ bool BuildTerrainMeshFromHeightmap(const Image32& heightmap,
 }
 
 bool BuildSaariTerrainMeshFromHeightmap(const Image32& heightmap, Mesh* out_mesh) {
-  // maajmka uses world span 200 and height scale 0.16 with a small bias.
-  return BuildTerrainMeshFromHeightmap(heightmap, 200.0f, 0.16f, 16, out_mesh);
+  if (!out_mesh || heightmap.Empty() || heightmap.width < 2 || heightmap.height < 2) {
+    return false;
+  }
+
+  // Java maajmka/kmjakmk semantics:
+  // - world span: 200
+  // - height scale: 0.16
+  // - height bias: -16
+  // - terrain "up" is Z, while Y is depth axis in scene space.
+  constexpr float kWorldSpan = 200.0f;
+  constexpr float kHeightScale = 0.16f;
+  constexpr int kHeightBias = 16;
+
+  const int w = heightmap.width;
+  const int h = heightmap.height;
+  const float step = kWorldSpan / static_cast<float>(w);
+
+  out_mesh->Clear();
+  out_mesh->positions.reserve(static_cast<size_t>(w) * static_cast<size_t>(h));
+  out_mesh->texcoords.reserve(static_cast<size_t>(w) * static_cast<size_t>(h));
+  out_mesh->triangles.reserve(static_cast<size_t>(w - 1) * static_cast<size_t>(h - 1) * 2u);
+
+  for (int gy = 0; gy < h; ++gy) {
+    for (int gx = 0; gx < w; ++gx) {
+      const size_t idx = static_cast<size_t>(gy) * static_cast<size_t>(w) + static_cast<size_t>(gx);
+      const uint8_t r = UnpackR(heightmap.pixels[idx]);
+      const float hgt =
+          static_cast<float>(std::max(0, static_cast<int>(r) - kHeightBias)) * kHeightScale;
+
+      const float px = -static_cast<float>(gx - w / 2) * step;
+      const float py = static_cast<float>(gy - h / 2) * step;
+      const float pz = hgt;
+      out_mesh->positions.emplace_back(px, py, pz);
+
+      const float u = static_cast<float>(gx) * (1.0f / static_cast<float>(w));
+      const float v = -static_cast<float>(gy) * (1.0f / static_cast<float>(h));
+      out_mesh->texcoords.emplace_back(u, v);
+    }
+  }
+
+  for (int gy = 0; gy < h - 1; ++gy) {
+    for (int gx = 0; gx < w - 1; ++gx) {
+      const int a = gy * w + gx;
+      const int b = gy * w + gx + 1;
+      const int c = (gy + 1) * w + gx;
+      const int d = (gy + 1) * w + gx + 1;
+      out_mesh->triangles.push_back({a, d, b});
+      out_mesh->triangles.push_back({d, a, c});
+    }
+  }
+  out_mesh->RebuildVertexNormals();
+  return !out_mesh->Empty();
+}
+
+bool BuildSaariSeaMeshFromTerrain(const Mesh& terrain, Mesh* out_mesh) {
+  if (!out_mesh || terrain.Empty()) {
+    return false;
+  }
+  *out_mesh = terrain;
+  for (Vec3& p : out_mesh->positions) {
+    p.z = 0.0f;
+  }
+  out_mesh->RebuildVertexNormals();
+  return !out_mesh->Empty();
 }
 
 std::vector<std::string> SplitWhitespace(std::string line) {
@@ -2462,8 +2546,8 @@ void DrawSaariFrameAtTime(Surface32& surface,
     renderer.DrawMesh(surface, saari.backdrop_mesh, camera, backdrop_instance);
   }
 
-  terrain_instance.rotation_radians.Set(-0.04f, 0.0f, 0.0f);
-  terrain_instance.translation = Vec3(-504.0f, -75.0f, 6.0f);
+  terrain_instance.rotation_radians.Set(0.0f, 0.0f, 0.0f);
+  terrain_instance.translation = Vec3(-504.0f, 0.0f, 0.0f);
   terrain_instance.uniform_scale = 1.0f;
   terrain_instance.fill_color = PackArgb(255, 255, 255);
   terrain_instance.wire_color = PackArgb(28, 32, 24);
@@ -2474,6 +2558,39 @@ void DrawSaariFrameAtTime(Surface32& surface,
   terrain_instance.use_mesh_uv = true;
   terrain_instance.texture_wrap = true;
   terrain_instance.enable_backface_culling = true;
+
+  // kmjakmk-style mirrored branch: draw a reflected terrain pass first,
+  // then sea surface, then main terrain.
+  static Surface32 reflection_surface(kLogicalWidth, kLogicalHeight, true);
+  reflection_surface.ClearBack(PackArgb(0, 0, 0));
+  RenderInstance reflection_instance = terrain_instance;
+  reflection_instance.texture = !saari.water_texture.Empty() ? &saari.water_texture : &saari.terrain_texture;
+  reflection_instance.texture_unlit = true;
+  reflection_instance.use_basis_rotation = true;
+  reflection_instance.basis_x = Vec3(1.0f, 0.0f, 0.0f);
+  reflection_instance.basis_y = Vec3(0.0f, 1.0f, 0.0f);
+  reflection_instance.basis_z = Vec3(0.0f, 0.0f, -1.0f);
+  reflection_instance.enable_backface_culling = false;
+  renderer.DrawMesh(reflection_surface, saari.terrain, camera, reflection_instance);
+  reflection_surface.SwapBuffers();
+  surface.AlphaBlitToBack(reflection_surface.FrontPixels(),
+                          kLogicalWidth,
+                          kLogicalHeight,
+                          0,
+                          0,
+                          0,
+                          0,
+                          kLogicalWidth,
+                          kLogicalHeight,
+                          148);
+
+  RenderInstance sea_instance = terrain_instance;
+  sea_instance.texture = !saari.water_texture.Empty() ? &saari.water_texture : &saari.terrain_texture;
+  sea_instance.texture_unlit = true;
+  sea_instance.enable_backface_culling = false;
+  renderer.DrawMesh(surface, saari.sea, camera, sea_instance);
+
+  terrain_instance.texture_unlit = false;
   renderer.DrawMesh(surface, saari.terrain, camera, terrain_instance);
 
   if (!saari.animated_objects.empty()) {
@@ -4861,8 +4978,12 @@ int main(int argc, char** argv) {
 
     if (has_terrain_tex) {
       saari.terrain_texture = ExtractTopHalf(saari_tex_full);
+      saari.water_texture = ExtractBottomHalf(saari_tex_full);
       if (saari.terrain_texture.Empty()) {
         saari.terrain_texture = std::move(saari_tex_full);
+      }
+      if (saari.water_texture.Empty()) {
+        saari.water_texture = saari.terrain_texture;
       }
     }
     if (has_backdrop) {
@@ -4877,6 +4998,8 @@ int main(int argc, char** argv) {
       mesh_ok = BuildSaariTerrainMeshFromHeightmap(saari_height, &saari.terrain);
       if (!mesh_ok) {
         std::cerr << "saari terrain mesh build failed\n";
+      } else if (!BuildSaariSeaMeshFromTerrain(saari.terrain, &saari.sea)) {
+        std::cerr << "saari sea mesh build failed\n";
       }
     }
 
@@ -4911,8 +5034,8 @@ int main(int argc, char** argv) {
       std::cerr << "saari ASE objects loaded: " << saari.animated_objects.size() << "\n";
     }
 
-    saari.enabled = mesh_ok && !saari.terrain_texture.Empty() && !saari.backdrop_texture.Empty() &&
-                    backdrop_mesh_ok;
+    saari.enabled = mesh_ok && !saari.sea.Empty() && !saari.terrain_texture.Empty() &&
+                    !saari.water_texture.Empty() && !saari.backdrop_texture.Empty() && backdrop_mesh_ok;
   }
 
   {
