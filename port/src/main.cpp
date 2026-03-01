@@ -9,6 +9,7 @@
 #include <iomanip>
 #include <iostream>
 #include <memory>
+#include <limits>
 #include <numeric>
 #include <sstream>
 #include <string>
@@ -314,8 +315,10 @@ struct SaariRuntime {
   float shock_percent = 0.0f;
   float shock_decay = 0.0f;
   double prev_scene_seconds = 0.0;
-  bool initial_suh0_sent = false;
-  bool first_suh_sent = false;
+  bool fallback_suh0_sent = false;
+  bool fallback_first_suh_sent = false;
+  bool row_suh0_sent = false;
+  std::array<bool, 8> row_suh_sent{};
   bool initialized = false;
 };
 
@@ -848,10 +851,41 @@ bool BuildSaariSeaMeshFromTerrain(const Mesh& terrain, Mesh* out_mesh) {
   if (!out_mesh || terrain.Empty()) {
     return false;
   }
-  *out_mesh = terrain;
-  for (Vec3& p : out_mesh->positions) {
-    p.z = 0.0f;
+
+  float min_x = std::numeric_limits<float>::infinity();
+  float min_y = std::numeric_limits<float>::infinity();
+  float max_x = -std::numeric_limits<float>::infinity();
+  float max_y = -std::numeric_limits<float>::infinity();
+  for (const Vec3& p : terrain.positions) {
+    min_x = std::min(min_x, p.x);
+    min_y = std::min(min_y, p.y);
+    max_x = std::max(max_x, p.x);
+    max_y = std::max(max_y, p.y);
   }
+
+  const float cx = 0.5f * (min_x + max_x);
+  const float cy = 0.5f * (min_y + max_y);
+  const float half_span = std::max(max_x - min_x, max_y - min_y) * 6.0f;
+  const float hx = std::max(half_span, 640.0f);
+  const float hy = std::max(half_span, 640.0f);
+
+  // kmjakmk extends terrain/water beyond the island footprint; use a large tiled plane.
+  out_mesh->Clear();
+  out_mesh->positions = {
+      Vec3(cx - hx, cy - hy, 0.0f),
+      Vec3(cx + hx, cy - hy, 0.0f),
+      Vec3(cx + hx, cy + hy, 0.0f),
+      Vec3(cx - hx, cy + hy, 0.0f),
+  };
+
+  constexpr float kUvWorldScale = 1.0f / 200.0f;
+  out_mesh->texcoords = {
+      {(cx - hx) * kUvWorldScale, -(cy - hy) * kUvWorldScale},
+      {(cx + hx) * kUvWorldScale, -(cy - hy) * kUvWorldScale},
+      {(cx + hx) * kUvWorldScale, -(cy + hy) * kUvWorldScale},
+      {(cx - hx) * kUvWorldScale, -(cy + hy) * kUvWorldScale},
+  };
+  out_mesh->triangles = {{0, 2, 1}, {2, 0, 3}};
   out_mesh->RebuildVertexNormals();
   return !out_mesh->Empty();
 }
@@ -2602,8 +2636,10 @@ void InitializeSaariRuntime(SaariRuntime& runtime) {
   runtime.shock_percent = 0.0f;
   runtime.shock_decay = 0.0f;
   runtime.prev_scene_seconds = 0.0;
-  runtime.initial_suh0_sent = false;
-  runtime.first_suh_sent = false;
+  runtime.fallback_suh0_sent = false;
+  runtime.fallback_first_suh_sent = false;
+  runtime.row_suh0_sent = false;
+  runtime.row_suh_sent.fill(false);
   runtime.initialized = true;
 }
 
@@ -2659,6 +2695,7 @@ void DrawSaariFrameAtTime(Surface32& surface,
                           RenderInstance& terrain_instance,
                           RenderInstance& object_instance,
                           double scene_seconds,
+                          int order_row,
                           bool trigger_script_messages) {
   if (!saari.enabled || saari.terrain.Empty()) {
     surface.ClearBack(PackArgb(0, 0, 0));
@@ -2670,13 +2707,33 @@ void DrawSaariFrameAtTime(Surface32& surface,
   }
 
   if (trigger_script_messages) {
-    if (!runtime.initial_suh0_sent) {
-      TriggerSaariMessage(runtime, false);  // "suh0"
-      runtime.initial_suh0_sent = true;
-    }
-    if (scene_seconds >= 5.12 && !runtime.first_suh_sent) {
-      TriggerSaariMessage(runtime, true);  // "_100 msg saari suh"
-      runtime.first_suh_sent = true;
+    // forward.java rows for module 2 / saari:
+    // 0x0000: suh0
+    // 0x0100,0x0600,0x0608,0x0610,0x0618,0x0620,0x0628,0x0630: suh
+    static constexpr std::array<int, 8> kSaariSuhRows = {
+        0x0100, 0x0600, 0x0608, 0x0610, 0x0618, 0x0620, 0x0628, 0x0630};
+
+    if (order_row >= 0) {
+      if (!runtime.row_suh0_sent && order_row >= 0x0000) {
+        TriggerSaariMessage(runtime, false);
+        runtime.row_suh0_sent = true;
+      }
+      for (size_t i = 0; i < kSaariSuhRows.size(); ++i) {
+        if (!runtime.row_suh_sent[i] && order_row >= kSaariSuhRows[i]) {
+          TriggerSaariMessage(runtime, true);
+          runtime.row_suh_sent[i] = true;
+        }
+      }
+    } else {
+      // Fallback for non-music/manual runs.
+      if (!runtime.fallback_suh0_sent) {
+        TriggerSaariMessage(runtime, false);
+        runtime.fallback_suh0_sent = true;
+      }
+      if (scene_seconds >= 5.12 && !runtime.fallback_first_suh_sent) {
+        TriggerSaariMessage(runtime, true);
+        runtime.fallback_first_suh_sent = true;
+      }
     }
   }
 
@@ -2701,6 +2758,45 @@ void DrawSaariFrameAtTime(Surface32& surface,
   SetCameraLookAt(camera, cam_pos, cam_target, Vec3(0.0f, 0.0f, 1.0f));
   camera.fov_degrees = saari.camera_fov_degrees;
 
+  struct SaariObjectPose {
+    const Mesh* mesh = nullptr;
+    Vec3 position;
+    Quat rotation;
+  };
+  std::vector<SaariObjectPose> object_poses;
+  if (!saari.animated_objects.empty()) {
+    object_poses.reserve(saari.animated_objects.size());
+    const Quat meditate_pi = QuatFromAxisAngle(Vec3(0.0f, 0.0f, 1.0f), kPi);
+    const float t_scene = static_cast<float>(scene_seconds);
+    const Quat klunssi_scripted = BuildSaariKlunssiScriptedRotation(t_scene);
+
+    for (const SaariSceneAssets::AnimatedObject& obj : saari.animated_objects) {
+      if (obj.mesh.Empty()) {
+        continue;
+      }
+      Vec3 obj_pos = obj.base_position;
+      if (!obj.position_track.empty()) {
+        obj_pos = SampleSaariTrackJavaLoopAtMs(obj.position_track, t_ms);
+      }
+      Quat obj_rot = obj.base_rotation;
+      if (!obj.rotation_track.empty()) {
+        obj_rot = SampleSaariRotationTrackJavaLoopAtMs(obj.rotation_track, t_ms, obj.base_rotation);
+      }
+      if (obj.name == "klunssi") {
+        obj_rot = klunssi_scripted;
+      } else if (obj.name == "meditate") {
+        obj_rot = QuatNormalize(QuatMul(meditate_pi, obj_rot));
+      }
+      object_poses.push_back(SaariObjectPose{&obj.mesh, obj_pos, obj_rot});
+    }
+  }
+
+  Vec3 terrain_origin(-504.553f, -53.026f, 0.0f);
+  if (!saari.target_track.empty()) {
+    terrain_origin.x = saari.target_track.front().value.x;
+    terrain_origin.y = saari.target_track.front().value.y;
+  }
+
   surface.ClearBack(PackArgb(220, 230, 245));
   if (!saari.backdrop_mesh.Empty() && !saari.backdrop_texture.Empty()) {
     backdrop_instance.rotation_radians.Set(0.0f, 0.0f, 0.0f);
@@ -2718,7 +2814,7 @@ void DrawSaariFrameAtTime(Surface32& surface,
   }
 
   terrain_instance.rotation_radians.Set(0.0f, 0.0f, 0.0f);
-  terrain_instance.translation = Vec3(-504.0f, 0.0f, 0.0f);
+  terrain_instance.translation = terrain_origin;
   terrain_instance.uniform_scale = 1.0f;
   terrain_instance.fill_color = PackArgb(255, 255, 255);
   terrain_instance.wire_color = PackArgb(28, 32, 24);
@@ -2733,7 +2829,7 @@ void DrawSaariFrameAtTime(Surface32& surface,
   // kmjakmk-style mirrored branch: draw a reflected terrain pass first,
   // then sea surface, then main terrain.
   static Surface32 reflection_surface(kLogicalWidth, kLogicalHeight, true);
-  reflection_surface.ClearBack(PackArgb(0, 0, 0));
+  reflection_surface.ClearBack(0x00000000u);
   RenderInstance reflection_instance = terrain_instance;
   reflection_instance.texture = !saari.water_texture.Empty() ? &saari.water_texture : &saari.terrain_texture;
   reflection_instance.texture_unlit = true;
@@ -2743,6 +2839,29 @@ void DrawSaariFrameAtTime(Surface32& surface,
   reflection_instance.basis_z = Vec3(0.0f, 0.0f, -1.0f);
   reflection_instance.enable_backface_culling = false;
   renderer.DrawMesh(reflection_surface, saari.terrain, camera, reflection_instance);
+
+  RenderInstance reflection_object_instance = object_instance;
+  reflection_object_instance.uniform_scale = 1.0f;
+  reflection_object_instance.fill_color = PackArgb(255, 255, 255);
+  reflection_object_instance.wire_color = 0;
+  reflection_object_instance.draw_fill = true;
+  reflection_object_instance.draw_wire = false;
+  reflection_object_instance.texture = &saari.backdrop_texture;
+  reflection_object_instance.use_mesh_uv = false;
+  reflection_object_instance.texture_wrap = true;
+  reflection_object_instance.enable_backface_culling = false;
+  for (const SaariObjectPose& pose : object_poses) {
+    if (!pose.mesh || pose.mesh->Empty()) {
+      continue;
+    }
+    reflection_object_instance.translation = Vec3(pose.position.x, pose.position.y, -pose.position.z);
+    SetRenderInstanceBasisFromQuat(reflection_object_instance, pose.rotation);
+    reflection_object_instance.basis_x.z = -reflection_object_instance.basis_x.z;
+    reflection_object_instance.basis_y.z = -reflection_object_instance.basis_y.z;
+    reflection_object_instance.basis_z.z = -reflection_object_instance.basis_z.z;
+    renderer.DrawMesh(reflection_surface, *pose.mesh, camera, reflection_object_instance);
+  }
+
   reflection_surface.SwapBuffers();
   surface.AlphaBlitToBack(reflection_surface.FrontPixels(),
                           kLogicalWidth,
@@ -2753,7 +2872,7 @@ void DrawSaariFrameAtTime(Surface32& surface,
                           0,
                           kLogicalWidth,
                           kLogicalHeight,
-                          148);
+                          140);
 
   RenderInstance sea_instance = terrain_instance;
   sea_instance.texture = !saari.water_texture.Empty() ? &saari.water_texture : &saari.terrain_texture;
@@ -2764,10 +2883,7 @@ void DrawSaariFrameAtTime(Surface32& surface,
   terrain_instance.texture_unlit = false;
   renderer.DrawMesh(surface, saari.terrain, camera, terrain_instance);
 
-  if (!saari.animated_objects.empty()) {
-    const Quat meditate_pi = QuatFromAxisAngle(Vec3(0.0f, 0.0f, 1.0f), kPi);
-    const float t_scene = static_cast<float>(scene_seconds);
-    const Quat klunssi_scripted = BuildSaariKlunssiScriptedRotation(t_scene);
+  if (!object_poses.empty()) {
     object_instance.uniform_scale = 1.0f;
     object_instance.fill_color = PackArgb(255, 255, 255);
     object_instance.wire_color = 0;
@@ -2778,29 +2894,13 @@ void DrawSaariFrameAtTime(Surface32& surface,
     object_instance.texture_wrap = true;
     object_instance.enable_backface_culling = true;
 
-    for (const SaariSceneAssets::AnimatedObject& obj : saari.animated_objects) {
-      if (obj.mesh.Empty()) {
+    for (const SaariObjectPose& pose : object_poses) {
+      if (!pose.mesh || pose.mesh->Empty()) {
         continue;
       }
-      Vec3 obj_pos = obj.base_position;
-      if (!obj.position_track.empty()) {
-        obj_pos = SampleSaariTrackJavaLoopAtMs(obj.position_track, t_ms);
-      }
-      Quat obj_rot = obj.base_rotation;
-      if (!obj.rotation_track.empty()) {
-        obj_rot = SampleSaariRotationTrackJavaLoopAtMs(obj.rotation_track, t_ms, obj.base_rotation);
-      }
-      if (obj.name == "klunssi") {
-        // Java override: clear matrix and apply scripted per-frame rotations.
-        obj_rot = klunssi_scripted;
-      } else if (obj.name == "meditate") {
-        // Java override: add constant Z rotation on top of track orientation.
-        obj_rot = QuatNormalize(QuatMul(meditate_pi, obj_rot));
-      }
-
-      object_instance.translation = obj_pos;
-      SetRenderInstanceBasisFromQuat(object_instance, obj_rot);
-      renderer.DrawMesh(surface, obj.mesh, camera, object_instance);
+      object_instance.translation = pose.position;
+      SetRenderInstanceBasisFromQuat(object_instance, pose.rotation);
+      renderer.DrawMesh(surface, *pose.mesh, camera, object_instance);
     }
   }
 
@@ -2819,6 +2919,7 @@ void DrawSaariFrame(Surface32& surface,
                     RenderInstance& terrain_instance,
                     RenderInstance& object_instance) {
   const double scene_seconds = std::max(0.0, state.timeline_seconds - state.scene_start_seconds);
+  const int order_row = (state.music_module_slot == 2) ? state.music_order_row : -1;
   DrawSaariFrameAtTime(surface,
                        saari,
                        runtime,
@@ -2828,6 +2929,7 @@ void DrawSaariFrame(Surface32& surface,
                        terrain_instance,
                        object_instance,
                        scene_seconds,
+                       order_row,
                        true);
 }
 
@@ -4806,6 +4908,7 @@ void DrawMute95DominaSequenceFrame(Surface32& surface,
                        saari_terrain_instance,
                        saari_object_instance,
                        sequence_seconds,
+                       (state.music_module_slot == 2) ? state.music_order_row : -1,
                        true);
 }
 
