@@ -1541,6 +1541,175 @@ Vec3 SampleSaariTrackAtMs(const std::vector<SaariSceneAssets::TrackKey>& track, 
   return a.value + (b.value - a.value) * f;
 }
 
+double WrapTrackTimeMs(double t_ms, double duration_ms) {
+  if (!(duration_ms > 0.0)) {
+    return 0.0;
+  }
+  const double wrapped = std::fmod(t_ms, duration_ms);
+  return (wrapped < 0.0) ? (wrapped + duration_ms) : wrapped;
+}
+
+Vec3 SampleSaariTrackJavaLoopAtMs(const std::vector<SaariSceneAssets::TrackKey>& track, double t_ms) {
+  const size_t count = track.size();
+  if (count == 0u) {
+    return Vec3();
+  }
+  if (count == 1u) {
+    return track.front().value;
+  }
+
+  const double duration_ms = track.back().time_ms;
+  double t = t_ms;
+  if (duration_ms > 0.0) {
+    t = WrapTrackTimeMs(t_ms, duration_ms);
+  }
+
+  auto it = std::upper_bound(
+      track.begin(), track.end(), t, [](double sample_t, const SaariSceneAssets::TrackKey& key) {
+        return sample_t < key.time_ms;
+      });
+  size_t i = 0u;
+  if (it == track.begin()) {
+    i = 0u;
+  } else {
+    i = static_cast<size_t>((it - track.begin()) - 1);
+    if (i >= count - 1u) {
+      i = count - 2u;
+    }
+  }
+
+  const SaariSceneAssets::TrackKey& k0 = track[i];
+  const SaariSceneAssets::TrackKey& k1 = track[i + 1u];
+  const double dt = std::max(1e-6, k1.time_ms - k0.time_ms);
+  const float u = static_cast<float>(std::clamp((t - k0.time_ms) / dt, 0.0, 1.0));
+  const float u2 = u * u;
+  const float u3 = u2 * u;
+
+  const size_t i_prev = (i == 0u) ? (count - 1u) : (i - 1u);
+  const size_t i_next2 = (i + 2u < count) ? (i + 2u) : ((i + 2u) % count);
+
+  const Vec3& p_prev = track[i_prev].value;
+  const Vec3& p0 = k0.value;
+  const Vec3& p1 = k1.value;
+  const Vec3& p_next2 = track[i_next2].value;
+
+  const Vec3 m0 = (p1 - p_prev) * 0.5f;
+  const Vec3 m1 = (p_next2 - p0) * 0.5f;
+
+  const float h00 = 2.0f * u3 - 3.0f * u2 + 1.0f;
+  const float h01 = -2.0f * u3 + 3.0f * u2;
+  const float h10 = u3 - 2.0f * u2 + u;
+  const float h11 = u3 - u2;
+  return p0 * h00 + p1 * h01 + m0 * h10 + m1 * h11;
+}
+
+Quat QuatLogUnit(const Quat& q_in) {
+  const Quat q = QuatNormalize(q_in);
+  const float w = std::clamp(q.w, -1.0f, 1.0f);
+  const float theta = std::acos(w);
+  const float sin_theta = std::sin(theta);
+  Quat out{};
+  out.w = 0.0f;
+  if (std::abs(sin_theta) <= 1e-6f) {
+    out.x = q.x;
+    out.y = q.y;
+    out.z = q.z;
+    return out;
+  }
+  const float scale = theta / sin_theta;
+  out.x = q.x * scale;
+  out.y = q.y * scale;
+  out.z = q.z * scale;
+  return out;
+}
+
+Quat QuatExpPure(const Quat& q) {
+  const float theta = std::sqrt(q.x * q.x + q.y * q.y + q.z * q.z);
+  Quat out{};
+  if (theta <= 1e-6f) {
+    out.x = q.x;
+    out.y = q.y;
+    out.z = q.z;
+    out.w = std::cos(theta);
+    return QuatNormalize(out);
+  }
+  const float s = std::sin(theta) / theta;
+  out.x = q.x * s;
+  out.y = q.y * s;
+  out.z = q.z * s;
+  out.w = std::cos(theta);
+  return QuatNormalize(out);
+}
+
+Quat ComputeSquadTangent(const Quat& q_prev, const Quat& q, const Quat& q_next) {
+  const Quat qn = QuatNormalize(q);
+  const Quat inv_q = QuatConjugate(qn);
+  const Quat l1 = QuatLogUnit(QuatMul(inv_q, QuatNormalize(q_prev)));
+  const Quat l2 = QuatLogUnit(QuatMul(inv_q, QuatNormalize(q_next)));
+  Quat blend{};
+  blend.x = -0.25f * (l1.x + l2.x);
+  blend.y = -0.25f * (l1.y + l2.y);
+  blend.z = -0.25f * (l1.z + l2.z);
+  blend.w = 0.0f;
+  return QuatNormalize(QuatMul(qn, QuatExpPure(blend)));
+}
+
+Quat QuatSquad(const Quat& q0, const Quat& q1, const Quat& s0, const Quat& s1, float t) {
+  const Quat slerp01 = QuatSlerp(q0, q1, t);
+  const Quat slerpS = QuatSlerp(s0, s1, t);
+  const float k = 2.0f * t * (1.0f - t);
+  return QuatNormalize(QuatSlerp(slerp01, slerpS, k));
+}
+
+Quat SampleSaariRotationTrackJavaLoopAtMs(
+    const std::vector<SaariSceneAssets::RotTrackKey>& track,
+    double t_ms,
+    const Quat& fallback) {
+  const size_t count = track.size();
+  if (count == 0u) {
+    return fallback;
+  }
+  if (count == 1u) {
+    return QuatNormalize(track.front().value);
+  }
+
+  const double duration_ms = track.back().time_ms;
+  double t = t_ms;
+  if (duration_ms > 0.0) {
+    t = WrapTrackTimeMs(t_ms, duration_ms);
+  }
+
+  auto it = std::upper_bound(
+      track.begin(), track.end(), t, [](double sample_t, const SaariSceneAssets::RotTrackKey& key) {
+        return sample_t < key.time_ms;
+      });
+  size_t i = 0u;
+  if (it == track.begin()) {
+    i = 0u;
+  } else {
+    i = static_cast<size_t>((it - track.begin()) - 1);
+    if (i >= count - 1u) {
+      i = count - 2u;
+    }
+  }
+
+  const SaariSceneAssets::RotTrackKey& k0 = track[i];
+  const SaariSceneAssets::RotTrackKey& k1 = track[i + 1u];
+  const double dt = std::max(1e-6, k1.time_ms - k0.time_ms);
+  const float u = static_cast<float>(std::clamp((t - k0.time_ms) / dt, 0.0, 1.0));
+
+  const size_t i_prev = (i == 0u) ? (count - 1u) : (i - 1u);
+  const size_t i_next2 = (i + 2u < count) ? (i + 2u) : ((i + 2u) % count);
+
+  const Quat q_prev = QuatNormalize(track[i_prev].value);
+  const Quat q0 = QuatNormalize(k0.value);
+  const Quat q1 = QuatNormalize(k1.value);
+  const Quat q_next2 = QuatNormalize(track[i_next2].value);
+  const Quat s0 = ComputeSquadTangent(q_prev, q0, q1);
+  const Quat s1 = ComputeSquadTangent(q0, q1, q_next2);
+  return QuatSquad(q0, q1, s0, s1, u);
+}
+
 void SetCameraLookAt(Camera& camera, const Vec3& position, const Vec3& target, const Vec3& world_up) {
   camera.position = position;
   Vec3 forward = (target - position).Normalized();
@@ -2520,12 +2689,14 @@ void DrawSaariFrameAtTime(Surface32& surface,
     runtime.shock_percent = std::max(0.0f, runtime.shock_percent - runtime.shock_decay * dt);
   }
 
-  const double t_ms = scene_seconds * 1000.0;
+  // Java maajmka: ASE playback time uses f * 1.16f.
+  const double playback_seconds = scene_seconds * 1.16;
+  const double t_ms = playback_seconds * 1000.0;
   Vec3 cam_pos(0.0f, 0.0f, 0.0f);
   Vec3 cam_target(0.0f, 0.0f, 1.0f);
   if (!saari.camera_track.empty() && !saari.target_track.empty()) {
-    cam_pos = SampleSaariTrackAtMs(saari.camera_track, t_ms);
-    cam_target = SampleSaariTrackAtMs(saari.target_track, t_ms);
+    cam_pos = SampleSaariTrackJavaLoopAtMs(saari.camera_track, t_ms);
+    cam_target = SampleSaariTrackJavaLoopAtMs(saari.target_track, t_ms);
   }
   SetCameraLookAt(camera, cam_pos, cam_target, Vec3(0.0f, 0.0f, 1.0f));
   camera.fov_degrees = saari.camera_fov_degrees;
@@ -2613,11 +2784,11 @@ void DrawSaariFrameAtTime(Surface32& surface,
       }
       Vec3 obj_pos = obj.base_position;
       if (!obj.position_track.empty()) {
-        obj_pos = SampleSaariTrackAtMs(obj.position_track, t_ms);
+        obj_pos = SampleSaariTrackJavaLoopAtMs(obj.position_track, t_ms);
       }
       Quat obj_rot = obj.base_rotation;
       if (!obj.rotation_track.empty()) {
-        obj_rot = SampleSaariRotationTrackAtMs(obj.rotation_track, t_ms, obj.base_rotation);
+        obj_rot = SampleSaariRotationTrackJavaLoopAtMs(obj.rotation_track, t_ms, obj.base_rotation);
       }
       if (obj.name == "klunssi") {
         // Java override: clear matrix and apply scripted per-frame rotations.
