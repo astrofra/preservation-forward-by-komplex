@@ -71,6 +71,7 @@ enum class SceneMode {
   kDomina,
   kMute95DominaSequence,
   kSaari,
+  kMaku,
   kUppol,
   kFeta,
 };
@@ -100,6 +101,7 @@ struct DemoState {
   std::string scene_label;
   std::string mesh_label;
   std::string post_label;
+  bool debug_maku_no_fog = false;
 };
 
 struct WatercubeValidationHarness {
@@ -120,6 +122,17 @@ struct FetaValidationHarness {
   std::vector<int> checkpoints = {0x1300, 0x1520, 0x1530, 0x1600};
   std::unordered_set<int> captured_rows;
   int last_order_row = -1;
+};
+
+struct MakuValidationHarness {
+  bool enabled = false;
+  bool has_reference_dir = false;
+  std::filesystem::path output_dir;
+  std::filesystem::path reference_dir;
+  std::vector<int> checkpoints = {0x0D00, 0x0E00, 0x0E20, 0x0F00, 0x0F20, 0x0F28, 0x0F30, 0x0F3C};
+  std::unordered_set<int> captured_rows;
+  int last_order_row = -1;
+  int direct_row_hint = kMod2ToMakuRow;
 };
 
 struct MusicState {
@@ -323,8 +336,8 @@ struct SaariRuntime {
 };
 
 struct MakuRuntime {
-  float playback_speed = -3.0f;
-  float go_base_seconds = 160.5f;
+  float playback_speed = 3.0f;
+  float go_base_seconds = 0.0f;
   double go_anchor_seconds = 0.0;
   float roll_angle = 0.0f;
   bool roll_enabled = false;
@@ -332,6 +345,11 @@ struct MakuRuntime {
   float flash_intensity = 0.0f;
   float flash_decay = 0.0f;
   int next_script_event = 0;
+  int last_order_row = -1;
+  Vec3 last_camera_position;
+  Vec3 last_camera_target;
+  double last_eval_seconds = 0.0;
+  double last_scene_seconds = 0.0;
   bool initialized = false;
 };
 
@@ -382,16 +400,37 @@ struct WatercubeRuntime {
 
 struct KukotRuntime {
   uint32_t rng_state = 0x4b554b4fu;  // "KUKO"
-  std::vector<uint32_t> flash_lut;
+  std::vector<uint32_t> flash_lut_10;
   std::vector<int> flash_scanline_order;
   std::vector<Particle> particles;
   std::vector<Mesh> deformed_meshes;
+  std::vector<uint32_t> frame_packed10;
+  std::vector<uint32_t> prev_frame_packed10;
   float flash_intensity = 0.0f;
   float flash_decay = 0.0f;
   int next_script_event = 0;
   int last_order_row = -1;
   double prev_scene_seconds = 0.0;
   bool initialized = false;
+};
+
+struct ScriptMessageEvent {
+  int order_row = -1;
+  std::string message;
+};
+
+struct KukotScriptData {
+  std::vector<ScriptMessageEvent> events;
+  int show_row = kMod2ToKukotRow;
+  int handoff_row = kMod2ToMakuRow;
+  bool loaded_from_forward_java = false;
+};
+
+struct MakuScriptData {
+  std::vector<ScriptMessageEvent> events;
+  int show_row = kMod2ToMakuRow;
+  int handoff_row = kMod2ToWatercubeRow;
+  bool loaded_from_forward_java = false;
 };
 
 Vec3 RotateXSimple(const Vec3& v, float angle);
@@ -401,6 +440,9 @@ bool ProjectPointToScreen(const Camera& camera,
                           int* out_x,
                           int* out_y,
                           float* out_depth);
+const KukotScriptData& GetKukotScriptData();
+const MakuScriptData& GetMakuScriptData();
+const char* SceneModeName(SceneMode mode);
 
 uint32_t PackArgb(uint8_t r, uint8_t g, uint8_t b) {
   return (0xFFu << 24u) | (static_cast<uint32_t>(r) << 16u) |
@@ -464,6 +506,10 @@ SequenceStage DetermineSequenceStage(const XmTiming& timing,
                                      bool maku_enabled,
                                      bool watercube_enabled,
                                      double fallback_script_seconds) {
+  const KukotScriptData& kukot_script = GetKukotScriptData();
+  const int kukot_show_row = kukot_script.show_row;
+  const int kukot_handoff_row = kukot_script.handoff_row;
+
   if (timing.valid) {
     const int order_row = PackOrderRow(timing.order, timing.row);
     if (timing.module_slot <= 1) {
@@ -472,10 +518,10 @@ SequenceStage DetermineSequenceStage(const XmTiming& timing,
     if (!saari_enabled) {
       return SequenceStage::kDomina;
     }
-    if (order_row < kMod2ToKukotRow) {
+    if (order_row < kukot_show_row) {
       return SequenceStage::kSaari;
     }
-    if (order_row < kMod2ToMakuRow) {
+    if (order_row < kukot_handoff_row) {
       return kukot_enabled ? SequenceStage::kKukot : SequenceStage::kSaari;
     }
     if (!maku_enabled) {
@@ -586,6 +632,33 @@ std::string ResolveForwardAssetPath(const std::string& relative_path) {
 
   const std::filesystem::path candidate =
       std::filesystem::path("original") / "forward" / relative_path;
+  std::error_code ec2;
+  if (std::filesystem::exists(candidate, ec2) && !ec2) {
+    return candidate.string();
+  }
+  return {};
+}
+
+std::string ResolveProjectPath(const std::string& relative_path) {
+  std::error_code ec;
+  std::filesystem::path cursor = std::filesystem::current_path(ec);
+  if (ec) {
+    return {};
+  }
+
+  while (true) {
+    const std::filesystem::path candidate = cursor / relative_path;
+    if (std::filesystem::exists(candidate, ec) && !ec) {
+      return candidate.string();
+    }
+    const std::filesystem::path parent = cursor.parent_path();
+    if (parent == cursor) {
+      break;
+    }
+    cursor = parent;
+  }
+
+  const std::filesystem::path candidate = std::filesystem::path(relative_path);
   std::error_code ec2;
   if (std::filesystem::exists(candidate, ec2) && !ec2) {
     return candidate.string();
@@ -762,14 +835,17 @@ bool BuildTerrainMeshFromHeightmap(const Image32& heightmap,
 
   for (int gy = 0; gy < h; ++gy) {
     for (int gx = 0; gx < w; ++gx) {
-      const size_t idx = static_cast<size_t>(gy) * static_cast<size_t>(w) + static_cast<size_t>(gx);
+      // kmjakmk height lookup flips one terrain axis before sampling.
+      const int sample_y = (h - 1) - gy;
+      const size_t idx =
+          static_cast<size_t>(sample_y) * static_cast<size_t>(w) + static_cast<size_t>(gx);
       const uint8_t r = UnpackR(heightmap.pixels[idx]);
       const float hgt =
           static_cast<float>(std::max(0, static_cast<int>(r) - height_bias)) * height_scale;
 
       const float px = -static_cast<float>(gx - w / 2) * step;
-      const float pz = static_cast<float>(gy - h / 2) * step;
-      out_mesh->positions.emplace_back(px, hgt, pz);
+      const float py = static_cast<float>(gy - h / 2) * step;
+      out_mesh->positions.emplace_back(px, py, hgt);
 
       // kmjakmk uses repeating UVs derived from grid indices.
       const float u = static_cast<float>(gx) * (1.0f / static_cast<float>(w));
@@ -817,7 +893,10 @@ bool BuildSaariTerrainMeshFromHeightmap(const Image32& heightmap, Mesh* out_mesh
 
   for (int gy = 0; gy < h; ++gy) {
     for (int gx = 0; gx < w; ++gx) {
-      const size_t idx = static_cast<size_t>(gy) * static_cast<size_t>(w) + static_cast<size_t>(gx);
+      // Java kmjakmk height lookup flips one terrain axis before sampling.
+      const int sample_y = (h - 1) - gy;
+      const size_t idx =
+          static_cast<size_t>(sample_y) * static_cast<size_t>(w) + static_cast<size_t>(gx);
       const uint8_t r = UnpackR(heightmap.pixels[idx]);
       const float hgt =
           static_cast<float>(std::max(0, static_cast<int>(r) - kHeightBias)) * kHeightScale;
@@ -890,6 +969,15 @@ bool BuildSaariSeaMeshFromTerrain(const Mesh& terrain, Mesh* out_mesh) {
   return !out_mesh->Empty();
 }
 
+void FlipMeshUvU(Mesh* mesh) {
+  if (!mesh) {
+    return;
+  }
+  for (auto& uv : mesh->texcoords) {
+    uv.x = 1.0f - uv.x;
+  }
+}
+
 std::vector<std::string> SplitWhitespace(std::string line) {
   for (char& c : line) {
     if (c == '\t') {
@@ -903,6 +991,15 @@ std::vector<std::string> SplitWhitespace(std::string line) {
     out.push_back(token);
   }
   return out;
+}
+
+std::string TrimAscii(const std::string& s) {
+  const size_t begin = s.find_first_not_of(" \t\r\n");
+  if (begin == std::string::npos) {
+    return {};
+  }
+  const size_t end = s.find_last_not_of(" \t\r\n");
+  return s.substr(begin, end - begin + 1);
 }
 
 int CountChar(const std::string& s, char ch) {
@@ -947,6 +1044,312 @@ Quat QuatFromAxisAngle(const Vec3& axis, float angle_radians) {
   const float half = angle_radians * 0.5f;
   const float s = std::sin(half);
   return QuatNormalize(Quat{n.x * s, n.y * s, n.z * s, std::cos(half)});
+}
+
+bool LoadForwardJavaScriptEntries(std::vector<std::string>* out_entries) {
+  if (!out_entries) {
+    return false;
+  }
+  out_entries->clear();
+
+  const std::string forward_java_path =
+      ResolveProjectPath("reverse/cfr_single/forward.java");
+  if (forward_java_path.empty()) {
+    return false;
+  }
+
+  std::ifstream input(forward_java_path);
+  if (!input.is_open()) {
+    return false;
+  }
+
+  std::string source((std::istreambuf_iterator<char>(input)),
+                     std::istreambuf_iterator<char>());
+  const std::string needle = "String[] kkAmajA";
+  const size_t decl = source.find(needle);
+  if (decl == std::string::npos) {
+    return false;
+  }
+  const size_t array_begin = source.find('{', decl);
+  if (array_begin == std::string::npos) {
+    return false;
+  }
+  const size_t array_end = source.find("};", array_begin);
+  if (array_end == std::string::npos || array_end <= array_begin) {
+    return false;
+  }
+
+  const std::string body = source.substr(array_begin + 1, array_end - array_begin - 1);
+  bool in_string = false;
+  bool escaped = false;
+  std::string current;
+  for (char ch : body) {
+    if (!in_string) {
+      if (ch == '"') {
+        in_string = true;
+        escaped = false;
+        current.clear();
+      }
+      continue;
+    }
+    if (escaped) {
+      current.push_back(ch);
+      escaped = false;
+      continue;
+    }
+    if (ch == '\\') {
+      escaped = true;
+      continue;
+    }
+    if (ch == '"') {
+      out_entries->push_back(current);
+      in_string = false;
+      continue;
+    }
+    current.push_back(ch);
+  }
+  return !out_entries->empty();
+}
+
+bool IsAsciiHexDigit(char c) {
+  return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') ||
+         (c >= 'A' && c <= 'F');
+}
+
+bool ExtractScriptRowPrefix(const std::string& token, int* inout_order_row) {
+  if (token.empty() || token[0] != '_' || !inout_order_row) {
+    return false;
+  }
+  size_t underscore_count = 0;
+  while (underscore_count < token.size() && token[underscore_count] == '_') {
+    ++underscore_count;
+  }
+  if (underscore_count == 0 || underscore_count == token.size()) {
+    return false;
+  }
+  size_t end = underscore_count;
+  while (end < token.size() && IsAsciiHexDigit(token[end])) {
+    ++end;
+  }
+  if (end == underscore_count) {
+    return false;
+  }
+  int value = 0;
+  try {
+    value = std::stoi(token.substr(underscore_count, end - underscore_count), nullptr, 16);
+  } catch (...) {
+    return false;
+  }
+  if (underscore_count == 1) {
+    *inout_order_row = value;
+  } else {
+    *inout_order_row += value;
+  }
+  return true;
+}
+
+std::vector<ScriptMessageEvent> DefaultKukotScriptEvents() {
+  return {
+      {0x0900, "suh"},  {0x0910, "suh"},  {0x0920, "suh"},  {0x0930, "suh"},
+      {0x0900, "suh2"}, {0x0A00, "suh1"}, {0x0B00, "suh0"}, {0x0B04, "suh"},
+      {0x0B08, "suh"},  {0x0B0C, "suh"},  {0x0B1C, "suh0"}, {0x0B2C, "suh0"},
+      {0x0B30, "suh"},  {0x0B34, "suh"},  {0x0B38, "suh"},  {0x0B48, "suh0"},
+      {0x0B4C, "suh1"}, {0x0B50, "suh1"}, {0x0B54, "suh1"}, {0x0C00, "suh0"},
+      {0x0C10, "suh0"}, {0x0C20, "suh0"}, {0x0C24, "suh"},  {0x0C28, "suh"},
+      {0x0C2C, "suh"},  {0x0C3C, "suh1"}, {0x0C40, "suh2"}, {0x0C44, "suh2"},
+      {0x0C48, "suh2"},
+  };
+}
+
+KukotScriptData LoadKukotScriptData() {
+  KukotScriptData out;
+  out.events = DefaultKukotScriptEvents();
+
+  std::vector<std::string> script_entries;
+  if (!LoadForwardJavaScriptEntries(&script_entries)) {
+    return out;
+  }
+
+  int module = 0;
+  int order_row = 0;
+  bool in_kukot = false;
+  std::vector<ScriptMessageEvent> parsed_events;
+  int show_row = -1;
+  int handoff_row = -1;
+
+  for (const std::string& raw_line : script_entries) {
+    std::string line = TrimAscii(raw_line);
+    if (line.empty()) {
+      continue;
+    }
+
+    std::vector<std::string> tokens = SplitWhitespace(line);
+    if (tokens.empty()) {
+      continue;
+    }
+
+    if (!tokens[0].empty() && tokens[0][0] == '_') {
+      ExtractScriptRowPrefix(tokens[0], &order_row);
+      const size_t row_token_len = tokens[0].size();
+      line = TrimAscii(line.substr(std::min(row_token_len, line.size())));
+      tokens = SplitWhitespace(line);
+      if (tokens.empty()) {
+        continue;
+      }
+    }
+
+    if (tokens[0] == "mod" && tokens.size() >= 2) {
+      try {
+        module = std::stoi(tokens[1]);
+      } catch (...) {
+      }
+      continue;
+    }
+    if (tokens[0] == "go") {
+      continue;
+    }
+
+    if (tokens[0] == "show" && tokens.size() >= 2) {
+      const std::string shown = tokens[1];
+      if (module == 2 && shown == "kukot") {
+        in_kukot = true;
+        show_row = order_row;
+      } else if (in_kukot && module == 2 && shown != "kukot") {
+        handoff_row = order_row;
+        break;
+      }
+      continue;
+    }
+
+    if (tokens[0] == "msg" && tokens.size() >= 3) {
+      if (module != 2 || !in_kukot || tokens[1] != "kukot") {
+        continue;
+      }
+      std::string message = tokens[2];
+      for (size_t i = 3; i < tokens.size(); ++i) {
+        message += " ";
+        message += tokens[i];
+      }
+      parsed_events.push_back({order_row, message});
+    }
+  }
+
+  if (!parsed_events.empty()) {
+    out.events = std::move(parsed_events);
+    out.loaded_from_forward_java = true;
+  }
+  if (show_row >= 0) {
+    out.show_row = show_row;
+  }
+  if (handoff_row >= 0) {
+    out.handoff_row = handoff_row;
+  }
+  return out;
+}
+
+const KukotScriptData& GetKukotScriptData() {
+  static const KukotScriptData data = LoadKukotScriptData();
+  return data;
+}
+
+std::vector<ScriptMessageEvent> DefaultMakuScriptEvents() {
+  return {
+      {0x0D00, "go 160.5"}, {0x0D00, "speed -3.0"}, {0x0E00, "go 25.5"}, {0x0E00, "speed 2"},
+      {0x0E20, "go 0"},     {0x0E20, "speed 2.5"},  {0x0F00, "go 42.5"}, {0x0F00, "speed -2"},
+      {0x0F20, "ksor"},     {0x0F20, "go 55.5"},    {0x0F20, "speed 4"},  {0x0F28, "ksor"},
+      {0x0F30, "ksor"},     {0x0F34, "ksor"},       {0x0F38, "ksor"},     {0x0F3C, "ksor"},
+  };
+}
+
+MakuScriptData LoadMakuScriptData() {
+  MakuScriptData out;
+  out.events = DefaultMakuScriptEvents();
+
+  std::vector<std::string> script_entries;
+  if (!LoadForwardJavaScriptEntries(&script_entries)) {
+    return out;
+  }
+
+  int module = 0;
+  int order_row = 0;
+  bool in_maku = false;
+  std::vector<ScriptMessageEvent> parsed_events;
+  int show_row = -1;
+  int handoff_row = -1;
+
+  for (const std::string& raw_line : script_entries) {
+    std::string line = TrimAscii(raw_line);
+    if (line.empty()) {
+      continue;
+    }
+
+    std::vector<std::string> tokens = SplitWhitespace(line);
+    if (tokens.empty()) {
+      continue;
+    }
+
+    if (!tokens[0].empty() && tokens[0][0] == '_') {
+      ExtractScriptRowPrefix(tokens[0], &order_row);
+      const size_t row_token_len = tokens[0].size();
+      line = TrimAscii(line.substr(std::min(row_token_len, line.size())));
+      tokens = SplitWhitespace(line);
+      if (tokens.empty()) {
+        continue;
+      }
+    }
+
+    if (tokens[0] == "mod" && tokens.size() >= 2) {
+      try {
+        module = std::stoi(tokens[1]);
+      } catch (...) {
+      }
+      continue;
+    }
+    if (tokens[0] == "go") {
+      continue;
+    }
+
+    if (tokens[0] == "show" && tokens.size() >= 2) {
+      const std::string shown = tokens[1];
+      if (module == 2 && shown == "maku") {
+        in_maku = true;
+        show_row = order_row;
+      } else if (in_maku && module == 2 && shown != "maku") {
+        handoff_row = order_row;
+        break;
+      }
+      continue;
+    }
+
+    if (tokens[0] == "msg" && tokens.size() >= 3) {
+      if (module != 2 || !in_maku || tokens[1] != "maku") {
+        continue;
+      }
+      std::string message = tokens[2];
+      for (size_t i = 3; i < tokens.size(); ++i) {
+        message += " ";
+        message += tokens[i];
+      }
+      parsed_events.push_back({order_row, message});
+    }
+  }
+
+  if (!parsed_events.empty()) {
+    out.events = std::move(parsed_events);
+    out.loaded_from_forward_java = true;
+  }
+  if (show_row >= 0) {
+    out.show_row = show_row;
+  }
+  if (handoff_row >= 0) {
+    out.handoff_row = handoff_row;
+  }
+  return out;
+}
+
+const MakuScriptData& GetMakuScriptData() {
+  static const MakuScriptData data = LoadMakuScriptData();
+  return data;
 }
 
 Quat BuildSaariKlunssiScriptedRotation(float t_seconds) {
@@ -1550,6 +1953,14 @@ bool ParseSaariAseObjects(const std::string& path,
   return ParseAseAnimatedObjects(path, kSaariObjectNames, out_objects);
 }
 
+bool ParseMakuAseCameraTracks(const std::string& path,
+                              std::vector<SaariSceneAssets::TrackKey>* out_camera,
+                              std::vector<SaariSceneAssets::TrackKey>* out_target,
+                              float* out_fov_degrees) {
+  // Dedicated Maku path: same source parser, isolated so scene-specific fixes don't affect Saari/Watercube.
+  return ParseSaariAseCameraTracks(path, out_camera, out_target, out_fov_degrees);
+}
+
 Vec3 SampleSaariTrackAtMs(const std::vector<SaariSceneAssets::TrackKey>& track, double t_ms) {
   if (track.empty()) {
     return Vec3();
@@ -1621,6 +2032,62 @@ Vec3 SampleSaariTrackJavaLoopAtMs(const std::vector<SaariSceneAssets::TrackKey>&
 
   const size_t i_prev = (i == 0u) ? (count - 1u) : (i - 1u);
   const size_t i_next2 = (i + 2u < count) ? (i + 2u) : ((i + 2u) % count);
+
+  const Vec3& p_prev = track[i_prev].value;
+  const Vec3& p0 = k0.value;
+  const Vec3& p1 = k1.value;
+  const Vec3& p_next2 = track[i_next2].value;
+
+  const Vec3 m0 = (p1 - p_prev) * 0.5f;
+  const Vec3 m1 = (p_next2 - p0) * 0.5f;
+
+  const float h00 = 2.0f * u3 - 3.0f * u2 + 1.0f;
+  const float h01 = -2.0f * u3 + 3.0f * u2;
+  const float h10 = u3 - 2.0f * u2 + u;
+  const float h11 = u3 - u2;
+  return p0 * h00 + p1 * h01 + m0 * h10 + m1 * h11;
+}
+
+Vec3 SampleTrackJavaLoopEndpointClampedAtMs(const std::vector<SaariSceneAssets::TrackKey>& track,
+                                            double t_ms) {
+  const size_t count = track.size();
+  if (count == 0u) {
+    return Vec3();
+  }
+  if (count == 1u) {
+    return track.front().value;
+  }
+
+  const double duration_ms = track.back().time_ms;
+  double t = t_ms;
+  if (duration_ms > 0.0) {
+    t = WrapTrackTimeMs(t_ms, duration_ms);
+  }
+
+  auto it = std::upper_bound(
+      track.begin(), track.end(), t, [](double sample_t, const SaariSceneAssets::TrackKey& key) {
+        return sample_t < key.time_ms;
+      });
+  size_t i = 0u;
+  if (it == track.begin()) {
+    i = 0u;
+  } else {
+    i = static_cast<size_t>((it - track.begin()) - 1);
+    if (i >= count - 1u) {
+      i = count - 2u;
+    }
+  }
+
+  const SaariSceneAssets::TrackKey& k0 = track[i];
+  const SaariSceneAssets::TrackKey& k1 = track[i + 1u];
+  const double dt = std::max(1e-6, k1.time_ms - k0.time_ms);
+  const float u = static_cast<float>(std::clamp((t - k0.time_ms) / dt, 0.0, 1.0));
+  const float u2 = u * u;
+  const float u3 = u2 * u;
+
+  // Match kajakmk mode=2 endpoint handling: out-of-range keys are duplicated endpoints.
+  const size_t i_prev = (i == 0u) ? 0u : (i - 1u);
+  const size_t i_next2 = (i + 2u < count) ? (i + 2u) : (count - 1u);
 
   const Vec3& p_prev = track[i_prev].value;
   const Vec3& p0 = k0.value;
@@ -1744,6 +2211,56 @@ Quat SampleSaariRotationTrackJavaLoopAtMs(
   return QuatSquad(q0, q1, s0, s1, u);
 }
 
+Quat SampleRotationTrackJavaLoopEndpointClampedAtMs(
+    const std::vector<SaariSceneAssets::RotTrackKey>& track,
+    double t_ms,
+    const Quat& fallback) {
+  const size_t count = track.size();
+  if (count == 0u) {
+    return fallback;
+  }
+  if (count == 1u) {
+    return QuatNormalize(track.front().value);
+  }
+
+  const double duration_ms = track.back().time_ms;
+  double t = t_ms;
+  if (duration_ms > 0.0) {
+    t = WrapTrackTimeMs(t_ms, duration_ms);
+  }
+
+  auto it = std::upper_bound(
+      track.begin(), track.end(), t, [](double sample_t, const SaariSceneAssets::RotTrackKey& key) {
+        return sample_t < key.time_ms;
+      });
+  size_t i = 0u;
+  if (it == track.begin()) {
+    i = 0u;
+  } else {
+    i = static_cast<size_t>((it - track.begin()) - 1);
+    if (i >= count - 1u) {
+      i = count - 2u;
+    }
+  }
+
+  const SaariSceneAssets::RotTrackKey& k0 = track[i];
+  const SaariSceneAssets::RotTrackKey& k1 = track[i + 1u];
+  const double dt = std::max(1e-6, k1.time_ms - k0.time_ms);
+  const float u = static_cast<float>(std::clamp((t - k0.time_ms) / dt, 0.0, 1.0));
+
+  // Match kajakmk mode=2 endpoint handling.
+  const size_t i_prev = (i == 0u) ? 0u : (i - 1u);
+  const size_t i_next2 = (i + 2u < count) ? (i + 2u) : (count - 1u);
+
+  const Quat q_prev = QuatNormalize(track[i_prev].value);
+  const Quat q0 = QuatNormalize(k0.value);
+  const Quat q1 = QuatNormalize(k1.value);
+  const Quat q_next2 = QuatNormalize(track[i_next2].value);
+  const Quat s0 = ComputeSquadTangent(q_prev, q0, q1);
+  const Quat s1 = ComputeSquadTangent(q0, q1, q_next2);
+  return QuatSquad(q0, q1, s0, s1, u);
+}
+
 void SetCameraLookAt(Camera& camera, const Vec3& position, const Vec3& target, const Vec3& world_up) {
   camera.position = position;
   Vec3 forward = (target - position).Normalized();
@@ -1794,6 +2311,9 @@ void UpdateWindowTitle(SDL_Window* window,
         << " | scene " << state.scene_label << " | mesh " << state.mesh_label
         << " | logical " << kLogicalWidth << "x"
         << kLogicalHeight << " | post " << state.post_label << " | audio " << audio_label;
+  if (state.debug_maku_no_fog) {
+    title << " | maku-no-fog";
+  }
 
   SDL_SetWindowTitle(window, title.str().c_str());
 }
@@ -1834,6 +2354,29 @@ void DrawScrollingLayer(Surface32& surface,
                             kLogicalHeight - first_h,
                             global_alpha);
   }
+}
+
+Image32 BuildDebugCheckerTexture(int width,
+                                 int height,
+                                 int cell_size,
+                                 uint32_t color_a,
+                                 uint32_t color_b) {
+  Image32 out;
+  if (width <= 0 || height <= 0 || cell_size <= 0) {
+    return out;
+  }
+  out.width = width;
+  out.height = height;
+  out.pixels.resize(static_cast<size_t>(width) * static_cast<size_t>(height));
+  for (int y = 0; y < height; ++y) {
+    const int cy = (y / cell_size) & 1;
+    for (int x = 0; x < width; ++x) {
+      const int cx = (x / cell_size) & 1;
+      out.pixels[static_cast<size_t>(y) * static_cast<size_t>(width) + static_cast<size_t>(x)] =
+          ((cx ^ cy) == 0) ? color_a : color_b;
+    }
+  }
+  return out;
 }
 
 void DrawQuickWinPostLayer(Surface32& surface,
@@ -2950,6 +3493,26 @@ std::string FormatOrderRowHex(int order_row) {
   return ss.str();
 }
 
+bool ParseOrderRowArgument(const std::string& value, int* out_order_row) {
+  if (!out_order_row) {
+    return false;
+  }
+  if (value.empty()) {
+    return false;
+  }
+  try {
+    size_t idx = 0;
+    const int parsed = std::stoi(value, &idx, 0);
+    if (idx != value.size()) {
+      return false;
+    }
+    *out_order_row = parsed & 0xFFFF;
+    return true;
+  } catch (...) {
+    return false;
+  }
+}
+
 bool WritePpmImage(const std::filesystem::path& output_path,
                    const uint32_t* pixels,
                    int width,
@@ -3091,6 +3654,138 @@ void MaybeCaptureWatercubeCheckpoint(WatercubeValidationHarness* harness,
   harness->last_order_row = order_row;
 }
 
+bool TryLoadMakuReferenceFrame(const std::filesystem::path& ref_dir, int order_row, Image32* out) {
+  if (!out) {
+    return false;
+  }
+  const std::string id = FormatOrderRowHex(order_row);
+  const std::array<std::string, 4> stems = {"maku_" + id, id, "0x" + id, "m2_" + id};
+  const std::array<std::string, 6> exts = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".ppm"};
+  std::string error;
+  for (const std::string& stem : stems) {
+    for (const std::string& ext : exts) {
+      const std::filesystem::path candidate = ref_dir / (stem + ext);
+      if (!std::filesystem::exists(candidate)) {
+        continue;
+      }
+      if (forward::core::LoadImage32(candidate.string(), *out, &error) && !out->Empty()) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+void CaptureMakuCheckpointFrame(const MakuValidationHarness& harness,
+                                int order_row,
+                                const DemoState& state,
+                                const XmTiming& timing,
+                                const Surface32& surface,
+                                const MakuRuntime& runtime) {
+  const std::string id = FormatOrderRowHex(order_row);
+  const std::filesystem::path native_path = harness.output_dir / ("maku_" + id + "_native.ppm");
+  WritePpmImage(native_path, surface.FrontPixels(), kLogicalWidth, kLogicalHeight);
+
+  const std::filesystem::path metrics_path = harness.output_dir / ("maku_" + id + "_metrics.txt");
+  std::ofstream metrics(metrics_path);
+  if (metrics.is_open()) {
+    metrics << "module_slot=" << timing.module_slot << "\n";
+    metrics << "order=0x" << std::hex << std::setw(2) << std::setfill('0') << (timing.order & 0xFF)
+            << std::dec << "\n";
+    metrics << "row=0x" << std::hex << std::setw(2) << std::setfill('0') << (timing.row & 0xFF)
+            << std::dec << "\n";
+    metrics << "order_row=0x" << id << "\n";
+    metrics << "clock_ms=" << timing.clock_time_ms << "\n";
+    metrics << "scene_mode=" << SceneModeName(state.scene_mode) << "\n";
+    metrics << "scene_seconds=" << runtime.last_scene_seconds << "\n";
+    metrics << "eval_seconds=" << runtime.last_eval_seconds << "\n";
+    metrics << "camera_pos=" << runtime.last_camera_position.x << ", " << runtime.last_camera_position.y
+            << ", " << runtime.last_camera_position.z << "\n";
+    metrics << "camera_target=" << runtime.last_camera_target.x << ", " << runtime.last_camera_target.y
+            << ", " << runtime.last_camera_target.z << "\n";
+    metrics << "ksor=" << (runtime.ksor_enabled ? 1 : 0) << "\n";
+    metrics << "roll=" << (runtime.roll_enabled ? 1 : 0) << "\n";
+    metrics << "flash_value=" << runtime.flash_intensity << "\n";
+    metrics << "flash_decay=" << runtime.flash_decay << "\n";
+    metrics << "speed=" << runtime.playback_speed << "\n";
+    metrics << "go_base_seconds=" << runtime.go_base_seconds << "\n";
+    metrics << "go_anchor_seconds=" << runtime.go_anchor_seconds << "\n";
+  }
+
+  if (harness.has_reference_dir) {
+    Image32 ref;
+    if (TryLoadMakuReferenceFrame(harness.reference_dir, order_row, &ref) && !ref.Empty()) {
+      const int out_w = ref.width + kLogicalWidth;
+      const int out_h = std::max(ref.height, kLogicalHeight);
+      std::vector<uint32_t> sidebyside(static_cast<size_t>(out_w) * static_cast<size_t>(out_h),
+                                       PackArgb(0, 0, 0));
+      for (int y = 0; y < ref.height; ++y) {
+        for (int x = 0; x < ref.width; ++x) {
+          sidebyside[static_cast<size_t>(y) * static_cast<size_t>(out_w) + static_cast<size_t>(x)] =
+              ref.pixels[static_cast<size_t>(y) * static_cast<size_t>(ref.width) +
+                         static_cast<size_t>(x)];
+        }
+      }
+      const uint32_t* native = surface.FrontPixels();
+      for (int y = 0; y < kLogicalHeight; ++y) {
+        for (int x = 0; x < kLogicalWidth; ++x) {
+          sidebyside[static_cast<size_t>(y) * static_cast<size_t>(out_w) +
+                     static_cast<size_t>(x + ref.width)] =
+              native[static_cast<size_t>(y) * static_cast<size_t>(kLogicalWidth) +
+                     static_cast<size_t>(x)];
+        }
+      }
+      const std::filesystem::path compare_path = harness.output_dir / ("maku_" + id + "_compare.ppm");
+      WritePpmImage(compare_path, sidebyside.data(), out_w, out_h);
+    }
+  }
+}
+
+void MaybeCaptureMakuCheckpoint(MakuValidationHarness* harness,
+                                const DemoState& state,
+                                const XmTiming& timing,
+                                const Surface32& surface,
+                                const MakuRuntime& runtime) {
+  if (!harness || !harness->enabled) {
+    return;
+  }
+  const bool in_sequence_maku =
+      state.scene_mode == SceneMode::kMute95DominaSequence && state.sequence_stage == SequenceStage::kMaku;
+  const bool in_direct_maku = state.scene_mode == SceneMode::kMaku;
+  if (!in_sequence_maku && !in_direct_maku) {
+    return;
+  }
+
+  int order_row = -1;
+  if (in_sequence_maku && timing.valid && timing.module_slot == 2) {
+    order_row = PackOrderRow(timing.order, timing.row);
+  } else if (in_direct_maku) {
+    order_row = harness->direct_row_hint;
+  }
+  if (order_row < 0) {
+    return;
+  }
+
+  if (harness->last_order_row < 0) {
+    harness->last_order_row = order_row;
+  }
+
+  for (int checkpoint : harness->checkpoints) {
+    if (harness->captured_rows.find(checkpoint) != harness->captured_rows.end()) {
+      continue;
+    }
+    const bool reached =
+        (order_row == checkpoint) || RowCrossed(harness->last_order_row, order_row, checkpoint);
+    if (!reached) {
+      continue;
+    }
+    CaptureMakuCheckpointFrame(*harness, checkpoint, state, timing, surface, runtime);
+    harness->captured_rows.insert(checkpoint);
+    std::cerr << "maku checkpoint captured: 0x" << FormatOrderRowHex(checkpoint) << "\n";
+  }
+  harness->last_order_row = order_row;
+}
+
 bool TryLoadFetaReferenceFrame(const std::filesystem::path& ref_dir,
                                int order_row,
                                Image32* out) {
@@ -3130,6 +3825,8 @@ const char* SceneModeName(SceneMode mode) {
       return "row";
     case SceneMode::kSaari:
       return "saari";
+    case SceneMode::kMaku:
+      return "maku";
     case SceneMode::kUppol:
       return "uppol";
     case SceneMode::kFeta:
@@ -3236,12 +3933,12 @@ void InitializeKukotRuntime(KukotRuntime& runtime) {
   runtime.prev_scene_seconds = 0.0;
   runtime.rng_state = 0x4b554b4fu;
 
-  runtime.flash_lut.resize(1000);
-  for (uint32_t& c : runtime.flash_lut) {
+  runtime.flash_lut_10.resize(1000);
+  for (uint32_t& c : runtime.flash_lut_10) {
     const int r = static_cast<int>(NextRandomU32(&runtime.rng_state) % 38u);
     const int g = static_cast<int>(NextRandomU32(&runtime.rng_state) % 16u);
     const int b = static_cast<int>(NextRandomU32(&runtime.rng_state) % 87u);
-    c = LegacyPacked10ToArgb(PackLegacy10(r, g, b));
+    c = PackLegacy10(r, g, b);
   }
 
   runtime.flash_scanline_order.resize(static_cast<size_t>(kLogicalHeight));
@@ -3269,6 +3966,12 @@ void InitializeKukotRuntime(KukotRuntime& runtime) {
   }
 
   runtime.deformed_meshes.clear();
+  runtime.frame_packed10.assign(static_cast<size_t>(kLogicalWidth) *
+                                    static_cast<size_t>(kLogicalHeight),
+                                0u);
+  runtime.prev_frame_packed10.assign(static_cast<size_t>(kLogicalWidth) *
+                                         static_cast<size_t>(kLogicalHeight),
+                                     0u);
   runtime.initialized = true;
 }
 
@@ -3298,50 +4001,25 @@ void RunKukotScriptAtOrderRow(KukotRuntime& runtime, int order_row) {
   if (order_row < 0) {
     return;
   }
-  struct KukotEvent {
-    int order_row;
-    const char* message;
-  };
-  static const std::array<KukotEvent, 29> kEvents = {{
-      {0x0900, "suh"},
-      {0x0910, "suh"},
-      {0x0920, "suh"},
-      {0x0930, "suh"},
-      {0x0900, "suh2"},
-      {0x0A00, "suh1"},
-      {0x0B00, "suh0"},
-      {0x0B04, "suh"},
-      {0x0B08, "suh"},
-      {0x0B0C, "suh"},
-      {0x0B1C, "suh0"},
-      {0x0B2C, "suh0"},
-      {0x0B30, "suh"},
-      {0x0B34, "suh"},
-      {0x0B38, "suh"},
-      {0x0B48, "suh0"},
-      {0x0B4C, "suh1"},
-      {0x0B50, "suh1"},
-      {0x0B54, "suh1"},
-      {0x0C00, "suh0"},
-      {0x0C10, "suh0"},
-      {0x0C20, "suh0"},
-      {0x0C24, "suh"},
-      {0x0C28, "suh"},
-      {0x0C2C, "suh"},
-      {0x0C3C, "suh1"},
-      {0x0C40, "suh2"},
-      {0x0C44, "suh2"},
-      {0x0C48, "suh2"},
-  }};
+  const std::vector<ScriptMessageEvent>& events = GetKukotScriptData().events;
+  if (events.empty()) {
+    return;
+  }
 
+  const int previous_row = runtime.last_order_row;
   if (runtime.last_order_row < 0) {
     runtime.last_order_row = order_row;
   }
 
-  while (runtime.next_script_event < static_cast<int>(kEvents.size())) {
-    const KukotEvent& ev = kEvents[static_cast<size_t>(runtime.next_script_event)];
-    const bool reached = (order_row == ev.order_row) ||
-                         RowCrossed(runtime.last_order_row, order_row, ev.order_row);
+  while (runtime.next_script_event < static_cast<int>(events.size())) {
+    const ScriptMessageEvent& ev = events[static_cast<size_t>(runtime.next_script_event)];
+    bool reached = false;
+    if (previous_row < 0) {
+      reached = order_row >= ev.order_row;
+    } else {
+      reached = (order_row == ev.order_row) ||
+                RowCrossed(runtime.last_order_row, order_row, ev.order_row);
+    }
     if (!reached) {
       break;
     }
@@ -3351,8 +4029,22 @@ void RunKukotScriptAtOrderRow(KukotRuntime& runtime, int order_row) {
   runtime.last_order_row = order_row;
 }
 
-void ApplyKukotFlashOverlay(Surface32& surface, KukotRuntime& runtime, int amount) {
-  if (amount == 0 || runtime.flash_lut.empty() || runtime.flash_scanline_order.empty()) {
+void ConvertArgbBufferToPacked10(const uint32_t* argb, uint32_t* packed10, size_t count) {
+  if (!argb || !packed10) {
+    return;
+  }
+  for (size_t i = 0; i < count; ++i) {
+    const uint32_t c = argb[i];
+    packed10[i] = legacy10::PackRgb8To10(
+        static_cast<uint8_t>((c >> 16u) & 0xFFu),
+        static_cast<uint8_t>((c >> 8u) & 0xFFu),
+        static_cast<uint8_t>(c & 0xFFu));
+  }
+}
+
+void ApplyKukotFlashOverlayPacked(uint32_t* packed10, KukotRuntime& runtime, int amount) {
+  if (amount == 0 || !packed10 || runtime.flash_lut_10.empty() ||
+      runtime.flash_scanline_order.empty()) {
     return;
   }
   const int lines = std::clamp(std::abs(amount), 0, kLogicalHeight - 1);
@@ -3360,86 +4052,41 @@ void ApplyKukotFlashOverlay(Surface32& surface, KukotRuntime& runtime, int amoun
     return;
   }
 
-  uint32_t* back = surface.BackPixelsMutable();
-  if (!back) {
-    return;
-  }
-
   const int random_offset = static_cast<int>(
       NextRandomU32(&runtime.rng_state) %
       static_cast<uint32_t>(runtime.flash_scanline_order.size()));
-  const int lut_window = std::max(1, static_cast<int>(runtime.flash_lut.size()) - kLogicalWidth);
+  const int lut_window =
+      std::max(1, static_cast<int>(runtime.flash_lut_10.size()) - 1 - kLogicalWidth);
   for (int i = 0; i < lines; ++i) {
     const int y = runtime.flash_scanline_order[static_cast<size_t>((i + random_offset) % kLogicalHeight)];
     const int lut_start = static_cast<int>(NextRandomU32(&runtime.rng_state) %
                                            static_cast<uint32_t>(lut_window));
-    uint32_t* row = back + static_cast<size_t>(y) * static_cast<size_t>(kLogicalWidth);
+    uint32_t* row = packed10 + static_cast<size_t>(y) * static_cast<size_t>(kLogicalWidth);
     for (int x = 0; x < kLogicalWidth; ++x) {
       const uint32_t src = row[static_cast<size_t>(x)];
-      const uint32_t noise = runtime.flash_lut[static_cast<size_t>(lut_start + x)];
-      int r = static_cast<int>(UnpackR(src));
-      int g = static_cast<int>(UnpackG(src));
-      int b = static_cast<int>(UnpackB(src));
+      const uint32_t noise = runtime.flash_lut_10[static_cast<size_t>(lut_start + x)];
       if (amount > 0) {
-        r = std::min(255, r + static_cast<int>(UnpackR(noise)));
-        g = std::min(255, g + static_cast<int>(UnpackG(noise)));
-        b = std::min(255, b + static_cast<int>(UnpackB(noise)));
+        row[static_cast<size_t>(x)] = legacy10::AddSaturating(src, noise);
       } else {
-        r = std::max(0, r - static_cast<int>(UnpackR(noise)));
-        g = std::max(0, g - static_cast<int>(UnpackG(noise)));
-        b = std::max(0, b - static_cast<int>(UnpackB(noise)));
+        row[static_cast<size_t>(x)] = legacy10::SubSaturating(src, noise);
       }
-      row[static_cast<size_t>(x)] =
-          PackArgb(static_cast<uint8_t>(r), static_cast<uint8_t>(g), static_cast<uint8_t>(b));
     }
   }
 }
 
-void ApplyKukotHorizontalFeedbackBlur(Surface32& surface, float blend) {
-  const int n = std::clamp(static_cast<int>(31.0f * blend), 0, 31);
-  const int n2 = 32 - n;
-  if (n2 <= 0) {
+void ApplyKukotHorizontalFeedbackBlurPacked(uint32_t* packed10, float blend) {
+  if (!packed10) {
     return;
   }
-  uint32_t* back = surface.BackPixelsMutable();
-  if (!back) {
-    return;
-  }
-  for (int y = 0; y < kLogicalHeight; ++y) {
-    uint32_t* row = back + static_cast<size_t>(y) * static_cast<size_t>(kLogicalWidth);
-    int prev_r = static_cast<int>(UnpackR(row[0])) >> 1;
-    int prev_g = static_cast<int>(UnpackG(row[0])) >> 1;
-    int prev_b = static_cast<int>(UnpackB(row[0])) >> 1;
-    for (int x = 0; x < kLogicalWidth; ++x) {
-      const uint32_t src = row[static_cast<size_t>(x)];
-      const int sr = static_cast<int>(UnpackR(src));
-      const int sg = static_cast<int>(UnpackG(src));
-      const int sb = static_cast<int>(UnpackB(src));
-      prev_r = (prev_r * n + sr * n2) >> 5;
-      prev_g = (prev_g * n + sg * n2) >> 5;
-      prev_b = (prev_b * n + sb * n2) >> 5;
-      row[static_cast<size_t>(x)] = PackArgb(static_cast<uint8_t>(std::clamp(prev_r, 0, 255)),
-                                             static_cast<uint8_t>(std::clamp(prev_g, 0, 255)),
-                                             static_cast<uint8_t>(std::clamp(prev_b, 0, 255)));
-    }
-  }
+  legacy10::HorizontalFeedbackBlur(packed10, kLogicalWidth, kLogicalHeight, blend);
 }
 
-void ApplyKukotTemporalAddHalf(Surface32& surface) {
-  uint32_t* back = surface.BackPixelsMutable();
-  const uint32_t* front = surface.FrontPixels();
-  if (!back || !front) {
+void ApplyKukotTemporalAddHalfPacked(uint32_t* packed10, const uint32_t* prev_packed10) {
+  if (!packed10 || !prev_packed10) {
     return;
   }
   const size_t count = static_cast<size_t>(kLogicalWidth) * static_cast<size_t>(kLogicalHeight);
-  for (size_t i = 0; i < count; ++i) {
-    const uint32_t cur = back[i];
-    const uint32_t prev = front[i];
-    const int r = std::min(255, static_cast<int>(UnpackR(cur)) + (static_cast<int>(UnpackR(prev)) >> 1));
-    const int g = std::min(255, static_cast<int>(UnpackG(cur)) + (static_cast<int>(UnpackG(prev)) >> 1));
-    const int b = std::min(255, static_cast<int>(UnpackB(cur)) + (static_cast<int>(UnpackB(prev)) >> 1));
-    back[i] = PackArgb(static_cast<uint8_t>(r), static_cast<uint8_t>(g), static_cast<uint8_t>(b));
-  }
+  legacy10::AddHalfSaturating(packed10, prev_packed10, count);
 }
 
 void ApplyKukotProceduralDeformation(const Mesh& source, float phase, Mesh* out_mesh) {
@@ -3561,8 +4208,8 @@ void DrawKukotFrameAtTime(Surface32& surface,
   Vec3 cam_pos(0.0f, 0.0f, 0.0f);
   Vec3 cam_target(0.0f, 0.0f, 1.0f);
   if (!kukot.camera_track.empty() && !kukot.target_track.empty()) {
-    cam_pos = SampleSaariTrackAtMs(kukot.camera_track, t_ms);
-    cam_target = SampleSaariTrackAtMs(kukot.target_track, t_ms);
+    cam_pos = SampleTrackJavaLoopEndpointClampedAtMs(kukot.camera_track, t_ms);
+    cam_target = SampleTrackJavaLoopEndpointClampedAtMs(kukot.target_track, t_ms);
   }
   // ASE camera tracks in FORWARD are authored in Z-up.
   SetCameraLookAt(camera, cam_pos, cam_target, Vec3(0.0f, 0.0f, 1.0f));
@@ -3611,11 +4258,12 @@ void DrawKukotFrameAtTime(Surface32& surface,
     }
     Vec3 obj_pos = obj.base_position;
     if (!obj.position_track.empty()) {
-      obj_pos = SampleSaariTrackAtMs(obj.position_track, t_ms);
+      obj_pos = SampleTrackJavaLoopEndpointClampedAtMs(obj.position_track, t_ms);
     }
     Quat obj_rot = obj.base_rotation;
     if (!obj.rotation_track.empty()) {
-      obj_rot = SampleSaariRotationTrackAtMs(obj.rotation_track, t_ms, obj.base_rotation);
+      obj_rot = SampleRotationTrackJavaLoopEndpointClampedAtMs(
+          obj.rotation_track, t_ms, obj.base_rotation);
     }
     object_instance.translation = obj_pos;
     SetRenderInstanceBasisFromQuat(object_instance, obj_rot);
@@ -3626,9 +4274,33 @@ void DrawKukotFrameAtTime(Surface32& surface,
   }
 
   DrawKukotParticles(surface, camera, kukot, runtime, scene_seconds);
-  ApplyKukotHorizontalFeedbackBlur(surface, 0.875f);
-  ApplyKukotFlashOverlay(surface, runtime, static_cast<int>(runtime.flash_intensity));
-  ApplyKukotTemporalAddHalf(surface);
+
+  const size_t pixel_count = static_cast<size_t>(kLogicalWidth) * static_cast<size_t>(kLogicalHeight);
+  if (runtime.frame_packed10.size() != pixel_count) {
+    runtime.frame_packed10.assign(pixel_count, 0u);
+  }
+  if (runtime.prev_frame_packed10.size() != pixel_count) {
+    runtime.prev_frame_packed10.assign(pixel_count, 0u);
+  }
+
+  const uint32_t* front_argb = surface.FrontPixels();
+  if (front_argb) {
+    ConvertArgbBufferToPacked10(front_argb, runtime.prev_frame_packed10.data(), pixel_count);
+  } else {
+    std::fill(runtime.prev_frame_packed10.begin(), runtime.prev_frame_packed10.end(), 0u);
+  }
+  uint32_t* back_argb = surface.BackPixelsMutable();
+  if (back_argb) {
+    ConvertArgbBufferToPacked10(back_argb, runtime.frame_packed10.data(), pixel_count);
+  }
+
+  ApplyKukotHorizontalFeedbackBlurPacked(runtime.frame_packed10.data(), 0.875f);
+  ApplyKukotFlashOverlayPacked(
+      runtime.frame_packed10.data(), runtime, static_cast<int>(runtime.flash_intensity));
+  ApplyKukotTemporalAddHalfPacked(runtime.frame_packed10.data(), runtime.prev_frame_packed10.data());
+  if (back_argb) {
+    legacy10::ConvertBufferToArgb(runtime.frame_packed10.data(), back_argb, pixel_count);
+  }
   surface.SwapBuffers();
 }
 
@@ -3645,8 +4317,8 @@ void ApplyCameraRoll(Camera& camera, float roll_radians) {
 }
 
 void InitializeMakuRuntime(MakuRuntime& runtime) {
-  runtime.playback_speed = -3.0f;
-  runtime.go_base_seconds = 160.5f;
+  runtime.playback_speed = 3.0f;
+  runtime.go_base_seconds = 0.0f;
   runtime.go_anchor_seconds = 0.0;
   runtime.roll_angle = 0.0f;
   runtime.roll_enabled = false;
@@ -3654,6 +4326,11 @@ void InitializeMakuRuntime(MakuRuntime& runtime) {
   runtime.flash_intensity = 0.0f;
   runtime.flash_decay = 0.0f;
   runtime.next_script_event = 0;
+  runtime.last_order_row = -1;
+  runtime.last_camera_position = Vec3(0.0f, 0.0f, 0.0f);
+  runtime.last_camera_target = Vec3(0.0f, 0.0f, 0.0f);
+  runtime.last_eval_seconds = 0.0;
+  runtime.last_scene_seconds = 0.0;
   runtime.initialized = true;
 }
 
@@ -3700,36 +4377,33 @@ void RunMakuScriptAtOrderRow(MakuRuntime& runtime, int order_row, double scene_s
   if (order_row < 0) {
     return;
   }
-  struct MakuEvent {
-    int order_row;
-    const char* message;
-  };
-  static const std::array<MakuEvent, 16> kEvents = {{
-      {0x0D00, "go 160.5"},
-      {0x0D00, "speed -3.0"},
-      {0x0E00, "go 25.5"},
-      {0x0E00, "speed 2.0"},
-      {0x0E20, "go 0"},
-      {0x0E20, "speed 2.5"},
-      {0x0F00, "go 42.5"},
-      {0x0F00, "speed -2.0"},
-      {0x0F20, "ksor"},
-      {0x0F20, "go 55.5"},
-      {0x0F20, "speed 4.0"},
-      {0x0F28, "ksor"},
-      {0x0F30, "ksor"},
-      {0x0F34, "ksor"},
-      {0x0F38, "ksor"},
-      {0x0F3C, "ksor"},
-  }};
 
-  while (runtime.next_script_event < static_cast<int>(kEvents.size()) &&
-         order_row >= kEvents[static_cast<size_t>(runtime.next_script_event)].order_row) {
-    ApplyMakuMessage(runtime,
-                     kEvents[static_cast<size_t>(runtime.next_script_event)].message,
-                     scene_seconds);
+  const std::vector<ScriptMessageEvent>& events = GetMakuScriptData().events;
+  if (events.empty()) {
+    return;
+  }
+
+  const int previous_row = runtime.last_order_row;
+  if (runtime.last_order_row < 0) {
+    runtime.last_order_row = order_row;
+  }
+
+  while (runtime.next_script_event < static_cast<int>(events.size())) {
+    const ScriptMessageEvent& ev = events[static_cast<size_t>(runtime.next_script_event)];
+    bool reached = false;
+    if (previous_row < 0) {
+      reached = order_row >= ev.order_row;
+    } else {
+      reached = (order_row == ev.order_row) ||
+                RowCrossed(runtime.last_order_row, order_row, ev.order_row);
+    }
+    if (!reached) {
+      break;
+    }
+    ApplyMakuMessage(runtime, ev.message, scene_seconds);
     ++runtime.next_script_event;
   }
+  runtime.last_order_row = order_row;
 }
 
 void DrawMakuFrameAtTime(Surface32& surface,
@@ -3748,7 +4422,6 @@ void DrawMakuFrameAtTime(Surface32& surface,
   }
   if (!runtime.initialized) {
     InitializeMakuRuntime(runtime);
-    runtime.go_anchor_seconds = scene_seconds;
   }
 
   const int order_row = (state.music_module_slot == 2) ? state.music_order_row : -1;
@@ -3762,22 +4435,31 @@ void DrawMakuFrameAtTime(Surface32& surface,
   runtime.flash_intensity =
       std::max(0.0f, runtime.flash_intensity - runtime.flash_decay * static_cast<float>(state.frame_dt_seconds));
 
-  const double eval_seconds = static_cast<double>(runtime.go_base_seconds) +
-                              (scene_seconds - runtime.go_anchor_seconds) *
-                                  static_cast<double>(runtime.playback_speed);
+  const float scene_f = static_cast<float>(scene_seconds);
+  const float eval_seconds =
+      ((scene_f - static_cast<float>(runtime.go_anchor_seconds)) * runtime.playback_speed) +
+      runtime.go_base_seconds;
   const double t_ms = eval_seconds * 1000.0;
 
   Vec3 cam_pos(0.0f, 40.0f, 140.0f);
   Vec3 cam_target(0.0f, 0.0f, 0.0f);
   if (!maku.camera_track.empty() && !maku.target_track.empty()) {
-    cam_pos = SampleSaariTrackAtMs(maku.camera_track, t_ms);
-    cam_target = SampleSaariTrackAtMs(maku.target_track, t_ms);
+    // Java kaajkka uses kajakmk mode=2 (looped time with endpoint-clamped tangents).
+    cam_pos = SampleTrackJavaLoopEndpointClampedAtMs(maku.camera_track, t_ms);
+    cam_target = SampleTrackJavaLoopEndpointClampedAtMs(maku.target_track, t_ms);
   }
+  runtime.last_camera_position = cam_pos;
+  runtime.last_camera_target = cam_target;
+  runtime.last_eval_seconds = static_cast<double>(eval_seconds);
+  runtime.last_scene_seconds = scene_seconds;
   SetCameraLookAt(camera, cam_pos, cam_target, Vec3(0.0f, 0.0f, 1.0f));
   ApplyCameraRoll(camera, runtime.roll_angle);
   camera.fov_degrees = maku.camera_fov_degrees;
 
-  surface.ClearBack(PackArgb(255, 255, 255));
+  // Debug switch to inspect camera/geometry without Maku's whitening stack.
+  static const Image32 s_maku_debug_checker =
+      BuildDebugCheckerTexture(128, 128, 32, PackArgb(18, 24, 18), PackArgb(54, 70, 50));
+  surface.ClearBack(state.debug_maku_no_fog ? PackArgb(0, 0, 0) : PackArgb(255, 255, 255));
 
   terrain_instance.rotation_radians.Set(0.0f, 0.0f, 0.0f);
   terrain_instance.translation = Vec3(0.0f, 0.0f, 0.0f);
@@ -3787,13 +4469,32 @@ void DrawMakuFrameAtTime(Surface32& surface,
   terrain_instance.draw_fill = true;
   terrain_instance.draw_wire = false;
   terrain_instance.use_basis_rotation = false;
-  terrain_instance.texture = &maku.terrain_texture;
+  terrain_instance.texture = state.debug_maku_no_fog ? &s_maku_debug_checker : &maku.terrain_texture;
   terrain_instance.use_mesh_uv = true;
   terrain_instance.texture_wrap = true;
+  terrain_instance.texture_unlit = state.debug_maku_no_fog;
   terrain_instance.enable_backface_culling = true;
   renderer.DrawMesh(surface, maku.terrain, camera, terrain_instance);
 
-  if (runtime.ksor_enabled) {
+  if (!state.debug_maku_no_fog && runtime.flash_intensity > 0.0f) {
+    const float w = std::clamp(runtime.flash_intensity / 256.0f, 0.0f, 1.0f);
+    uint32_t* back = surface.BackPixelsMutable();
+    if (back) {
+      const size_t count = static_cast<size_t>(kLogicalWidth) * static_cast<size_t>(kLogicalHeight);
+      for (size_t i = 0; i < count; ++i) {
+        const uint32_t src = back[i];
+        const uint8_t r = static_cast<uint8_t>(
+            std::clamp((1.0f - w) * static_cast<float>(UnpackR(src)) + w * 255.0f, 0.0f, 255.0f));
+        const uint8_t g = static_cast<uint8_t>(
+            std::clamp((1.0f - w) * static_cast<float>(UnpackG(src)) + w * 255.0f, 0.0f, 255.0f));
+        const uint8_t b = static_cast<uint8_t>(
+            std::clamp((1.0f - w) * static_cast<float>(UnpackB(src)) + w * 255.0f, 0.0f, 255.0f));
+        back[i] = PackArgb(r, g, b);
+      }
+    }
+  }
+
+  if (!state.debug_maku_no_fog && runtime.ksor_enabled) {
     uint32_t* back = surface.BackPixelsMutable();
     const uint32_t* front = surface.FrontPixels();
     if (back && front) {
@@ -3818,24 +4519,6 @@ void DrawMakuFrameAtTime(Surface32& surface,
                               kLogicalWidth,
                               kLogicalHeight,
                               160);
-    }
-  }
-
-  if (runtime.flash_intensity > 0.0f) {
-    const float w = std::clamp(runtime.flash_intensity / 256.0f, 0.0f, 1.0f);
-    uint32_t* back = surface.BackPixelsMutable();
-    if (back) {
-      const size_t count = static_cast<size_t>(kLogicalWidth) * static_cast<size_t>(kLogicalHeight);
-      for (size_t i = 0; i < count; ++i) {
-        const uint32_t src = back[i];
-        const uint8_t r = static_cast<uint8_t>(
-            std::clamp((1.0f - w) * static_cast<float>(UnpackR(src)) + w * 255.0f, 0.0f, 255.0f));
-        const uint8_t g = static_cast<uint8_t>(
-            std::clamp((1.0f - w) * static_cast<float>(UnpackG(src)) + w * 255.0f, 0.0f, 255.0f));
-        const uint8_t b = static_cast<uint8_t>(
-            std::clamp((1.0f - w) * static_cast<float>(UnpackB(src)) + w * 255.0f, 0.0f, 255.0f));
-        back[i] = PackArgb(r, g, b);
-      }
     }
   }
 
@@ -4964,6 +5647,19 @@ void DrawFrame(Surface32& surface,
                    saari_object_instance);
     return;
   }
+  if (state.scene_mode == SceneMode::kMaku) {
+    const double scene_seconds = std::max(0.0, state.timeline_seconds - state.scene_start_seconds);
+    DrawMakuFrameAtTime(surface,
+                        state,
+                        maku_assets,
+                        maku_runtime,
+                        camera,
+                        renderer,
+                        saari_terrain_instance,
+                        scene_seconds,
+                        false);
+    return;
+  }
   if (state.scene_mode == SceneMode::kUppol) {
     DrawUppolFrame(surface, state, uppol_assets, uppol_runtime);
     return;
@@ -5033,7 +5729,9 @@ int main(int argc, char** argv) {
 
   bool disable_audio = false;
   bool verbose_audio = false;
+  int maku_bootstrap_row = kMod2ToMakuRow;
   WatercubeValidationHarness watercube_harness;
+  MakuValidationHarness maku_harness;
   FetaValidationHarness feta_harness;
   for (int i = 1; i < argc; ++i) {
     const std::string arg = argv[i];
@@ -5052,6 +5750,23 @@ int main(int argc, char** argv) {
       watercube_harness.reference_dir =
           std::filesystem::path(arg.substr(std::string("--watercube-reference-dir=").size()));
       watercube_harness.has_reference_dir = true;
+    } else if (arg == "--maku-capture") {
+      maku_harness.enabled = true;
+      maku_harness.output_dir = std::filesystem::path("documentation") / "maku-checkpoints";
+    } else if (arg.rfind("--maku-capture-dir=", 0) == 0) {
+      maku_harness.enabled = true;
+      maku_harness.output_dir = arg.substr(std::string("--maku-capture-dir=").size());
+    } else if (arg.rfind("--maku-reference-dir=", 0) == 0) {
+      maku_harness.reference_dir =
+          std::filesystem::path(arg.substr(std::string("--maku-reference-dir=").size()));
+      maku_harness.has_reference_dir = true;
+    } else if (arg.rfind("--maku-row=", 0) == 0) {
+      int parsed_row = kMod2ToMakuRow;
+      if (ParseOrderRowArgument(arg.substr(std::string("--maku-row=").size()), &parsed_row)) {
+        maku_bootstrap_row = parsed_row;
+      } else {
+        std::cerr << "warning: invalid --maku-row value: " << arg << "\n";
+      }
     } else if (arg == "--feta-capture") {
       feta_harness.enabled = true;
       feta_harness.output_dir = std::filesystem::path("documentation") / "feta-checkpoints";
@@ -5078,6 +5793,20 @@ int main(int argc, char** argv) {
       std::cerr << "watercube capture enabled: " << watercube_harness.output_dir.string() << "\n";
     }
   }
+  if (maku_harness.enabled && maku_harness.output_dir.empty()) {
+    maku_harness.output_dir = std::filesystem::path("documentation") / "maku-checkpoints";
+  }
+  if (maku_harness.enabled) {
+    std::error_code ec;
+    std::filesystem::create_directories(maku_harness.output_dir, ec);
+    if (ec) {
+      std::cerr << "maku capture disabled: cannot create output dir "
+                << maku_harness.output_dir.string() << "\n";
+      maku_harness.enabled = false;
+    } else {
+      std::cerr << "maku capture enabled: " << maku_harness.output_dir.string() << "\n";
+    }
+  }
   if (feta_harness.enabled && feta_harness.output_dir.empty()) {
     feta_harness.output_dir = std::filesystem::path("documentation") / "feta-checkpoints";
   }
@@ -5094,6 +5823,9 @@ int main(int argc, char** argv) {
   }
   watercube_harness.captured_rows.clear();
   watercube_harness.last_order_row = -1;
+  maku_harness.captured_rows.clear();
+  maku_harness.last_order_row = -1;
+  maku_harness.direct_row_hint = maku_bootstrap_row;
   feta_harness.captured_rows.clear();
   feta_harness.last_order_row = -1;
   if (disable_audio && verbose_audio) {
@@ -5282,6 +6014,8 @@ int main(int argc, char** argv) {
     if (!half8_path.empty() &&
         forward::core::LoadIguMesh(half8_path, saari.backdrop_mesh, &mesh_error) &&
         !saari.backdrop_mesh.Empty()) {
+      // Java kaaakma constructor mirrors sky U coordinates (u = 1 - u).
+      FlipMeshUvU(&saari.backdrop_mesh);
       const float r = saari.backdrop_mesh.BoundingRadius();
       saari.backdrop_scale = (r > 0.001f) ? (10000.0f / r) : 10000.0f;
       backdrop_mesh_ok = true;
@@ -5398,7 +6132,7 @@ int main(int argc, char** argv) {
     bool tracks_ok = false;
     const std::string maku_ase_path = ResolveForwardAssetPath("asses/vuori5.ase");
     if (!maku_ase_path.empty()) {
-      tracks_ok = ParseSaariAseCameraTracks(
+      tracks_ok = ParseMakuAseCameraTracks(
           maku_ase_path, &maku.camera_track, &maku.target_track, &maku.camera_fov_degrees);
     }
     if (!tracks_ok) {
@@ -5641,6 +6375,17 @@ int main(int argc, char** argv) {
   state.mesh_label = std::filesystem::path(mesh_path).filename().string();
   state.post_label = state.show_post && post.enabled ? "phorward" : "off";
   double sequence_script_start_seconds = state.timeline_seconds;
+  auto enter_maku_scene = [&](int order_row) {
+    state.scene_mode = SceneMode::kMaku;
+    state.script_driven = false;
+    state.scene_label = "maku@0x" + FormatOrderRowHex(order_row);
+    state.scene_start_seconds = state.timeline_seconds;
+    InitializeMakuRuntime(maku_runtime);
+    RunMakuScriptAtOrderRow(maku_runtime, order_row, 0.0);
+    maku_harness.direct_row_hint = order_row;
+    maku_harness.captured_rows.clear();
+    maku_harness.last_order_row = -1;
+  };
 
   for (int i = 1; i < argc; ++i) {
     const std::string arg = argv[i];
@@ -5661,6 +6406,10 @@ int main(int argc, char** argv) {
         state.scene_mode = SceneMode::kSaari;
         state.script_driven = false;
         state.scene_label = "saari";
+      }
+    } else if (arg == "--scene=maku" || arg == "--maku") {
+      if (maku.enabled) {
+        enter_maku_scene(maku_bootstrap_row);
       }
     } else if (arg == "--scene=uppol" || arg == "--uppol") {
       if (uppol.enabled) {
@@ -5683,6 +6432,9 @@ int main(int argc, char** argv) {
         sequence_script_start_seconds = state.timeline_seconds;
         watercube_harness.captured_rows.clear();
         watercube_harness.last_order_row = -1;
+        maku_harness.captured_rows.clear();
+        maku_harness.last_order_row = -1;
+        maku_harness.direct_row_hint = maku_bootstrap_row;
         feta_harness.captured_rows.clear();
         feta_harness.last_order_row = -1;
         feta_runtime.initialized = false;
@@ -5694,6 +6446,8 @@ int main(int argc, char** argv) {
       state.scene_start_seconds = state.timeline_seconds;
       particles.initialized = false;
       feta_runtime.initialized = false;
+    } else if (arg == "--debug-maku-no-fog" || arg == "--maku-no-fog") {
+      state.debug_maku_no_fog = true;
     }
   }
 
@@ -5754,6 +6508,11 @@ int main(int argc, char** argv) {
             state.show_post = !state.show_post;
             state.post_label = state.show_post && post.enabled ? "phorward" : "off";
             break;
+          case SDLK_m:
+            state.debug_maku_no_fog = !state.debug_maku_no_fog;
+            std::cerr << "debug: maku no-fog "
+                      << (state.debug_maku_no_fog ? "enabled" : "disabled") << "\n";
+            break;
           case SDLK_LEFTBRACKET:
           case SDLK_MINUS:
             state.feta_fov_degrees = std::clamp(state.feta_fov_degrees - 1.0f, 40.0f, 120.0f);
@@ -5810,6 +6569,9 @@ int main(int argc, char** argv) {
               feta_runtime.initialized = false;
               watercube_harness.captured_rows.clear();
               watercube_harness.last_order_row = -1;
+              maku_harness.captured_rows.clear();
+              maku_harness.last_order_row = -1;
+              maku_harness.direct_row_hint = maku_bootstrap_row;
               feta_harness.captured_rows.clear();
               feta_harness.last_order_row = -1;
               restart_sequence_audio();
@@ -5841,6 +6603,11 @@ int main(int argc, char** argv) {
               state.scene_label = "uppol";
               state.scene_start_seconds = state.timeline_seconds;
               uppol_runtime.initialized = false;
+            }
+            break;
+          case SDLK_9:
+            if (maku.enabled) {
+              enter_maku_scene(maku_bootstrap_row);
             }
             break;
           default:
@@ -6014,6 +6781,7 @@ int main(int argc, char** argv) {
 
     MaybeCaptureWatercubeCheckpoint(
         &watercube_harness, state, xm_timing, surface, watercube_runtime);
+    MaybeCaptureMakuCheckpoint(&maku_harness, state, xm_timing, surface, maku_runtime);
     MaybeCaptureFetaCheckpoint(&feta_harness, state, xm_timing, surface, feta_runtime);
 
     if (SDL_UpdateTexture(texture,
