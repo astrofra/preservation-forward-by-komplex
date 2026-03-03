@@ -5011,6 +5011,7 @@ void DrawFrame(Surface32& surface,
 }  // namespace
 
 int main(int argc, char** argv) {
+  SDL_SetMainReady();
   if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_TIMER | SDL_INIT_EVENTS) != 0) {
     std::cerr << "SDL_Init failed: " << SDL_GetError() << "\n";
     return 1;

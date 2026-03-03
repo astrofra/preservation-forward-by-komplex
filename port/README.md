@@ -1,22 +1,52 @@
-# forward native harness (macOS ARM first step)
+# forward native harness (macOS + Windows)
 
 This is the native harness for starting the C++ port on modern systems.
 
 Current focus is the original `1x1` visual path (`512x256` logical buffer at full-quality sampling).
 
-## Build
+## Build (macOS / Linux)
 
 ```bash
 cd port
-# libxmp is required (Homebrew: brew install libxmp)
+# Optional for XM playback: brew install libxmp
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j
 ```
+
+## Build (Windows 10/11, MSVC)
+
+`SDL2` is auto-fetched by CMake when not already installed.
+
+```powershell
+cd port
+cmake -S . -B build -A x64 -DCMAKE_BUILD_TYPE=Release
+cmake --build build --config Release
+```
+
+## Optional: enable XM audio on Windows (vcpkg)
+
+```powershell
+cd port
+# Example dependency setup (x64)
+vcpkg install sdl2:x64-windows libxmp:x64-windows
+cmake -S . -B build -A x64 `
+  -DCMAKE_BUILD_TYPE=Release `
+  -DCMAKE_TOOLCHAIN_FILE=C:/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake
+cmake --build build --config Release
+```
+
+`libxmp` is optional. If it is not found, the app still builds and runs, but XM music playback is disabled.
 
 ## Run
 
 ```bash
 ./build/forward_native
+```
+
+Windows (MSVC multi-config):
+
+```powershell
+.\build\Release\forward_native.exe
 ```
 
 ## Controls

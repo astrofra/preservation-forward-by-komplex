@@ -1,8 +1,14 @@
 #include "XmPlayer.h"
 
-#include <xmp.h>
-
 #include <cstring>
+
+#ifndef FORWARD_HAS_LIBXMP
+#define FORWARD_HAS_LIBXMP 1
+#endif
+
+#if FORWARD_HAS_LIBXMP
+#include <xmp.h>
+#endif
 
 namespace forward::core {
 namespace {
@@ -16,6 +22,8 @@ void SetError(std::string* out_error, const std::string& value) {
 }  // namespace
 
 XmPlayer::~XmPlayer() { Shutdown(); }
+
+#if FORWARD_HAS_LIBXMP
 
 bool XmPlayer::Initialize(int sample_rate, int buffer_frames, std::string* out_error) {
   Shutdown();
@@ -206,5 +214,68 @@ void XmPlayer::OnAudio(Uint8* stream, int len) {
     xmp_release_module(ctx);
   }
 }
+
+#else
+
+bool XmPlayer::Initialize(int /*sample_rate*/, int /*buffer_frames*/, std::string* out_error) {
+  Shutdown();
+  SetError(out_error, "libxmp support is disabled at build time");
+  return false;
+}
+
+bool XmPlayer::LoadModule(int /*slot*/, const std::string& /*path*/, std::string* out_error) {
+  SetError(out_error, "libxmp support is disabled at build time");
+  return false;
+}
+
+bool XmPlayer::StartModule(int /*slot*/, bool /*loop*/, std::string* out_error) {
+  SetError(out_error, "libxmp support is disabled at build time");
+  return false;
+}
+
+bool XmPlayer::StartModuleLocked(int /*slot*/, bool /*loop*/, std::string* out_error) {
+  SetError(out_error, "libxmp support is disabled at build time");
+  return false;
+}
+
+void XmPlayer::SetPaused(bool paused) {
+  paused_.store(paused, std::memory_order_release);
+}
+
+XmTiming XmPlayer::GetTiming() const { return XmTiming{}; }
+
+bool XmPlayer::IsReady() const { return false; }
+
+void XmPlayer::Shutdown() {
+  xmp_ctx_ = nullptr;
+  if (audio_device_ != 0) {
+    SDL_CloseAudioDevice(audio_device_);
+    audio_device_ = 0;
+  }
+  module_paths_.fill({});
+  module_loaded_in_context_.store(false, std::memory_order_release);
+  loop_current_module_.store(false, std::memory_order_release);
+  paused_.store(false, std::memory_order_release);
+  timing_valid_.store(false, std::memory_order_release);
+  active_module_slot_.store(0, std::memory_order_release);
+  order_.store(0, std::memory_order_release);
+  row_.store(0, std::memory_order_release);
+  speed_.store(0, std::memory_order_release);
+  bpm_.store(0, std::memory_order_release);
+  module_time_ms_.store(0, std::memory_order_release);
+  clock_time_ms_.store(0, std::memory_order_release);
+  module_base_time_ms_.store(0, std::memory_order_release);
+}
+
+void XmPlayer::SDLAudioCallback(void* /*userdata*/, Uint8* /*stream*/, int /*len*/) {}
+
+void XmPlayer::OnAudio(Uint8* stream, int len) {
+  if (!stream || len <= 0) {
+    return;
+  }
+  std::memset(stream, 0, static_cast<size_t>(len));
+}
+
+#endif
 
 }  // namespace forward::core
