@@ -29,6 +29,10 @@ struct RenderInstance {
   bool draw_wire = true;
   bool enable_backface_culling = true;
   bool use_basis_rotation = false;
+  // Depth fog: Java maku palette-based distance fog (black → blue → white).
+  bool depth_fog_enabled = false;
+  float depth_fog_near = 81.0f;   // Java kmjjmka: JaKKaMa = 81.0f
+  float depth_fog_far = 200.0f;   // Java kmjjmka: jAkkaMa = 200.0f
 };
 
 class Renderer3D {

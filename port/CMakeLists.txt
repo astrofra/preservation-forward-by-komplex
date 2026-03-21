@@ -21,6 +21,14 @@ option(FORWARD_FETCH_SDL2
        "Fetch SDL2 from source if no system package is found"
        ${FORWARD_FETCH_SDL2_DEFAULT})
 
+set(FORWARD_FETCH_LIBXMP_DEFAULT OFF)
+if(WIN32)
+  set(FORWARD_FETCH_LIBXMP_DEFAULT ON)
+endif()
+option(FORWARD_FETCH_LIBXMP
+       "Fetch libxmp from source if no system package is found"
+       ${FORWARD_FETCH_LIBXMP_DEFAULT})
+
 find_package(SDL2 QUIET CONFIG)
 if(NOT TARGET SDL2::SDL2 AND NOT SDL2_FOUND)
   find_package(SDL2 QUIET MODULE)
@@ -109,6 +117,27 @@ if(FORWARD_ENABLE_XM_AUDIO)
       set(XMP_LINK_TARGET PkgConfig::LIBXMP)
       set(FORWARD_HAS_LIBXMP TRUE)
     endif()
+  endif()
+
+  if(NOT FORWARD_HAS_LIBXMP AND FORWARD_FETCH_LIBXMP)
+    include(FetchContent)
+    set(BUILD_SHARED_LIBS_SAVED ${BUILD_SHARED_LIBS})
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+    FetchContent_Declare(
+      libxmp_external
+      URL https://github.com/libxmp/libxmp/releases/download/libxmp-4.6.0/libxmp-4.6.0.tar.gz
+      DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    )
+    FetchContent_MakeAvailable(libxmp_external)
+    set(BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS_SAVED} CACHE BOOL "" FORCE)
+    # libxmp 4.6 creates xmp_static / libxmp::xmp_static
+    foreach(candidate_target IN ITEMS xmp_static libxmp::xmp_static xmp libxmp::xmp)
+      if(TARGET ${candidate_target})
+        set(XMP_LINK_TARGET ${candidate_target})
+        set(FORWARD_HAS_LIBXMP TRUE)
+        break()
+      endif()
+    endforeach()
   endif()
 endif()
 

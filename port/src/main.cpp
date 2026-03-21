@@ -4474,6 +4474,11 @@ void DrawMakuFrameAtTime(Surface32& surface,
   terrain_instance.texture_wrap = true;
   terrain_instance.texture_unlit = state.debug_maku_no_fog;
   terrain_instance.enable_backface_culling = true;
+  // Java kmjjmka depth fog: per-vertex palette black→blue(80,140,200)→white.
+  // Near = JaKKaMa = 81, far = jAkkaMa = 200 (view-space depth units).
+  terrain_instance.depth_fog_enabled = !state.debug_maku_no_fog;
+  terrain_instance.depth_fog_near = 81.0f;
+  terrain_instance.depth_fog_far = 200.0f;
   renderer.DrawMesh(surface, maku.terrain, camera, terrain_instance);
 
   if (!state.debug_maku_no_fog && runtime.flash_intensity > 0.0f) {
@@ -6139,6 +6144,10 @@ int main(int argc, char** argv) {
     if (!tracks_ok) {
       std::cerr << "maku camera tracks parse failed\n";
     }
+    // Override: Java kmjjmka uses jaKkaMa=1.2f for the terrain renderer (kmjakmk),
+    // which is independent of the ASE camera's CAMERA_FOV (0.785rad ≈ 45°).
+    // The camera animation was designed for this terrain FOV — use it unconditionally.
+    maku.camera_fov_degrees = 1.2f * (180.0f / kPi);  // ≈ 68.75°
     maku.enabled = mesh_ok && !maku.terrain_texture.Empty() && tracks_ok;
   }
 

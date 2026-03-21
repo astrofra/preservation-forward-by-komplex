@@ -322,7 +322,44 @@ void Renderer3D::DrawFilledTriangle(Surface32& target,
                                         : (instance.texture ? (0.78f + 0.22f * ndotv)
                                                             : (0.22f + 0.78f * ndotv));
       const uint32_t shaded_color = ModulateColor(base_color, light_intensity);
-      target.SetBackPixel(x, y, shaded_color);
+
+      // Depth fog: Java maku kmjjmka palette (black → blue(80,140,200) → white).
+      // fog_factor = clamp((view_z - near) / (far - near), 0, 1).
+      // At fog_factor=0: pure texture. At fog_factor=1: pure fog color.
+      uint32_t final_color = shaded_color;
+      if (instance.depth_fog_enabled) {
+        const float fog_range = instance.depth_fog_far - instance.depth_fog_near;
+        const float fog_factor =
+            (fog_range > 0.0f)
+                ? std::clamp((z - instance.depth_fog_near) / fog_range, 0.0f, 1.0f)
+                : 0.0f;
+        if (fog_factor > 0.0f) {
+          float fog_r, fog_g, fog_b;
+          if (fog_factor < 0.5f) {
+            const float t = fog_factor * 2.0f;
+            fog_r = 80.0f * t;
+            fog_g = 140.0f * t;
+            fog_b = 200.0f * t;
+          } else {
+            const float t = (fog_factor - 0.5f) * 2.0f;
+            fog_r = 80.0f + 175.0f * t;
+            fog_g = 140.0f + 115.0f * t;
+            fog_b = 200.0f + 55.0f * t;
+          }
+          const float tw = 1.0f - fog_factor;
+          final_color = PackArgb(
+              static_cast<uint8_t>(
+                  std::min(static_cast<float>(ChannelR(shaded_color)) * tw + fog_r * fog_factor,
+                           255.0f)),
+              static_cast<uint8_t>(
+                  std::min(static_cast<float>(ChannelG(shaded_color)) * tw + fog_g * fog_factor,
+                           255.0f)),
+              static_cast<uint8_t>(
+                  std::min(static_cast<float>(ChannelB(shaded_color)) * tw + fog_b * fog_factor,
+                           255.0f)));
+        }
+      }
+      target.SetBackPixel(x, y, final_color);
     }
   }
 }
