@@ -7,6 +7,7 @@ Base de reconstruction Java desktop de `forward`, dérivée des sources décompi
 - suppression de la dépendance `Applet` au profit d’un hôte desktop AWT
 - remplacement des anciens backends audio `IE3/IE4` / `sun.audio` par `Java Sound`
 - correction des classes décompilées qui contenaient encore des artefacts `GOTO`
+- désactivation du basculement intermédiaire vers une fenêtre écran entier pour garder toute la démo dans la même fenêtre desktop
 
 ## Prérequis
 

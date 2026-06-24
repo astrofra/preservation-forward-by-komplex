@@ -163,10 +163,9 @@ implements Runnable {
     }
 
     void kamajak() {
-        this.KKAmajA = this.getParent();
-        this.KKAmAjA = new mmjjmka("Veni");
-        this.KKAmAjA.kamaJAK(this);
-        this.KKAmAjA.show();
+        if (this.KKAmajA == null) {
+            this.KKAmajA = this.getParent();
+        }
     }
 
     void kaMajak() {
@@ -361,12 +360,15 @@ implements Runnable {
                 }
             } else {
                 if (string2.equals("reality")) {
-                    this.KKAmAjA.remove(this);
-                    this.move(0, 0);
-                    this.KKAmajA.add("Center", this);
-                    this.KKAmajA.layout();
-                    this.show();
-                    this.KKAmAjA.dispose();
+                    if (this.KKAmAjA != null && this.KKAmajA != null) {
+                        this.KKAmAjA.remove(this);
+                        this.move(0, 0);
+                        this.KKAmajA.add("Center", this);
+                        this.KKAmajA.layout();
+                        this.show();
+                        this.KKAmAjA.dispose();
+                        this.KKAmAjA = null;
+                    }
                     return;
                 }
                 if (string2.equals("loaded")) {
