@@ -8,6 +8,14 @@ This study is based on the regenerated source tree:
 - `reverse/procyon_single` fallback for `DeviceMSbase`
 - `reverse/logs/cfr_single_status.tsv` and `reverse/logs/decompilation-summary.md`
 
+## Status Update
+
+A desktop Java reconstruction has since been implemented in `java-desktop/`.
+
+See:
+
+- `documentation/forward-java-desktop-reconstruction-process.md`
+
 ## What We Have Now
 
 - Decompiled Java files: `88`
