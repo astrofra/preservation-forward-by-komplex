@@ -8,6 +8,7 @@ Base de reconstruction Java desktop de `forward`, dérivée des sources décompi
 - remplacement des anciens backends audio `IE3/IE4` / `sun.audio` par `Java Sound`
 - correction des classes décompilées qui contenaient encore des artefacts `GOTO`
 - désactivation du basculement intermédiaire vers une fenêtre écran entier pour garder toute la démo dans la même fenêtre desktop
+- recalage du scroll `phorward.gif` de `domina` et `uppol` sur une cadence virtuelle `50 Hz` pour éviter l’accélération sur machines modernes
 
 ## Prérequis
 

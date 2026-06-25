@@ -84,6 +84,7 @@ extends majjkka {
     }
 
     public void amaJaKK(Graphics graphics, float f, float f2) {
+        this.JAKkamA = (int)(Math.max(0.0f, f) * 50.0f);
         this.jakkAmA.AMaJAkk(this.JakkAmA, 0, -(this.JAKkamA * 256 % this.JakkAmA.AMAjakK));
         this.jakkAmA.amajAkk();
         this.jakkAmA.AmAJAkk(this.jAkkAmA, 0, 0);
@@ -151,7 +152,6 @@ extends majjkka {
             }
             catch (Exception exception) {}
         }
-        ++this.JAKkamA;
     }
 
     void KKamAJA(String string) {

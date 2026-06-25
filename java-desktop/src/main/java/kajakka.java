@@ -49,6 +49,7 @@ extends majjkka {
     }
 
     public void amaJaKK(Graphics graphics, float f, float f2) {
+        this.AmajAKk = (int)(Math.max(0.0f, f) * 50.0f);
         this.AMAjAKk.AMaJAkk(this.AmAjAKk, 0, -(this.AmajAKk * 256 % this.AmAjAKk.AMAjakK));
         float f3 = (f - 0.2f) / 8.0f;
         if (this.AMajAKk) {
@@ -72,7 +73,6 @@ extends majjkka {
         this.AMAjAKk.aMaJAkk();
         this.AMAjAKk.amajAkk();
         this.AMAjAKk.AmAJAkk(graphics, 0, 0);
-        ++this.AmajAKk;
     }
 
     public void AMaJaKK(String string, float f) {
