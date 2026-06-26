@@ -94,6 +94,10 @@ public class kaajmma {
             kmajkmk4 = kmajkmk3;
             kmajkmk3 = kmajkmk2;
         }
+        if (kmaamma2.mAjAkka == 3 || kmaamma2.mAjAkka == 259) {
+            this.KAMAjKa(kmaamma2, mmjakka3, mmjakka4, mmjakka5, kmajkmk3, kmajkmk4, kmajkmk5);
+            return;
+        }
         float f4 = mmjakka3.amAjAkk;
         float f5 = mmjakka3.AMAjAkk;
         float f6 = kmajkmk3.akKAMAJ;
@@ -220,6 +224,79 @@ public class kaajmma {
                 this.MajaKka = kaajmma.MajAkKa((f13 * 65536.0f + f27 * this.mAjAKka) * 65536.0f);
                 this.mAJAkKa(kmaamma2, n4, n6);
             }
+        }
+    }
+
+    void KAMAjKa(kmaamma kmaamma2, mmjakka mmjakka2, mmjakka mmjakka3, mmjakka mmjakka4, kmajkmk kmajkmk2, kmajkmk kmajkmk3, kmajkmk kmajkmk4) {
+        float f = mmjakka2.amAjAkk / 65536.0f;
+        float f2 = mmjakka2.AMAjAkk / 65536.0f;
+        float f3 = mmjakka3.amAjAkk / 65536.0f;
+        float f4 = mmjakka3.AMAjAkk / 65536.0f;
+        float f5 = mmjakka4.amAjAkk / 65536.0f;
+        float f6 = mmjakka4.AMAjAkk / 65536.0f;
+        float f7 = (f3 - f) * (f6 - f2) - (f4 - f2) * (f5 - f);
+        if (f7 == 0.0f) {
+            return;
+        }
+        int n = Math.max(0, (int)Math.floor(Math.min(f, Math.min(f3, f5))));
+        int n2 = Math.min(this.MAjAkKA - 1, (int)Math.ceil(Math.max(f, Math.max(f3, f5))));
+        int n3 = Math.max(0, (int)Math.floor(Math.min(f2, Math.min(f4, f6))));
+        int n4 = Math.min(this.mAjAkKA - 1, (int)Math.ceil(Math.max(f2, Math.max(f4, f6))));
+        if (n > n2 || n3 > n4) {
+            return;
+        }
+        float f8 = 1.0f / f7;
+        float f9 = 1.0f / mmjakka2.AmAjAkk;
+        float f10 = 1.0f / mmjakka3.AmAjAkk;
+        float f11 = 1.0f / mmjakka4.AmAjAkk;
+        float f12 = kmajkmk2.akKAMAJ * f9;
+        float f13 = kmajkmk3.akKAMAJ * f10;
+        float f14 = kmajkmk4.akKAMAJ * f11;
+        float f15 = kmajkmk2.AKKAMAJ * f9;
+        float f16 = kmajkmk3.AKKAMAJ * f10;
+        float f17 = kmajkmk4.AKKAMAJ * f11;
+        float f18 = mmjakka2.AmajAkk * f9;
+        float f19 = mmjakka3.AmajAkk * f10;
+        float f20 = mmjakka4.AmajAkk * f11;
+        byte[] byArray = kmaamma2.MaJaKKa.aMAjakK;
+        int[] nArray = kmaamma2.maJaKKa.MAJakKa;
+        int[] nArray2 = this.majAkKA.MAJakKa;
+        boolean bl = kmaamma2.mAjAkka == 259;
+        int n5 = n3;
+        while (n5 <= n4) {
+            float f21 = (float)n5 + 0.5f;
+            int n6 = n5 * this.MAjAkKA;
+            int n7 = n;
+            while (n7 <= n2) {
+                float f22 = (float)n7 + 0.5f;
+                float f23 = ((f3 - f22) * (f6 - f21) - (f4 - f21) * (f5 - f22)) * f8;
+                float f24 = ((f5 - f22) * (f2 - f21) - (f6 - f21) * (f - f22)) * f8;
+                float f25 = 1.0f - f23 - f24;
+                if (f23 >= 0.0f && f24 >= 0.0f && f25 >= 0.0f) {
+                    float f26 = f23 * f9 + f24 * f10 + f25 * f11;
+                    if (f26 > 0.0f) {
+                        float f27 = (f23 * f12 + f24 * f13 + f25 * f14) / f26;
+                        float f28 = (f23 * f15 + f24 * f16 + f25 * f17) / f26;
+                        float f29 = (f23 * f18 + f24 * f19 + f25 * f20) / f26;
+                        int n8 = (int)Math.floor(f27 * 256.0f) & 0xFF;
+                        int n9 = (int)Math.floor(f28 * 256.0f) & 0xFF;
+                        int n10 = Math.max(0, Math.min(255, (int)(f29 * 256.0f)));
+                        int n11 = n6 + n7;
+                        int n12 = nArray[(n10 << 8) + (byArray[(n9 << 8) + n8] & 0xFF)];
+                        if (bl) {
+                            int n13 = nArray2[n11];
+                            if (n13 < 0) {
+                                int n14 = (n13 += n12) & 0x10040100;
+                                nArray2[n11] = (n13 - n14 | n14 - (n14 >> 8)) & Integer.MAX_VALUE;
+                            }
+                        } else {
+                            nArray2[n11] = n12;
+                        }
+                    }
+                }
+                ++n7;
+            }
+            ++n5;
         }
     }
 

@@ -9,6 +9,7 @@ Base de reconstruction Java desktop de `forward`, dérivée des sources décompi
 - correction des classes décompilées qui contenaient encore des artefacts `GOTO`
 - désactivation du basculement intermédiaire vers une fenêtre écran entier pour garder toute la démo dans la même fenêtre desktop
 - recalage du scroll `phorward.gif` de `domina` et `uppol` sur une cadence virtuelle `50 Hz` pour éviter l’accélération sur machines modernes
+- correction du mapping texture des matériaux Java `3` / `259` pour réduire les coutures visibles entre triangles sur `saari`
 
 ## Prérequis
 
