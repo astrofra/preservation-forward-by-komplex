@@ -35,6 +35,34 @@ run_forward_desktop.bat nosound 1 1x1 1
 
 Le script compile `java-desktop/src/main/java` dans `java-desktop/build/classes`, puis lance `forward` en utilisant `original/forward` comme repertoire de travail pour reutiliser les assets d'origine.
 
+## Packaging Win64
+
+Un workflow `jpackage` est maintenant disponible pour produire un build Windows autonome avec runtime Java embarque :
+
+```bat
+package_forward_desktop.bat
+```
+
+Sortie par defaut :
+
+```text
+java-desktop\dist\jpackage\app-image\Forward\Forward.exe
+```
+
+Ce `Forward.exe` n'a pas besoin d'un JDK installe sur la machine cible.
+
+Installer Windows optionnel :
+
+```bat
+package_forward_desktop.bat exe
+```
+
+La generation de l'installeur demande WiX dans le `PATH`. Le `app-image` simple, lui, ne depend que du JDK.
+
+Le workflow detaille est documente dans :
+
+- `documentation/forward-jpackage-workflow.md`
+
 ## Capture de reference
 
 Le build desktop sait maintenant s'auto-capturer en PNG via des parametres `cle valeur`.

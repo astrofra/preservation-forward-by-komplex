@@ -1,4 +1,5 @@
 C:\works\projects\preservation-forward-by-komplex\java-desktop\src\main\java\forward.java
+C:\works\projects\preservation-forward-by-komplex\java-desktop\src\main\java\ForwardDesktopLauncher.java
 C:\works\projects\preservation-forward-by-komplex\java-desktop\src\main\java\ForwardFrameCapture.java
 C:\works\projects\preservation-forward-by-komplex\java-desktop\src\main\java\kaaakka.java
 C:\works\projects\preservation-forward-by-komplex\java-desktop\src\main\java\kaaakma.java

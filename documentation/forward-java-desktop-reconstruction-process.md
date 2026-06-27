@@ -119,6 +119,7 @@ Main hosting changes:
 - `kmjakka` became a lightweight desktop context helper instead of an `AppletContext`
 - `mmaakma` no longer depends on `Applet.getImage(...)`
 - the original intermediate handoff to the screen-sized `mmjjmka` window was disabled so the demo stays in the same desktop window from start to finish
+- a dedicated `ForwardDesktopLauncher` was added for packaged builds so bundled assets can still be resolved through the original `getDocumentBase()` / relative URL logic without depending on the process working directory
 
 This keeps the structure close to the original code while removing dependence on APIs that are effectively dead for desktop use.
 
@@ -178,6 +179,10 @@ This means:
 
 This is the least risky preservation path for a first working desktop build.
 
+For packaging, the same rule still applies, but the assets are staged into the application image instead of being read directly from the repository checkout.
+
+The packaged launcher computes the staged asset root at runtime and injects it through the existing `basedir` parameter path. That avoids a broad resource-loader rewrite while still producing a self-contained Windows deliverable.
+
 ### 5.5 Replace obsolete audio backends
 
 The original audio device layer depended on:
@@ -226,6 +231,7 @@ The main user-facing additions are:
 
 - `java-desktop/README.md`
 - `run_forward_desktop.bat`
+- `package_forward_desktop.bat`
 - `probe_saari_sky_original.bat`
 - `probe_saari_sky_java_desktop.bat`
 - `compare_saari_sky_probe.bat`
@@ -236,6 +242,14 @@ The batch script:
 - compiles them into `java-desktop/build/classes`
 - switches to `original/forward`
 - runs `forward` with any command-line arguments passed through
+
+The packaging script:
+
+- recompiles the same Java source tree
+- builds a runnable JAR with `ForwardDesktopLauncher` as entry point
+- stages the runtime asset directories from `original/forward` (`asses`, `images`, `meshes`, `mods`)
+- runs `jpackage` to create a Windows `app-image`
+- can also produce an installer `exe` when WiX is available
 
 Supported historical options remain:
 
@@ -276,9 +290,13 @@ The build step is intentionally simple and dependency-free:
 
 - no Gradle
 - no Maven
-- no external packaging tool
+- no external packaging tool for the development launcher
 
 This keeps the reconstruction easy to inspect and easy to move between machines.
+
+For distributable Windows builds, `jpackage` is now the preferred path. The detailed wrapper and runtime layout are documented in:
+
+- `documentation/forward-jpackage-workflow.md`
 
 ## 8) Validation Performed
 
@@ -295,6 +313,7 @@ Validation performed:
 5. numeric `saari` probe dump from the desktop build
 6. numeric `saari` probe dump from the original bytecode build
 7. automatic comparison of both probe outputs
+8. Windows packaging smoke build with `jpackage`
 
 Observed result:
 
@@ -305,6 +324,7 @@ Observed result:
 - at `t = 144000 ms`, original and desktop probes matched exactly for backdrop projected vertices and visible triangles
 - a bytecode/source mismatch in `kaajmma.MajAkKa(float)` was found and corrected
 - after that correction, the probe backdrop raster preview also matched pixel-for-pixel between original and desktop at the same checkpoint
+- the source tree is now also ready to produce a self-contained Windows app image without relying on a locally installed target-machine JDK
 
 This is enough to confirm that the desktop reconstruction path is viable, and that at least one critical `saari` geometry checkpoint already matches the original runtime numerically.
 
@@ -316,11 +336,11 @@ Open limitations:
 
 - the source tree is still heavily obfuscated
 - compile output still reports deprecated and unchecked warnings
-- no JAR packaging or installer exists yet
+- the package is not signed
 - no regression test harness compares output against the original applet
 - no frame-accurate or audio-accurate preservation audit has been done yet
 - validation was done locally on JDK `17.0.15`; newer JDKs should still be tested explicitly on Windows
-- runtime assets are still read from `original/forward`
+- runtime assets are still mirrored from `original/forward`
 
 ## 10) Recommended Next Steps
 
@@ -330,8 +350,9 @@ Recommended next actions are:
 2. capture screenshots or video from both original and reconstructed builds for visual comparison
 3. verify XM playback timing against expected scene transitions
 4. decide whether to keep using the reconstructed Java mixer path as-is or replace it with a more maintainable module playback layer
-5. package the desktop version as a repeatable deliverable
-6. only then consider progressive deobfuscation and naming cleanup
+5. validate the packaged `app-image` on a clean Windows machine
+6. decide whether to sign the packaged build and/or produce an installer as part of release workflow
+7. only then consider progressive deobfuscation and naming cleanup
 
 ## 11) Bottom Line
 
