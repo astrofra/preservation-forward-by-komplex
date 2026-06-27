@@ -7,6 +7,7 @@ import java.awt.Container;
 import java.awt.Event;
 import java.awt.Font;
 import java.awt.FontMetrics;
+import java.awt.Frame;
 import java.awt.Graphics;
 import java.awt.Image;
 import java.net.URL;
@@ -76,6 +77,10 @@ implements Runnable {
     float KkaMAJA;
     float kkaMAJA;
     boolean KKaMAJA;
+    boolean captureAutoExit;
+    boolean captureWasActive;
+    ForwardFrameCapture captureSession;
+    String activeSceneName;
 
     public static void main(String[] stringArray) {
         new forward().aMajAkK(stringArray, 512, 256);
@@ -101,12 +106,18 @@ implements Runnable {
 
     public void stop() {
         super.stop();
+        if (this.captureSession != null) {
+            this.captureSession.close();
+            this.captureSession = null;
+        }
         if (this.KKAmAjA != null) {
             this.KKAmAjA.dispose();
             this.KKAmAjA = null;
         }
-        this.kKAmAjA.stop();
-        this.kKAmAjA = null;
+        if (this.kKAmAjA != null) {
+            this.kKAmAjA.stop();
+            this.kKAmAjA = null;
+        }
         this.KkamAjA = null;
     }
 
@@ -423,6 +434,7 @@ implements Runnable {
             mmjjmma2.MAjakkA();
             this.KKamAJA = mmjjmma2;
             this.kKamAJA = null;
+            this.activeSceneName = string;
             return;
         }
         majjkka majjkka2 = (majjkka)this.KkamajA.get(string);
@@ -430,6 +442,7 @@ implements Runnable {
             majjkka2.AMAjAkk();
             this.KKamAJA = null;
             this.kKamAJA = majjkka2;
+            this.activeSceneName = string;
             return;
         }
         System.out.println("muhmuscript error: no such routine " + string);
@@ -440,6 +453,9 @@ implements Runnable {
         if (mmjjmma2 != null) {
             mmjjmma2.mAJakkA();
             this.kKAmajA.remove(string);
+            if (string.equals(this.activeSceneName)) {
+                this.activeSceneName = null;
+            }
             System.runFinalization();
             System.gc();
             return;
@@ -448,6 +464,9 @@ implements Runnable {
         if (majjkka2 != null) {
             majjkka2.aMaJaKK();
             this.KkamajA.remove(string);
+            if (string.equals(this.activeSceneName)) {
+                this.activeSceneName = null;
+            }
             System.runFinalization();
             System.gc();
             return;
@@ -495,6 +514,9 @@ implements Runnable {
         this.kkAMAJA = new maaakka(10, 60);
         this.KamAJak(this, 0, 0, 512, 256);
         try {
+            this.captureAutoExit = this.getParameter("capture") != null && this.getParameter("captureexit") != null;
+            this.captureSession = ForwardFrameCapture.create(this, 512, 256);
+            this.captureWasActive = this.captureSession != null;
             while (this.majAkka != null) {
                 if (!kkAMajA) {
                     kkAMajA = true;
@@ -502,8 +524,9 @@ implements Runnable {
                 }
                 this.KamAjak();
                 Graphics graphics = this.KKAMajA;
+                Graphics frameGraphics = this.captureSession != null ? this.captureSession.beginFrame() : graphics;
                 if (this.KKaMAJA) {
-                    this.KaMaJAk(graphics);
+                    this.KaMaJAk(frameGraphics);
                 }
                 this.kKAMAJA = (float)this.kkAMAJA.kamAjaK() / 1000.0f;
                 this.KKAMAJA = this.kKAMAJA - this.KkaMAJA;
@@ -519,21 +542,36 @@ implements Runnable {
                             break;
                         }
                     }
-                    kkAMAjA.KKAMAjA(graphics, 0, 0);
+                    kkAMAjA.KKAMAjA(frameGraphics, 0, 0);
                 }
-                if (this.kKamAJA != null && graphics != null) {
-                    this.kKamAJA.amaJaKK(graphics, this.kKAMAJA - this.kkaMAJA, this.KKAMAJA);
+                if (this.kKamAJA != null && frameGraphics != null) {
+                    this.kKamAJA.amaJaKK(frameGraphics, this.kKAMAJA - this.kkaMAJA, this.KKAMAJA);
+                }
+                if (this.captureSession != null) {
+                    this.captureSession.present(graphics);
+                    if (this.captureSession.captureFrame(this.KkAMAJA, this.kKAMAJA, this.activeSceneName, this.KKaMAjA)) {
+                        break;
+                    }
+                    if (this.captureSession.isEnded()) {
+                        this.captureSession = null;
+                    }
                 }
                 this.KkaMAJA = this.kKAMAJA;
                 this.kkAMAJA.KAmAjaK();
                 ++this.KkAMAJA;
                 Thread.sleep(2L);
             }
-            return;
         }
         catch (Exception exception) {
             exception.printStackTrace();
-            return;
+        }
+        finally {
+            if (this.captureSession != null) {
+                this.captureSession.close();
+            }
+        }
+        if (this.captureAutoExit && this.captureWasActive) {
+            this.exitAfterCapture();
         }
     }
 
@@ -592,5 +630,17 @@ implements Runnable {
     public void kAMajak() {
         ++this.kkAmAJA;
         this.paint(this.getGraphics());
+    }
+
+    void exitAfterCapture() {
+        Container container = this;
+        while (container != null) {
+            if (container instanceof Frame) {
+                ((Frame)container).dispose();
+                break;
+            }
+            container = container.getParent();
+        }
+        System.exit(0);
     }
 }

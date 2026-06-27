@@ -21,7 +21,7 @@ javac -d "%BUILD_DIR%" @"%SOURCES_FILE%"
 if errorlevel 1 exit /b %errorlevel%
 
 pushd "%ROOT%\original\forward"
-java -cp "%BUILD_DIR%" forward %*
+java "-Dforward.repoRoot=%ROOT%" -cp "%BUILD_DIR%" forward %*
 set "EXIT_CODE=%ERRORLEVEL%"
 popd
 

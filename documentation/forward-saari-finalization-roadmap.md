@@ -13,6 +13,9 @@ Supporting sources:
 - `reverse/cfr_single/kajakmk.java` (track interpolation runtime)
 - `reverse/cfr_single/forward.java` (timeline/messages)
 
+Related Java desktop investigation note:
+- `documentation/forward-saari-sky-investigation.md`
+
 ---
 
 ## Current C++ Status (what is already good)
@@ -28,6 +31,11 @@ Open fidelity issues (confirmed):
 - No sea plane / no mirrored reflection pass.
 - Camera path and timing differ from Java.
 - Saari script messages are only partially emulated (`suh0` and first `suh`), not full row-driven behavior.
+
+Java desktop parity note:
+- The `saari` sky/backdrop dome still shows visible faceting versus the reference video.
+- Current evidence points more toward reconstruction parity drift than toward modern JDK hosting APIs.
+- See `documentation/forward-saari-sky-investigation.md` for the detailed investigation log and next comparison protocol.
 
 ---
 
@@ -170,4 +178,3 @@ Acceptance for Part 3:
 1. Part 1 first (terrain/water/reflection core) to fix structural visual mismatch.
 2. Part 2 second (camera/object playback fidelity) to align motion and shot composition.
 3. Part 3 last (message + validation) to lock synchronization and finish pixel-level validation.
-

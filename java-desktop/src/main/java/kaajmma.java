@@ -94,10 +94,6 @@ public class kaajmma {
             kmajkmk4 = kmajkmk3;
             kmajkmk3 = kmajkmk2;
         }
-        if (kmaamma2.mAjAkka == 3 || kmaamma2.mAjAkka == 259) {
-            this.KAMAjKa(kmaamma2, mmjakka3, mmjakka4, mmjakka5, kmajkmk3, kmajkmk4, kmajkmk5);
-            return;
-        }
         float f4 = mmjakka3.amAjAkk;
         float f5 = mmjakka3.AMAjAkk;
         float f6 = kmajkmk3.akKAMAJ;
