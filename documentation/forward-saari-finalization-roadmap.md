@@ -36,6 +36,7 @@ Java desktop parity note:
 - The `saari` sky/backdrop dome still shows visible faceting versus the reference video.
 - Current evidence points more toward reconstruction parity drift than toward modern JDK hosting APIs.
 - The implemented Java probe now shows exact original-vs-desktop parity for backdrop projected vertices and visible triangles at `t = 144000 ms`, which narrows the remaining Java-side suspicion to rasterization/presentation after triangle generation.
+- A real Java reconstruction mismatch was found in `kaajmma.MajAkKa(float)` and corrected; the backdrop raster preview is now also pixel-identical original-vs-desktop at the same checkpoint.
 - See `documentation/forward-saari-sky-investigation.md` for the detailed investigation log and next comparison protocol.
 
 ---

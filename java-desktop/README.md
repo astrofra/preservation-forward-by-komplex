@@ -94,4 +94,5 @@ Le workflow et les sorties CSV sont documentes dans :
 Resultat actuellement confirme pour `SCENE_TIME_MS=144000` en mode `procedural` :
 
 - les UVs, sommets projetes et triangles visibles du backdrop `saari` sont identiques entre `original` et `java-desktop`
-- la prochaine cible d'investigation doit donc etre le rasterizer affine (`kaajmma`) et non la projection du dome
+- un vrai ecart de reconstruction a ete corrige dans `kaajmma.MajAkKa(float)` pour retrouver la semantique bytecode `f2l; l2i`
+- le `backdrop_raster_preview.png` du probe est maintenant identique pixel par pixel entre `original` et `java-desktop` au checkpoint `144000 ms`

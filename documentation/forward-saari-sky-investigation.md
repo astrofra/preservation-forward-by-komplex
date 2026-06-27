@@ -14,7 +14,9 @@ At this stage, the most likely explanation is:
 
 - not a modern JDK hosting issue by itself
 - not a mismatch in `saari` backdrop UV generation, camera projection, or visible triangle construction
-- more likely a downstream reconstruction gap in affine rasterization, scan conversion, or final framebuffer presentation
+- a real rasterizer reconstruction mismatch did exist in `kaajmma`, and has now been corrected
+- after that correction, the original and desktop backdrop raster preview also match at the probe checkpoint
+- the remaining mismatch versus the 1998 reference video is therefore less likely to come from the reconstructed Java source itself at this checkpoint
 
 The strongest new evidence is the numeric probe:
 
@@ -22,7 +24,7 @@ The strongest new evidence is the numeric probe:
 - with desktop mode `forward.saariBackdropUvMode=procedural`
 - original and desktop builds produce exactly the same projected backdrop vertices and exactly the same visible backdrop triangles
 
-That moves the main suspicion downstream of `kaaakma` and downstream of the scene/frustum stage.
+That moved the main suspicion downstream of `kaaakma` and downstream of the scene/frustum stage, into the rasterizer.
 
 ---
 
@@ -153,6 +155,52 @@ Practical conclusion:
 
 So the next likely divergence point is now the affine rasterizer path itself.
 
+### 8. A bytecode-level rasterizer mismatch was found in `kaajmma`
+
+The helper below had been reconstructed incorrectly:
+
+- `java-desktop/src/main/java/kaajmma.java`
+- method: `MajAkKa(float)`
+
+The original bytecode does:
+
+- `f2l`
+- `l2i`
+
+The reconstructed source had:
+
+- `(int)f`
+
+Those are not equivalent for oversized fixed-point values:
+
+- `(int)f` uses Java float-to-int saturation semantics
+- `(int)(long)f` preserves the original wraparound after the intermediate `long`
+
+This helper is used to seed the affine fixed-point interpolants for:
+
+- `u`
+- `v`
+- shade/depth-like per-pixel term
+
+So this is a real rasterizer parity bug, not a cosmetic cleanup.
+
+### 9. After the `MajAkKa(float)` correction, backdrop raster parity is exact at the probe checkpoint
+
+The `saari` probe now also emits:
+
+- `backdrop_raster_preview.png`
+
+At `t = 144000 ms`:
+
+- original probe preview and desktop probe preview are pixel-identical for the backdrop
+- manual local verification reported `diff_pixels=0` over `131072` pixels
+
+This means that, at least for the backdrop-only render at this checkpoint, the current desktop reconstruction now matches:
+
+- original projected geometry
+- original visible triangle list
+- original rasterized backdrop pixels
+
 ---
 
 ## Experiments Already Run
@@ -203,11 +251,11 @@ Conclusion:
 
 One of these is still likely true:
 
-1. A subtle reconstruction difference exists in affine interpolation or scan conversion after triangle generation.
-2. The original applet already had some faceting, but it was softened by capture conditions and lower apparent sharpness in the video.
-3. A precision-sensitive runtime behavior changed after triangle generation, even though the geometry stage is identical.
+1. The original applet already had some faceting, but it was softened by capture conditions, scaling, or compression in the video.
+2. A historical JVM/browser/runtime behavior differs from the modern JVM used for both `original/forward` and `java-desktop`.
+3. The remaining mismatch sits outside the isolated backdrop probe, for example in full-scene composition or presentation rather than in the backdrop raster itself.
 
-At the moment, option 1 is the strongest working hypothesis.
+At the moment, option 1 or 2 is stronger than "desktop source reconstruction bug" for this specific checkpoint.
 
 ---
 
@@ -225,28 +273,22 @@ Before any new visual fix is attempted:
 
 If these results ever stop matching, a geometry-stage regression was introduced.
 
-### Step 2: instrument the affine rasterizer for selected sky triangles
+### Step 2: verify whether a full-scene preview still differs from the reference video
 
-For one or two selected backdrop triangles from `backdrop_visible_triangles.csv`:
+The backdrop-only probe is now source-faithful at the tested checkpoint.
 
-- dump left/right x bounds per scanline
-- dump initial fixed-point `u` / `v`
-- dump span deltas
-- dump the final texture sample coordinates written per scanline
+The next useful comparison is therefore:
 
-Primary target:
+- full scene render at the same checkpoint
+- against `documentation/reference-capture/reference/frames/ref_000036_t00144002.png`
 
-- `java-desktop/src/main/java/kaajmma.java`
+If the backdrop still looks too faceted in the full scene despite backdrop raster parity, the remaining cause is likely:
 
-### Step 3: compare rasterizer state against the captured images
+- capture/presentation
+- historical JVM precision
+- or another non-backdrop rendering stage
 
-If rasterizer state matches too, then the remaining suspects become:
-
-- framebuffer packing
-- image upload/presentation
-- capture pipeline differences
-
-### Step 4: only after the rasterizer comparison, change code
+### Step 3: only after a full-scene mismatch is isolated, change more code
 
 No further "visual improvement" change should be treated as a faithful fix until one of the previous steps identifies the first actual divergence point.
 

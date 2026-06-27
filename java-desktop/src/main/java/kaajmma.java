@@ -48,7 +48,9 @@ public class kaajmma {
     }
 
     static final int MajAkKa(float f) {
-        return (int)f;
+        // Match the original bytecode sequence `f2l; l2i` rather than Java's usual `f2i`.
+        // This preserves the original wraparound semantics for oversized fixed-point values.
+        return (int)(long)f;
     }
 
     public kaajmma(mmaamma mmaamma2) {

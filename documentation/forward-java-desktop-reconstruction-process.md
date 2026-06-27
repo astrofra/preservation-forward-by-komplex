@@ -275,6 +275,8 @@ Observed result:
 - no immediate crash occurred in the first few seconds of runtime
 - the `saari` probe wrappers ran successfully for both original and desktop Java paths
 - at `t = 144000 ms`, original and desktop probes matched exactly for backdrop projected vertices and visible triangles
+- a bytecode/source mismatch in `kaajmma.MajAkKa(float)` was found and corrected
+- after that correction, the probe backdrop raster preview also matched pixel-for-pixel between original and desktop at the same checkpoint
 
 This is enough to confirm that the desktop reconstruction path is viable, and that at least one critical `saari` geometry checkpoint already matches the original runtime numerically.
 
