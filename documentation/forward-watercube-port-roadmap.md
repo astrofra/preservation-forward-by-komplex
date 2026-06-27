@@ -88,6 +88,11 @@ Raster mode requirement:
 Acceptance for Part 2:
 - Visual layering and per-frame motion match original capture sequence order.
 
+Desktop fidelity note:
+- The original Java code advances the center-mesh rotation, ripple step, and `rok` damping once per rendered frame.
+- On the desktop reconstruction, observed capture data around `232000-244002 ms` showed `watercube` rendering at roughly `280 fps`, which makes the raw per-render update path run several times too fast.
+- The desktop Java build therefore maps those frame-based updates onto a virtual `50 Hz` scene-time cadence, while keeping the original formulas and update order inside each virtual tick.
+
 ## Part 3: Script Sync + Validation Harness
 
 Wire all `watercube` messages from the global script order rows:

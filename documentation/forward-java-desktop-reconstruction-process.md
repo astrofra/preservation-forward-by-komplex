@@ -128,6 +128,18 @@ In the original code, that backdrop advances from a frame counter, while the mod
 
 For the desktop reconstruction, those two routines now derive their backdrop frame counter from scene time at a virtual `50 Hz` rate instead of the uncapped render loop. This preserves the intended pacing without changing the surrounding scene logic.
 
+The same class of problem also showed up in `watercube`.
+
+`kmajmka.maJakkA(...)` originally advanced several scene states once per render:
+
+- the local rotation of the two env-mapped center meshes
+- the ripple injection / ping-pong simulation
+- the `rok` camera-roll damping (`kAMaJak *= 0.917f`)
+
+On the desktop build, capture index `61` (`244002 ms`, scene time `16085 ms`) already landed at render frame `65474`, which is far above the cadence expected by the 1998 Java release. Leaving those updates tied to the uncapped render loop made the center object spin too fast and sped up the water response as well.
+
+For the desktop reconstruction, `watercube` now advances those frame-based states from scene time on the same virtual `50 Hz` cadence. This keeps the scene logic source-faithful while restoring the original pacing on modern hardware.
+
 A temporary desktop-specific rendering cleanup had also been explored for textured materials `3` and `259`, which are heavily used by `saari`.
 
 That experiment replaced the original affine per-triangle interpolation with a projective path to hide seams between adjacent triangles on modern captures.

@@ -101,6 +101,8 @@ extends mmjjmma {
         forward.kkamAJA.kAMajak();
         this.KAMAJAK = new mmaamma(128, 128, 1, false);
         this.kamaJAK = new kmjjmmk(68, 56, 37);
+        this.kamajAK = -1L;
+        this.kaMAjAK = 0;
     }
 
     public void KaMAjAK(mmjamma mmjamma2) {
@@ -180,17 +182,30 @@ extends mmjjmma {
     public void maJakkA(mmaamma mmaamma2, float f, float f2) {
         forward.kkAMAjA.kAMaJAK(0);
         forward.kkAMAjA.KkAMAjA();
-        ++this.kaMAjAK;
-        if (this.kAmAjAK != null) {
-            this.kAmAjAK.JakKaMA.amAJAKk(0.02f);
-            this.kAmAjAK.JakKaMA.AMaJAKk(0.07f);
+        int n3 = (int)(f * 50.0f);
+        int n4 = this.kamajAK < 0L ? n3 + 1 : n3 - (int)this.kamajAK;
+        if (n4 < 0) {
+            n4 = 0;
         }
-        if (this.KaMaJak != null) {
-            this.KaMaJak.JakKaMA.amAJAKk(-0.02f);
-            this.KaMaJak.JakKaMA.AMaJAKk(0.07f);
+        this.kamajAK = n3;
+        if (n4 > 1) {
+            this.kAMaJak = (float)((double)this.kAMaJak * Math.pow(0.917, n4 - 1));
         }
-        this.KAMAjAK();
-        this.kaMAjAK();
+        int n5 = 0;
+        while (n5 < n4) {
+            ++this.kaMAjAK;
+            if (this.kAmAjAK != null) {
+                this.kAmAjAK.JakKaMA.amAJAKk(0.02f);
+                this.kAmAjAK.JakKaMA.AMaJAKk(0.07f);
+            }
+            if (this.KaMaJak != null) {
+                this.KaMaJak.JakKaMA.amAJAKk(-0.02f);
+                this.KaMaJak.JakKaMA.AMaJAKk(0.07f);
+            }
+            this.KAMAjAK();
+            this.kaMAjAK();
+            ++n5;
+        }
         this.kaMAJAK.kAMAJaK(f * 1.8f + 2.0f, this.kamAjAK);
         this.kamAjAK.jakkaMa = (float)((double)(this.kAMaJak * 2.0f) * Math.PI);
         this.kaMAJAK.MajAKkA(this.kamAjAK, forward.kkAMAjA);
@@ -217,7 +232,9 @@ extends mmjjmma {
         if (this.KAMaJak != 0) {
             mmaamma2.AmAJAKK(this.KamAJAK, -200, this.KAMaJak);
         }
-        this.kAMaJak *= 0.917f;
+        if (n4 > 0) {
+            this.kAMaJak *= 0.917f;
+        }
         if (this.KAmaJAK > 0.0f) {
             this.kamaJAK.KkaMAja(mmaamma2, (int)this.KAmaJAK);
             this.KAmaJAK -= this.kAmaJAK * f2;

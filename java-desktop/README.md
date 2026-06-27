@@ -9,6 +9,7 @@ Base de reconstruction Java desktop de `forward`, derivee des sources decompilee
 - correction des classes decompilees qui contenaient encore des artefacts `GOTO`
 - desactivation du basculement intermediaire vers une fenetre ecran entier pour garder toute la demo dans la meme fenetre desktop
 - recalage du scroll `phorward.gif` de `domina` et `uppol` sur une cadence virtuelle `50 Hz` pour eviter l'acceleration sur machines modernes
+- recalage des animations frame-dependantes de `watercube` sur une cadence virtuelle `50 Hz` pour garder la rotation centrale, le ripple et le damping `rok` au rythme du binaire d'origine
 - restauration du rasterizer affine d'origine pour les materiaux Java `3` / `259`, afin de rester source-faithful sur `saari`
 
 ## Prerequis
