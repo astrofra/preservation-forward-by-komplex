@@ -5,6 +5,7 @@ import java.util.Random;
 
 public class kmjjkmk
 extends mmjjmma {
+    static final float DESKTOP_FRAME_DRIVEN_HZ = 50.0f;
     int KKamaJa = 8;
     int kKamaJa = 8;
     int KkAMaJa;
@@ -37,6 +38,8 @@ extends mmjjmma {
     int aKKamaJ;
     float[][] AkkamaJ;
     float[][] akkamaJ;
+    double desktopPhaseTicks;
+    double desktopNoiseWrites;
 
     public kmjjkmk() {
         this.KkAMaJa = forward.KAmajAk;
@@ -74,6 +77,9 @@ extends mmjjmma {
         System.arraycopy(kmajkka2.AmAJakK, 0, this.kKAMaJa, 0, 256);
         System.arraycopy(kmajkka2.amAJakK, 0, this.KkaMaJa, 0, 256);
         forward.kkamAJA.kAMajak();
+        this.desktopPhaseTicks = 0.0;
+        this.desktopNoiseWrites = 0.0;
+        this.AkKamaJ = 0;
     }
 
     public void MAjakkA() {
@@ -105,15 +111,20 @@ extends mmjjmma {
         if ((double)f3 < 0.05) {
             f3 = 0.05f;
         }
+        this.desktopPhaseTicks += (double)(f2 * DESKTOP_FRAME_DRIVEN_HZ);
+        this.AkKamaJ = (int)this.desktopPhaseTicks;
         this.kKAmAjA(kmajkka2, f3);
         int n = (int)Math.min(f * 1.8f + 22.0f, 255.0f);
         int n2 = kmajkka2.amAjakK * kmajkka2.AMAjakK;
-        int n3 = 0;
-        while (n3 < 220) {
-            int n4 = (int)(this.aKkAMaJ.nextFloat() * (float)(n2 - 1));
-            int n5 = Math.min(n, (kmajkka2.aMAjakK[n4] & 0xFF) + 45);
-            kmajkka2.aMAjakK[n4] = (byte)n5;
-            ++n3;
+        this.desktopNoiseWrites += (double)(220.0f * f2 * DESKTOP_FRAME_DRIVEN_HZ);
+        int n3 = (int)this.desktopNoiseWrites;
+        this.desktopNoiseWrites -= (double)n3;
+        int n4 = 0;
+        while (n4 < n3) {
+            int n5 = (int)(this.aKkAMaJ.nextFloat() * (float)(n2 - 1));
+            int n6 = Math.min(n, (kmajkka2.aMAjakK[n5] & 0xFF) + 45);
+            kmajkka2.aMAjakK[n5] = (byte)n6;
+            ++n4;
         }
         kmajkka2.amAJAkk();
         kmajkka2.Amajakk();
@@ -143,7 +154,6 @@ extends mmjjmma {
                 mmaamma2.aMaJakK(this.aKKaMaJ, this.kKaMaJa, this.AkKaMaJ, this.AkkaMaJ, this.kKaMaJa, this.AkKaMaJ, this.kkaMaJa, this.KKaMaJa, this.akKaMaJ, this.AKKaMaJ, f5, f6);
             }
         }
-        ++this.AkKamaJ;
     }
 
     public void MAJakkA(String string, float f) {

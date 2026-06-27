@@ -140,6 +140,22 @@ On the desktop build, capture index `61` (`244002 ms`, scene time `16085 ms`) al
 
 For the desktop reconstruction, `watercube` now advances those frame-based states from scene time on the same virtual `50 Hz` cadence. This keeps the scene logic source-faithful while restoring the original pacing on modern hardware.
 
+`mute95` required the same kind of desktop pacing correction as well.
+
+In that intro scene, the palette-warp background and star-like noise buildup were authored as frame-driven updates:
+
+- the tile-warp phase counter advanced once per rendered frame
+- the noise field injected `220` random brightening writes per rendered frame
+- the accumulated palette field was then filtered and displayed
+
+At the uncapped desktop framerates observed during capture, that caused the intro to over-accumulate brightness and wash out the centered title far earlier than in the 1998 reference video.
+
+For the desktop reconstruction, the strictly frame-driven parts of `mute95` now derive their rate from scene time instead of the uncapped render loop. In practice, that means the random brightening writes and the small frame-phase jitter no longer scale with raw desktop fps, while the main warp motion still follows the original continuous `f2`-driven update. This keeps the particles fluid while constraining the over-accumulation seen on modern hardware.
+
+The separate `krad3.gif` palette hypothesis was also tested directly and ruled out: raw GIF palette entries, indexed pixels, and palette-index histogram match exactly between the file on disk and the current Java desktop runtime loader. That result is documented in:
+
+- `documentation/forward-mute95-palette-investigation.md`
+
 A temporary desktop-specific rendering cleanup had also been explored for textured materials `3` and `259`, which are heavily used by `saari`.
 
 That experiment replaced the original affine per-triangle interpolation with a projective path to hide seams between adjacent triangles on modern captures.
