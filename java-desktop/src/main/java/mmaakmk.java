@@ -19,7 +19,7 @@ extends majjkka {
     Graphics jAkkAmA;
     boolean JaKKAmA;
     int jaKKAmA = 26;
-    Font JAKKAmA = new Font("Courier", 1, 16);
+    Font JAKKAmA = ForwardFontSupport.monospaceBold(16);
     Color jAKKAmA = new Color(255, 255, 255);
     Color JakKAmA = new Color(200, 255, 200);
     double jakKAmA = 25.0;
@@ -102,10 +102,10 @@ extends majjkka {
         int n6 = 0;
         while (n6 < n3) {
             Font font = this.JAKKAmA;
+            ForwardFontSupport.prepare(this.jAkkAmA, font);
             this.jAkkAmA.setColor(this.jAKKAmA);
-            this.jAkkAmA.setFont(font);
             String string = this.kKamAJA(n6 + n5);
-            int n7 = this.JaKkAmA.getFontMetrics(font).stringWidth(string);
+            int n7 = this.jAkkAmA.getFontMetrics(font).stringWidth(string);
             switch (this.jAkKAmA) {
                 case 0: {
                     this.jAkkAmA.drawString(string, n - (n7 >> 1), n4 - 5);

@@ -32,6 +32,7 @@ class kmaakka {
     }
 
     public void KamAjaK(Graphics graphics) {
+        ForwardFontSupport.configureTextGraphics(graphics);
         if (this.AmaJAKk != null) {
             graphics.setColor(this.AmaJAKk);
         }

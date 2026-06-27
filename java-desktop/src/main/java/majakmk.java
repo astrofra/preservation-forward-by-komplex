@@ -23,7 +23,7 @@ implements Runnable {
     Thread aKKAmaj;
     boolean AkkAmaj = false;
     public static boolean akkAmaj;
-    Font AKkAmaj = new Font("Courier", 1, 15);
+    Font AKkAmaj = ForwardFontSupport.monospaceBold(15);
     Color aKkAmaj = Color.green;
     int AkKaMAj = 20;
     public MAD akKaMAj;
@@ -75,7 +75,7 @@ implements Runnable {
     public void paint(Graphics graphics) {
         graphics.setColor(Color.yellow);
         graphics.drawRect(0, 0, this.bounds().width - 1, this.bounds().height - 1);
-        graphics.setFont(this.AKkAmaj);
+        ForwardFontSupport.prepare(graphics, this.AKkAmaj);
         graphics.setColor(this.aKkAmaj);
         Enumeration enumeration = this.AkKAmaj.elements();
         if (enumeration != null) {

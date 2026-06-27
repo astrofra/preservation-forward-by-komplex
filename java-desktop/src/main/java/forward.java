@@ -65,7 +65,7 @@ implements Runnable {
     int KkAmAJA;
     int kkAmAJA;
     int KKAmAJA = 31;
-    Font kKAmAJA = new Font("Courier", 1, 15);
+    Font kKAmAJA = ForwardFontSupport.monospaceBold(15);
     boolean KkamAJA = true;
     static public forward kkamAJA;
     mmjjmma KKamAJA;
@@ -579,6 +579,7 @@ implements Runnable {
         int n = 2;
         int n2 = 12;
         String string = String.valueOf((int)this.kkAMAJA.kaMaJAK());
+        ForwardFontSupport.prepare(graphics, this.kKAmAJA);
         graphics.setColor(Color.black);
         graphics.drawString(string, n + 1, n2);
         graphics.drawString(string, n - 1, n2);
@@ -606,12 +607,12 @@ implements Runnable {
         kkAMajA = false;
         if (this.KkamAJA) {
             String string = "FORWARD :: KOMPLEX";
-            FontMetrics fontMetrics = this.getFontMetrics(this.kKAmAJA);
+            ForwardFontSupport.prepare(graphics, this.kKAmAJA);
+            FontMetrics fontMetrics = graphics.getFontMetrics(this.kKAmAJA);
             int n = fontMetrics.stringWidth(string) + 14;
             int n2 = 20;
             int n3 = (512 - n) / 2;
             int n4 = (256 - n2) / 2;
-            graphics.setFont(this.kKAmAJA);
             graphics.setColor(Color.black);
             graphics.fillRect(n3, n4, n, n2);
             graphics.setColor(Color.white);

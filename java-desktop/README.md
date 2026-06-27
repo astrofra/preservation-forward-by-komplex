@@ -12,6 +12,7 @@ Base de reconstruction Java desktop de `forward`, derivee des sources decompilee
 - recalage des composantes frame-dependantes de `mute95` sur une cadence virtuelle derivee du temps de scene pour limiter la surexposition de l'intro sans casser la fluidite du warp
 - recalage des animations frame-dependantes de `watercube` sur une cadence virtuelle `50 Hz` pour garder la rotation centrale, le ripple et le damping `rok` au rythme du binaire d'origine
 - restauration du rasterizer affine d'origine pour les materiaux Java `3` / `259`, afin de rester source-faithful sur `saari`
+- verrouillage du rendu texte AWT sur une police monospace explicite et sans anti-aliasing pour garder les ecrans texte coherents entre le launcher source et le build `jpackage`
 
 ## Prerequis
 
