@@ -120,6 +120,7 @@ Main hosting changes:
 - `mmaakma` no longer depends on `Applet.getImage(...)`
 - the original intermediate handoff to the screen-sized `mmjjmka` window was disabled so the demo stays in the same desktop window from start to finish
 - a dedicated `ForwardDesktopLauncher` was added for packaged builds so bundled assets can still be resolved through the original `getDocumentBase()` / relative URL logic without depending on the process working directory
+- the text-only AWT overlays now resolve an explicit monospace font (`Courier New` first on Windows, then controlled fallbacks) and disable text antialiasing to keep the source launcher and packaged standalone build visually aligned
 
 This keeps the structure close to the original code while removing dependence on APIs that are effectively dead for desktop use.
 
