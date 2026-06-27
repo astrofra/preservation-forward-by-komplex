@@ -78,3 +78,20 @@ Valeurs disponibles :
 - `spherical`
 
 Le mode par defaut reste `procedural`. Ces options servent uniquement a l'enquete de fidelite du ciel `saari`.
+
+Probe numerique disponible :
+
+```bat
+probe_saari_sky_original.bat
+probe_saari_sky_java_desktop.bat
+compare_saari_sky_probe.bat
+```
+
+Le workflow et les sorties CSV sont documentes dans :
+
+- `documentation/forward-saari-probe-workflow.md`
+
+Resultat actuellement confirme pour `SCENE_TIME_MS=144000` en mode `procedural` :
+
+- les UVs, sommets projetes et triangles visibles du backdrop `saari` sont identiques entre `original` et `java-desktop`
+- la prochaine cible d'investigation doit donc etre le rasterizer affine (`kaajmma`) et non la projection du dome

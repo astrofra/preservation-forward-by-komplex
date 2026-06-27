@@ -4,7 +4,7 @@
 
 Determine why the `saari` sky/backdrop in the Java desktop reconstruction shows large triangle-shaped faceting, while the reference video looks much smoother.
 
-This note tracks what is already proven, what has been ruled out, what was tested, and the next comparison protocol.
+This note tracks what is already proven, what has been ruled out, what was tested, and the current probe-driven next step.
 
 ---
 
@@ -13,10 +13,16 @@ This note tracks what is already proven, what has been ruled out, what was teste
 At this stage, the most likely explanation is:
 
 - not a modern JDK hosting issue by itself
-- not yet proven to be a single obvious decompilation mistake in `kaaakma`
-- more likely a subtle reconstruction gap in math, projection, or software rasterization behavior
+- not a mismatch in `saari` backdrop UV generation, camera projection, or visible triangle construction
+- more likely a downstream reconstruction gap in affine rasterization, scan conversion, or final framebuffer presentation
 
-The evidence currently points much more strongly toward reconstruction/parity drift than toward `Applet` removal, `Panel` hosting, or modern AWT image presentation.
+The strongest new evidence is the numeric probe:
+
+- at `t = 144000 ms`
+- with desktop mode `forward.saariBackdropUvMode=procedural`
+- original and desktop builds produce exactly the same projected backdrop vertices and exactly the same visible backdrop triangles
+
+That moves the main suspicion downstream of `kaaakma` and downstream of the scene/frustum stage.
 
 ---
 
@@ -111,6 +117,42 @@ This means:
 - reverting the desktop cleanup was necessary for fidelity
 - but it did not solve the sky discrepancy by itself
 
+### 6. The numeric `saari` probe is now implemented and working
+
+Implemented files:
+
+- `tools/java-src/ForwardSaariProbe.java`
+- `tools/compare_saari_probe.py`
+- `probe_saari_sky_original.bat`
+- `probe_saari_sky_java_desktop.bat`
+- `compare_saari_sky_probe.bat`
+
+Probe outputs:
+
+- `documentation/reference-capture/saari-probe/original`
+- `documentation/reference-capture/saari-probe/java-desktop`
+- `documentation/reference-capture/saari-probe/compare`
+
+### 7. At `t = 144000 ms`, backdrop geometry parity is exact
+
+The probe and compare run shows:
+
+- same backdrop vertex count: `145`
+- same visible backdrop triangle count: `49`
+- same projected vertex values
+- same visible triangle values
+- same UVs
+- same clip flags
+
+Practical conclusion:
+
+- the first confirmed parity break is not in backdrop mesh construction
+- not in `mmajmmk.KKAmaJa(...)`
+- not in the frustum/projection stage for this checkpoint
+- not in the visible-triangle list emitted by `mmajmmk.kkaMAJa(...)`
+
+So the next likely divergence point is now the affine rasterizer path itself.
+
 ---
 
 ## Experiments Already Run
@@ -161,48 +203,50 @@ Conclusion:
 
 One of these is still likely true:
 
-1. A subtle reconstruction difference exists in low-level vector math or rotation helpers.
-2. A subtle reconstruction difference exists in affine interpolation or scan conversion.
-3. The original applet already had some faceting, but it was softened by capture conditions and lower apparent sharpness in the video.
-4. A precision-sensitive behavior changed between the 1998-era JVM/runtime and the current desktop run, even though the code structure is nominally the same.
+1. A subtle reconstruction difference exists in affine interpolation or scan conversion after triangle generation.
+2. The original applet already had some faceting, but it was softened by capture conditions and lower apparent sharpness in the video.
+3. A precision-sensitive runtime behavior changed after triangle generation, even though the geometry stage is identical.
 
-At the moment, option 1 or 2 is the strongest working hypothesis.
+At the moment, option 1 is the strongest working hypothesis.
 
 ---
 
 ## Next Investigation Protocol
 
-The next step is to compare original bytecode behavior and reconstructed source behavior numerically, not only visually.
+The next step is no longer "compare geometry numerically" because that step is now implemented and already narrows the issue.
 
-### Step 1: dump generated backdrop UVs
+### Step 1: keep the probe as the geometry gate
 
-For a fixed subset of `half8.igu` vertices:
+Before any new visual fix is attempted:
 
-- original runtime: dump the UVs after `KKAmaJa(...)`
-- reconstructed runtime: dump the UVs after `KKAmaJa(...)`
+- run `probe_saari_sky_original.bat`
+- run `probe_saari_sky_java_desktop.bat`
+- run `compare_saari_sky_probe.bat`
 
-If the UVs already differ, the bug is upstream of rasterization.
+If these results ever stop matching, a geometry-stage regression was introduced.
 
-### Step 2: dump projected screen coordinates for selected sky triangles
+### Step 2: instrument the affine rasterizer for selected sky triangles
 
-For a fixed `saari` frame near `t = 144002 ms`:
+For one or two selected backdrop triangles from `backdrop_visible_triangles.csv`:
 
-- record the three screen-space vertices for several backdrop triangles
-- record their UVs and depth values
+- dump left/right x bounds per scanline
+- dump initial fixed-point `u` / `v`
+- dump span deltas
+- dump the final texture sample coordinates written per scanline
 
-If UVs match but projected vertices differ, the problem is in transform/projection parity.
+Primary target:
 
-### Step 3: dump per-scanline interpolation state for one or two suspect triangles
+- `java-desktop/src/main/java/kaajmma.java`
 
-For a chosen visible sky triangle:
+### Step 3: compare rasterizer state against the captured images
 
-- left/right x bounds
-- initial `u`, `v`, shade terms
-- per-scanline or per-span deltas
+If rasterizer state matches too, then the remaining suspects become:
 
-If geometry matches but span state diverges, the problem is in the affine rasterizer reconstruction.
+- framebuffer packing
+- image upload/presentation
+- capture pipeline differences
 
-### Step 4: only after the numeric comparison, change code
+### Step 4: only after the rasterizer comparison, change code
 
 No further "visual improvement" change should be treated as a faithful fix until one of the previous steps identifies the first actual divergence point.
 
@@ -242,6 +286,19 @@ spherical
 
 These modes exist only to support investigation. They are not alternate faithful render paths.
 
+Numeric probe command pattern:
+
+```bat
+set SCENE_TIME_MS=144000
+probe_saari_sky_original.bat
+probe_saari_sky_java_desktop.bat
+compare_saari_sky_probe.bat
+```
+
+Detailed probe workflow:
+
+- `documentation/forward-saari-probe-workflow.md`
+
 ---
 
 ## Documentation Links
@@ -250,6 +307,7 @@ Related files:
 
 - `documentation/forward-saari-finalization-roadmap.md`
 - `documentation/forward-java-desktop-reconstruction-process.md`
+- `documentation/forward-saari-probe-workflow.md`
 - `documentation/forward-reference-capture-workflow.md`
 - `java-desktop/README.md`
 

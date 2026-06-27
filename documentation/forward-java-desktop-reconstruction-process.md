@@ -198,6 +198,9 @@ The main user-facing additions are:
 
 - `java-desktop/README.md`
 - `run_forward_desktop.bat`
+- `probe_saari_sky_original.bat`
+- `probe_saari_sky_java_desktop.bat`
+- `compare_saari_sky_probe.bat`
 
 The batch script:
 
@@ -210,6 +213,16 @@ Supported historical options remain:
 
 - `nosound 1`
 - `1x1 1`
+
+Additional parity-investigation helpers now exist for `saari`:
+
+- `probe_saari_sky_original.bat`
+- `probe_saari_sky_java_desktop.bat`
+- `compare_saari_sky_probe.bat`
+
+Those wrappers are documented in:
+
+- `documentation/forward-saari-probe-workflow.md`
 
 ## 7) Build and Launch Procedure
 
@@ -251,14 +264,19 @@ Validation performed:
 2. desktop launch through `run_forward_desktop.bat nosound 1`
 3. desktop launch through `run_forward_desktop.bat`
 4. short runtime observation to confirm the process stayed alive and did not immediately crash
+5. numeric `saari` probe dump from the desktop build
+6. numeric `saari` probe dump from the original bytecode build
+7. automatic comparison of both probe outputs
 
 Observed result:
 
 - compilation succeeded
 - both launch modes started successfully
 - no immediate crash occurred in the first few seconds of runtime
+- the `saari` probe wrappers ran successfully for both original and desktop Java paths
+- at `t = 144000 ms`, original and desktop probes matched exactly for backdrop projected vertices and visible triangles
 
-This is enough to confirm that the desktop reconstruction path is viable.
+This is enough to confirm that the desktop reconstruction path is viable, and that at least one critical `saari` geometry checkpoint already matches the original runtime numerically.
 
 ## 9) Current Limitations
 
