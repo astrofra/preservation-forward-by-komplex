@@ -6,6 +6,7 @@ import java.util.Random;
 public class kmjjkmk
 extends mmjjmma {
     static final float DESKTOP_FRAME_DRIVEN_HZ = 50.0f;
+    static final int DESKTOP_NOISE_WRITE_DELTA = 70;
     int KKamaJa = 8;
     int kKamaJa = 8;
     int KkAMaJa;
@@ -122,7 +123,7 @@ extends mmjjmma {
         int n4 = 0;
         while (n4 < n3) {
             int n5 = (int)(this.aKkAMaJ.nextFloat() * (float)(n2 - 1));
-            int n6 = Math.min(n, (kmajkka2.aMAjakK[n5] & 0xFF) + 45);
+            int n6 = Math.min(n, (kmajkka2.aMAjakK[n5] & 0xFF) + DESKTOP_NOISE_WRITE_DELTA);
             kmajkka2.aMAjakK[n5] = (byte)n6;
             ++n4;
         }
