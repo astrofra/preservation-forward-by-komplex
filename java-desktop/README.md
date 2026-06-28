@@ -1,32 +1,32 @@
 # Forward Java Desktop
 
-Base de reconstruction Java desktop de `forward`, derivee des sources decompilees de `reverse/cfr_single`.
+Desktop Java reconstruction base for `forward`, derived from the decompiled sources in `reverse/cfr_single`.
 
-## Ce qui a ete modernise
+## What Has Been Modernized
 
-- suppression de la dependance `Applet` au profit d'un hote desktop AWT
-- remplacement des anciens backends audio `IE3/IE4` / `sun.audio` par `Java Sound`
-- correction des classes decompilees qui contenaient encore des artefacts `GOTO`
-- desactivation du basculement intermediaire vers une fenetre ecran entier pour garder toute la demo dans la meme fenetre desktop
-- recalage du scroll `phorward.gif` de `domina` et `uppol` sur une cadence virtuelle `50 Hz` pour eviter l'acceleration sur machines modernes
-- recalage des composantes frame-dependantes de `mute95` sur une cadence virtuelle derivee du temps de scene pour limiter la surexposition de l'intro sans casser la fluidite du warp
-- recalage des animations frame-dependantes de `watercube` sur une cadence virtuelle `50 Hz` pour garder la rotation centrale, le ripple et le damping `rok` au rythme du binaire d'origine
-- restauration du rasterizer affine d'origine pour les materiaux Java `3` / `259`, afin de rester source-faithful sur `saari`
-- verrouillage du rendu texte AWT sur une police monospace explicite et sans anti-aliasing pour garder les ecrans texte coherents entre le launcher source et le build `jpackage`
+- removed the `Applet` dependency in favor of an AWT desktop host
+- replaced the old `IE3/IE4` / `sun.audio` audio backends with `Java Sound`
+- fixed decompiled classes that still contained `GOTO` artifacts
+- disabled the intermediate switch to a full-screen window so the whole demo stays in the same desktop window
+- retimed the `phorward.gif` scroll in `domina` and `uppol` to a virtual `50 Hz` cadence to avoid speeding up on modern machines
+- retimed the frame-driven parts of `mute95` from scene time to limit intro overexposure without breaking warp fluidity
+- retimed the frame-driven animations in `watercube` to a virtual `50 Hz` cadence so the center rotation, ripple, and `rok` damping stay aligned with the original binary
+- restored the original affine rasterizer for Java materials `3` / `259` to remain source-faithful in `saari`
+- locked AWT text rendering to an explicit monospace font with antialiasing disabled so text screens stay consistent between the source launcher and the `jpackage` build
 
-## Prerequis
+## Prerequisites
 
-- un JDK disponible dans le `PATH`
+- a JDK available in `PATH`
 
-## Lancement
+## Launching
 
-Depuis la racine du depot :
+From the repository root:
 
 ```bat
 run_forward_desktop.bat
 ```
 
-Sans argument interactif, le launcher desktop ouvre maintenant une petite GUI de demarrage pour choisir :
+Without interactive launch arguments, the desktop launcher now opens a small startup GUI where you can choose:
 
 - `Windowed`
 - `Fullscreen`
@@ -34,10 +34,10 @@ Sans argument interactif, le launcher desktop ouvre maintenant une petite GUI de
 - `X2 1024x512`
 - `1x1 pixel mode`
 
-Le mode `Fullscreen` garde un fond noir sur tout l'ecran et centre la demo dans la taille choisie.
-Le mode `1x1 pixel mode` correspond au flag historique `1x1 1` du binaire Java d'origine. Il est maintenant actif par defaut sur le port desktop.
+`Fullscreen` keeps a black background across the entire screen and centers the demo at the selected size.
+`1x1 pixel mode` matches the original Java binary flag `1x1 1`. It is now enabled by default in the desktop port.
 
-Options historiques conservees :
+Historical options are still supported:
 
 ```bat
 run_forward_desktop.bat nosound 1
@@ -46,103 +46,103 @@ run_forward_desktop.bat 1x1 0
 run_forward_desktop.bat nosound 1 1x1 1
 ```
 
-Options desktop supplementaires :
+Additional desktop options:
 
 ```bat
 run_forward_desktop.bat launcher 0 displaymode windowed displayscale 2
 run_forward_desktop.bat launcher 0 displaymode fullscreen displayscale 1
 ```
 
-Parametres :
+Parameters:
 
-- `launcher 0` : saute la GUI de demarrage
-- `displaymode windowed|fullscreen` : force le mode d'affichage
-- `displayscale 1|2` : change uniquement la taille d'affichage de la frame finale
-- `1x1 1|0` : force le mode `1x1` actif ou inactif
+- `launcher 0`: skip the startup GUI
+- `displaymode windowed|fullscreen`: force the display mode
+- `displayscale 1|2`: change only the final on-screen presentation size
+- `1x1 1|0`: force `1x1` mode on or off
 
-Le flag historique `1x1 1` continue de piloter la resolution de rendu interne. `1x1 0` force l'ancien mode reduit. `displayscale` agit seulement sur la presentation a l'ecran.
+The historical `1x1 1` flag still controls the internal rendering mode. `1x1 0` forces the older reduced mode. `displayscale` affects only on-screen presentation.
 
-Le script compile `java-desktop/src/main/java` dans `java-desktop/build/classes`, puis lance `ForwardDesktopLauncher` en utilisant `original/forward` comme repertoire de travail pour reutiliser les assets d'origine.
+The script compiles `java-desktop/src/main/java` into `java-desktop/build/classes`, then launches `ForwardDesktopLauncher` using `original/forward` as the working directory so the original assets can be reused.
 
-## Packaging Win64
+## Win64 Packaging
 
-Un workflow `jpackage` est maintenant disponible pour produire un build Windows autonome avec runtime Java embarque :
+A `jpackage` workflow is now available to produce a standalone Windows build with an embedded Java runtime:
 
 ```bat
 package_forward_desktop.bat
 ```
 
-Sortie par defaut :
+Default output:
 
 ```text
 java-desktop\dist\jpackage\app-image\Forward\Forward.exe
 ```
 
-Ce `Forward.exe` n'a pas besoin d'un JDK installe sur la machine cible.
+`Forward.exe` does not require a JDK to be installed on the target machine.
 
-Le build packagé utilise le meme launcher GUI que le build source, avec les memes options `displaymode`, `displayscale` et `launcher 0`.
+The packaged build uses the same launcher GUI as the source build, with the same `displaymode`, `displayscale`, and `launcher 0` options.
 
-Installer Windows optionnel :
+Optional Windows installer:
 
 ```bat
 package_forward_desktop.bat exe
 ```
 
-La generation de l'installeur demande WiX dans le `PATH`. Le `app-image` simple, lui, ne depend que du JDK.
+Installer generation requires WiX in `PATH`. The plain `app-image` only depends on the JDK.
 
-Le workflow detaille est documente dans :
+The detailed workflow is documented in:
 
 - `documentation/forward-jpackage-workflow.md`
 
-## Capture de reference
+## Reference Capture
 
-Le build desktop sait maintenant s'auto-capturer en PNG via des parametres `cle valeur`.
+The desktop build can now capture itself to PNG through `key value` parameters.
 
-Exemple :
+Example:
 
 ```bat
 run_forward_desktop.bat capture documentation\reference-capture\java captureintervalms 2000 capturelimit 60 captureexit 1
 ```
 
-Le mode capture saute automatiquement la GUI de demarrage. Les captures restent en resolution native `512x256`, meme si l'affichage interactif a ete choisi en `x2`.
+Capture mode automatically skips the startup GUI. Captures remain in native `512x256` resolution even if interactive display was selected in `x2`.
 
-Wrappers prets a l'emploi :
+Ready-to-use wrappers:
 
 ```bat
 capture_forward_demo.bat
 capture_reference_video.bat
 ```
 
-Sorties :
+Outputs:
 
 - `documentation/reference-capture/java/manifest.csv`
 - `documentation/reference-capture/java/frames/*.png`
 
-Le workflow complet Java capture + extraction video + comparaison est documente dans :
+The full Java capture + video extraction + comparison workflow is documented in:
 
 - `documentation/forward-reference-capture-workflow.md`
 
-## Diagnostic Saari
+## Saari Diagnostics
 
-Une note d'enquete dediee au ciel `saari` est tenue dans :
+A dedicated investigation note for the `saari` sky is maintained in:
 
 - `documentation/forward-saari-sky-investigation.md`
 
-Le build desktop expose aussi un switch de diagnostic temporaire pour comparer plusieurs interpretations du mapping du fond :
+The desktop build also exposes a temporary diagnostic switch to compare several interpretations of the backdrop mapping:
 
 ```bat
 set JAVA_TOOL_OPTIONS=-Dforward.saariBackdropUvMode=procedural
 ```
 
-Valeurs disponibles :
+Available values:
 
 - `procedural`
 - `mesh`
 - `spherical`
 
-Le mode par defaut reste `procedural`. Ces options servent uniquement a l'enquete de fidelite du ciel `saari`.
+The default mode remains `procedural`. These options exist only for the `saari` fidelity investigation.
 
-Probe numerique disponible :
+Numeric probe available:
 
 ```bat
 probe_saari_sky_original.bat
@@ -150,12 +150,12 @@ probe_saari_sky_java_desktop.bat
 compare_saari_sky_probe.bat
 ```
 
-Le workflow et les sorties CSV sont documentes dans :
+The workflow and CSV outputs are documented in:
 
 - `documentation/forward-saari-probe-workflow.md`
 
-Resultat actuellement confirme pour `SCENE_TIME_MS=144000` en mode `procedural` :
+Currently confirmed result for `SCENE_TIME_MS=144000` in `procedural` mode:
 
-- les UVs, sommets projetes et triangles visibles du backdrop `saari` sont identiques entre `original` et `java-desktop`
-- un vrai ecart de reconstruction a ete corrige dans `kaajmma.MajAkKa(float)` pour retrouver la semantique bytecode `f2l; l2i`
-- le `backdrop_raster_preview.png` du probe est maintenant identique pixel par pixel entre `original` et `java-desktop` au checkpoint `144000 ms`
+- backdrop UVs, projected vertices, and visible `saari` backdrop triangles are identical between `original` and `java-desktop`
+- a real reconstruction mismatch was fixed in `kaajmma.MajAkKa(float)` to restore the original bytecode `f2l; l2i` semantics
+- the probe `backdrop_raster_preview.png` is now pixel-identical between `original` and `java-desktop` at the `144000 ms` checkpoint
