@@ -14,6 +14,7 @@ public final class ForwardDesktopLauncher {
     }
 
     public static void main(String[] stringArray) {
+        stringArray = ForwardStartupDialog.maybeShow(stringArray);
         Path path = ForwardDesktopLauncher.resolveAssetRoot();
         if (path == null) {
             System.err.println("forward packaging warning: unable to locate bundled assets, using current working directory");

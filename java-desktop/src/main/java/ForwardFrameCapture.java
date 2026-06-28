@@ -86,10 +86,11 @@ final class ForwardFrameCapture {
         return this.frameGraphics;
     }
 
-    public void present(Graphics graphics) {
-        if (graphics != null) {
-            graphics.drawImage(this.frameImage, 0, 0, null);
+    public void copyFrame(BufferedImage bufferedImage) {
+        if (bufferedImage == null) {
+            return;
         }
+        this.frameGraphics.drawImage(bufferedImage, 0, 0, this.width, this.height, null);
     }
 
     public boolean captureFrame(int renderFrame, float demoSeconds, String sceneName, int nextScriptTimeHex) throws IOException {

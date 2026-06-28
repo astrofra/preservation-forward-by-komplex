@@ -46,20 +46,12 @@ extends Panel {
                 n3 += 2;
             }
         }
-        kajjkmk kajjkmk2 = new kajjkmk(this.getClass().getName());
-        kajjkmk2.setVisible(true);
-        kajjkmk2.setVisible(false);
-        Insets insets = kajjkmk2.getInsets();
-        int n4 = insets.left + insets.right + n;
-        int n5 = insets.top + insets.bottom + n2;
-        Dimension dimension = this.getToolkit().getScreenSize();
-        int n6 = (dimension.width - n4) / 2;
-        int n7 = (dimension.height - n5) / 2;
-        kajjkmk2.setBounds(n6, n7, n4, n5);
-        kajjkmk2.add("Center", this.MAjAkka);
+        ForwardLaunchConfiguration forwardLaunchConfiguration = ForwardLaunchConfiguration.fromParameters(this);
+        ForwardHostFrame forwardHostFrame = new ForwardHostFrame(this.getClass().getName(), forwardLaunchConfiguration);
+        forwardHostFrame.attach(this.MAjAkka);
         this.MAjAkka.mAJAkka = true;
         this.MAjAkka.init();
-        kajjkmk2.setVisible(true);
+        forwardHostFrame.setVisible(true);
         this.MAjAkka.start();
     }
 

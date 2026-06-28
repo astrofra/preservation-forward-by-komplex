@@ -26,15 +26,43 @@ Depuis la racine du depot :
 run_forward_desktop.bat
 ```
 
+Sans argument interactif, le launcher desktop ouvre maintenant une petite GUI de demarrage pour choisir :
+
+- `Windowed`
+- `Fullscreen`
+- `Native 512x256`
+- `X2 1024x512`
+- `1x1 pixel mode`
+
+Le mode `Fullscreen` garde un fond noir sur tout l'ecran et centre la demo dans la taille choisie.
+Le mode `1x1 pixel mode` correspond au flag historique `1x1 1` du binaire Java d'origine. Il est maintenant actif par defaut sur le port desktop.
+
 Options historiques conservees :
 
 ```bat
 run_forward_desktop.bat nosound 1
 run_forward_desktop.bat 1x1 1
+run_forward_desktop.bat 1x1 0
 run_forward_desktop.bat nosound 1 1x1 1
 ```
 
-Le script compile `java-desktop/src/main/java` dans `java-desktop/build/classes`, puis lance `forward` en utilisant `original/forward` comme repertoire de travail pour reutiliser les assets d'origine.
+Options desktop supplementaires :
+
+```bat
+run_forward_desktop.bat launcher 0 displaymode windowed displayscale 2
+run_forward_desktop.bat launcher 0 displaymode fullscreen displayscale 1
+```
+
+Parametres :
+
+- `launcher 0` : saute la GUI de demarrage
+- `displaymode windowed|fullscreen` : force le mode d'affichage
+- `displayscale 1|2` : change uniquement la taille d'affichage de la frame finale
+- `1x1 1|0` : force le mode `1x1` actif ou inactif
+
+Le flag historique `1x1 1` continue de piloter la resolution de rendu interne. `1x1 0` force l'ancien mode reduit. `displayscale` agit seulement sur la presentation a l'ecran.
+
+Le script compile `java-desktop/src/main/java` dans `java-desktop/build/classes`, puis lance `ForwardDesktopLauncher` en utilisant `original/forward` comme repertoire de travail pour reutiliser les assets d'origine.
 
 ## Packaging Win64
 
@@ -51,6 +79,8 @@ java-desktop\dist\jpackage\app-image\Forward\Forward.exe
 ```
 
 Ce `Forward.exe` n'a pas besoin d'un JDK installe sur la machine cible.
+
+Le build packagé utilise le meme launcher GUI que le build source, avec les memes options `displaymode`, `displayscale` et `launcher 0`.
 
 Installer Windows optionnel :
 
@@ -73,6 +103,8 @@ Exemple :
 ```bat
 run_forward_desktop.bat capture documentation\reference-capture\java captureintervalms 2000 capturelimit 60 captureexit 1
 ```
+
+Le mode capture saute automatiquement la GUI de demarrage. Les captures restent en resolution native `512x256`, meme si l'affichage interactif a ete choisi en `x2`.
 
 Wrappers prets a l'emploi :
 

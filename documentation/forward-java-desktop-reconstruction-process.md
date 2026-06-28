@@ -121,6 +121,7 @@ Main hosting changes:
 - the original intermediate handoff to the screen-sized `mmjjmka` window was disabled so the demo stays in the same desktop window from start to finish
 - a dedicated `ForwardDesktopLauncher` was added for packaged builds so bundled assets can still be resolved through the original `getDocumentBase()` / relative URL logic without depending on the process working directory
 - the text-only AWT overlays now resolve an explicit monospace font (`Courier New` first on Windows, then controlled fallbacks) and disable text antialiasing to keep the source launcher and packaged standalone build visually aligned
+- the desktop launcher now also exposes a small startup GUI so the user can choose windowed vs fullscreen hosting and display the native `512x256` frame at `x1` or `x2` without changing capture resolution
 
 This keeps the structure close to the original code while removing dependence on APIs that are effectively dead for desktop use.
 
@@ -242,7 +243,14 @@ The batch script:
 - collects all Java sources under `java-desktop/src/main/java`
 - compiles them into `java-desktop/build/classes`
 - switches to `original/forward`
-- runs `forward` with any command-line arguments passed through
+- runs `ForwardDesktopLauncher` with any command-line arguments passed through
+
+That launcher is now the shared desktop entry point for both source and packaged runs. It can:
+
+- inject the correct runtime asset base path
+- show or skip the startup GUI
+- select `windowed` or `fullscreen`
+- scale the native framebuffer to `512x256` or `1024x512`
 
 The packaging script:
 
@@ -294,6 +302,8 @@ The build step is intentionally simple and dependency-free:
 - no external packaging tool for the development launcher
 
 This keeps the reconstruction easy to inspect and easy to move between machines.
+
+The new display modes do not change the capture workflow: the demo is now rendered into a native `512x256` framebuffer first, then scaled for presentation. Frame capture therefore stays native even when the interactive host is running in fullscreen or `x2`.
 
 For distributable Windows builds, `jpackage` is now the preferred path. The detailed wrapper and runtime layout are documented in:
 

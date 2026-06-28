@@ -37,6 +37,7 @@ That launcher:
 - locates the bundled asset root at runtime
 - injects `basedir <absolute-path>` before calling `forward.main(...)`
 - sets `forward.repoRoot` when possible so relative capture output still works
+- exposes the same startup GUI as the source launcher for `windowed` / `fullscreen` and `x1` / `x2` display size selection
 
 This keeps the source-faithful asset loading model intact while removing the dependency on a developer checkout layout.
 
@@ -53,6 +54,12 @@ Default output:
 - `java-desktop/dist/jpackage/app-image/Forward/Forward.exe`
 
 This `app-image` already contains the Java runtime. It can be copied to another Windows machine without installing a separate JDK.
+
+The packaged launcher shows the same startup GUI as `run_forward_desktop.bat` unless you force parameters such as:
+
+```bat
+Forward.exe launcher 0 displaymode fullscreen displayscale 1
+```
 
 To build an installer executable as well:
 
@@ -85,6 +92,8 @@ The recommended smoke test after packaging is:
 2. confirm the window opens and assets load
 3. run a short capture session with `capture ... capturelimit ... captureexit 1`
 4. compare the captured PNGs with the normal desktop build if needed
+
+Capture remains native `512x256` even when the interactive presentation is running fullscreen or in `x2`.
 
 ## Known Constraints
 

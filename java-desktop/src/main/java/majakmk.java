@@ -4,9 +4,12 @@
 import java.awt.Canvas;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Event;
 import java.awt.Font;
 import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.Image;
+import java.awt.RenderingHints;
 import java.awt.image.ColorModel;
 import java.awt.image.DirectColorModel;
 import java.awt.image.MemoryImageSource;
@@ -32,16 +35,28 @@ implements Runnable {
     int AkkaMAj = 256;
     int akkaMAj = 128;
     int AKkaMAj = 21;
+    final int displayScaleX;
+    final int displayScaleY;
 
-    public majakmk(boolean bl, boolean bl2) {
+    public majakmk(boolean bl, boolean bl2, int n, int n2) {
         this.akKAmaj = bl;
         this.AKKAmaj = bl2;
+        this.displayScaleX = Math.max(1, n);
+        this.displayScaleY = Math.max(1, n2);
         this.setBackground(new Color(0, 60, 0));
     }
 
     public void kKAMajA() {
         this.aKKAmaj = new Thread((Runnable)this, "Muhmu Tunari");
         this.aKKAmaj.start();
+    }
+
+    public boolean keyDown(Event event, int n) {
+        if (event.key == 27) {
+            ForwardExitSupport.requestExit(this);
+            return true;
+        }
+        return super.keyDown(event, n);
     }
 
     public synchronized void KKaMajA() {
@@ -73,15 +88,26 @@ implements Runnable {
     }
 
     public void paint(Graphics graphics) {
-        graphics.setColor(Color.yellow);
-        graphics.drawRect(0, 0, this.bounds().width - 1, this.bounds().height - 1);
-        ForwardFontSupport.prepare(graphics, this.AKkAmaj);
-        graphics.setColor(this.aKkAmaj);
-        Enumeration enumeration = this.AkKAmaj.elements();
-        if (enumeration != null) {
-            while (enumeration.hasMoreElements()) {
-                kmaakka kmaakka2 = (kmaakka)enumeration.nextElement();
-                kmaakka2.KamAjaK(graphics);
+        Graphics graphics2 = this.prepareDisplayGraphics(graphics);
+        int n = Math.max(1, this.bounds().width / this.displayScaleX);
+        int n2 = Math.max(1, this.bounds().height / this.displayScaleY);
+        try {
+            graphics2.setColor(Color.yellow);
+            graphics2.drawRect(0, 0, n - 1, n2 - 1);
+            ForwardFontSupport.prepare(graphics2, this.AKkAmaj);
+            graphics2.setColor(this.aKkAmaj);
+            Enumeration enumeration = this.AkKAmaj.elements();
+            if (enumeration != null) {
+                while (enumeration.hasMoreElements()) {
+                    kmaakka kmaakka2 = (kmaakka)enumeration.nextElement();
+                    kmaakka2.KamAjaK(graphics2);
+                }
+            }
+            return;
+        }
+        finally {
+            if (graphics2 != null) {
+                graphics2.dispose();
             }
         }
     }
@@ -144,41 +170,70 @@ implements Runnable {
     }
 
     long KkAmAJA() {
-        Graphics graphics = this.getGraphics();
+        Graphics graphics = this.prepareDisplayGraphics(this.getGraphics());
         int[] nArray = new int[this.AkkaMAj * this.akkaMAj];
         Image image = this.createImage(new MemoryImageSource(this.AkkaMAj, this.akkaMAj, (ColorModel)new DirectColorModel(24, 0xFF0000, 65280, 255), nArray, 0, this.AkkaMAj));
         Image image2 = this.createImage(this.AkkaMAj, this.akkaMAj);
         this.KkaMajA(nArray, this.AkkaMAj, this.akkaMAj, 0, 0, this.AkkaMAj - 1, this.akkaMAj - 1, 0xFFFFFF);
         long l = System.currentTimeMillis();
-        int n = 0;
-        while (n < this.AKkaMAj) {
-            int n2 = n * 3;
-            this.KkaMajA(nArray, this.AkkaMAj, this.akkaMAj, n2, n2, this.AkkaMAj - 1 - n2 * 2, this.akkaMAj - 1 - n2 * 2, 0xFFFFFF);
-            image.flush();
-            image2.getGraphics().drawImage(image, 0, 0, null);
-            graphics.drawImage(image2, 0, 0, this.AkkaMAj * 2, this.akkaMAj * 2, Color.black, null);
-            ++n;
+        try {
+            int n = 0;
+            while (n < this.AKkaMAj) {
+                int n2 = n * 3;
+                this.KkaMajA(nArray, this.AkkaMAj, this.akkaMAj, n2, n2, this.AkkaMAj - 1 - n2 * 2, this.akkaMAj - 1 - n2 * 2, 0xFFFFFF);
+                image.flush();
+                image2.getGraphics().drawImage(image, 0, 0, null);
+                graphics.drawImage(image2, 0, 0, this.AkkaMAj * 2, this.akkaMAj * 2, Color.black, null);
+                ++n;
+            }
+            long l2 = System.currentTimeMillis();
+            return (l2 - l) / (long)this.AKkaMAj;
         }
-        long l2 = System.currentTimeMillis();
-        return (l2 - l) / (long)this.AKkaMAj;
+        finally {
+            if (graphics != null) {
+                graphics.dispose();
+            }
+        }
     }
 
     long kKaMajA() {
-        Graphics graphics = this.getGraphics();
+        Graphics graphics = this.prepareDisplayGraphics(this.getGraphics());
         int[] nArray = new int[this.AkkaMAj * this.akkaMAj];
         Image image = this.createImage(new MemoryImageSource(this.AkkaMAj, this.akkaMAj, (ColorModel)new DirectColorModel(24, 0xFF0000, 65280, 255), nArray, 0, this.AkkaMAj));
         this.KkaMajA(nArray, this.AkkaMAj, this.akkaMAj, 0, 0, this.AkkaMAj - 1, this.akkaMAj - 1, 0xFFFFFF);
         long l = System.currentTimeMillis();
-        int n = 0;
-        while (n < this.AKkaMAj) {
-            int n2 = n * 3;
-            this.KkaMajA(nArray, this.AkkaMAj, this.akkaMAj, n2, n2, this.AkkaMAj - 1 - n2 * 2, this.akkaMAj - 1 - n2 * 2, 0xFFFFFF);
-            image.flush();
-            graphics.drawImage(image, 0, 0, this.AkkaMAj * 2, this.akkaMAj * 2, Color.black, null);
-            ++n;
+        try {
+            int n = 0;
+            while (n < this.AKkaMAj) {
+                int n2 = n * 3;
+                this.KkaMajA(nArray, this.AkkaMAj, this.akkaMAj, n2, n2, this.AkkaMAj - 1 - n2 * 2, this.akkaMAj - 1 - n2 * 2, 0xFFFFFF);
+                image.flush();
+                graphics.drawImage(image, 0, 0, this.AkkaMAj * 2, this.akkaMAj * 2, Color.black, null);
+                ++n;
+            }
+            long l2 = System.currentTimeMillis();
+            return (l2 - l) / (long)this.AKkaMAj;
         }
-        long l2 = System.currentTimeMillis();
-        return (l2 - l) / (long)this.AKkaMAj;
+        finally {
+            if (graphics != null) {
+                graphics.dispose();
+            }
+        }
+    }
+
+    Graphics prepareDisplayGraphics(Graphics graphics) {
+        if (graphics == null) {
+            return null;
+        }
+        Graphics graphics2 = graphics.create();
+        if (graphics2 instanceof Graphics2D) {
+            Graphics2D graphics2D = (Graphics2D)graphics2;
+            graphics2D.scale(this.displayScaleX, this.displayScaleY);
+            graphics2D.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+            graphics2D.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
+            graphics2D.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_SPEED);
+        }
+        return graphics2;
     }
 
     void KkaMajA(int[] nArray, int n, int n2, int n3, int n4, int n5, int n6, int n7) {

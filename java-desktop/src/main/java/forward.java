@@ -9,7 +9,9 @@ import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Frame;
 import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.Image;
+import java.awt.RenderingHints;
 import java.net.URL;
 import java.util.Hashtable;
 import java.util.StringTokenizer;
@@ -80,7 +82,10 @@ implements Runnable {
     boolean captureAutoExit;
     boolean captureWasActive;
     ForwardFrameCapture captureSession;
+    ForwardFrameBuffer frameBuffer;
     String activeSceneName;
+    int displayWidth = 512;
+    int displayHeight = 256;
 
     public static void main(String[] stringArray) {
         new forward().aMajAkK(stringArray, 512, 256);
@@ -90,10 +95,11 @@ implements Runnable {
         kkamAJA = this;
         this.setLayout(null);
         this.setBackground(Color.black);
-        this.KkAmAjA = true;
-        if (this.getParameter("1x1") != null) {
-            this.KkAmAjA = false;
-        }
+        ForwardLaunchConfiguration forwardLaunchConfiguration = ForwardLaunchConfiguration.fromParameters(this);
+        this.displayWidth = forwardLaunchConfiguration.displayWidth;
+        this.displayHeight = forwardLaunchConfiguration.displayHeight;
+        this.setSize(this.displayWidth, this.displayHeight);
+        this.KkAmAjA = ForwardLaunchConfiguration.isFalsey(this.getParameter("1x1"));
         this.kkAmAjA = false;
         if (this.getParameter("nosound") != null) {
             this.kkAmAjA = true;
@@ -123,6 +129,10 @@ implements Runnable {
 
     public boolean keyDown(Event event, int n) {
         switch (event.key) {
+            case 27: {
+                ForwardExitSupport.requestExit(this);
+                return true;
+            }
             case 102: {
                 this.KKaMAJA = !this.KKaMAJA;
                 break;
@@ -160,9 +170,10 @@ implements Runnable {
 
     void KAMAjak() {
         MAD.component = this;
-        this.KaMAjAk = new majakmk(this.KkAmAjA, this.kkAmAjA);
-        this.KaMAjAk.reshape(0, 0, 512, 256);
+        this.KaMAjAk = new majakmk(this.KkAmAjA, this.kkAmAjA, Math.max(1, this.displayWidth / 512), Math.max(1, this.displayHeight / 256));
+        this.KaMAjAk.reshape(0, 0, this.displayWidth, this.displayHeight);
         this.KaMAjAk.show();
+        this.KaMAjAk.requestFocus();
         this.add(this.KaMAjAk);
         this.KaMAjAk.kKAMajA();
         this.KaMAjAk.KKaMajA();
@@ -512,7 +523,9 @@ implements Runnable {
         this.KKamAjA = this.kAmAjak("mods/jarnomix.xm");
         this.kAMajak();
         this.kkAMAJA = new maaakka(10, 60);
-        this.KamAJak(this, 0, 0, 512, 256);
+        this.frameBuffer = new ForwardFrameBuffer(512, 256);
+        this.KamAJak(this, 0, 0, this.displayWidth, this.displayHeight);
+        this.requestFocus();
         try {
             this.captureAutoExit = this.getParameter("capture") != null && this.getParameter("captureexit") != null;
             this.captureSession = ForwardFrameCapture.create(this, 512, 256);
@@ -524,7 +537,7 @@ implements Runnable {
                 }
                 this.KamAjak();
                 Graphics graphics = this.KKAMajA;
-                Graphics frameGraphics = this.captureSession != null ? this.captureSession.beginFrame() : graphics;
+                Graphics frameGraphics = this.frameBuffer.beginFrame();
                 if (this.KKaMAJA) {
                     this.KaMaJAk(frameGraphics);
                 }
@@ -547,8 +560,11 @@ implements Runnable {
                 if (this.kKamAJA != null && frameGraphics != null) {
                     this.kKamAJA.amaJaKK(frameGraphics, this.kKAMAJA - this.kkaMAJA, this.KKAMAJA);
                 }
+                if (graphics != null) {
+                    this.frameBuffer.present(graphics, 0, 0, this.displayWidth, this.displayHeight);
+                }
                 if (this.captureSession != null) {
-                    this.captureSession.present(graphics);
+                    this.captureSession.copyFrame(this.frameBuffer.image());
                     if (this.captureSession.captureFrame(this.KkAMAJA, this.kKAMAJA, this.activeSceneName, this.KKaMAjA)) {
                         break;
                     }
@@ -606,25 +622,34 @@ implements Runnable {
     public void paint(Graphics graphics) {
         kkAMajA = false;
         if (this.KkamAJA) {
+            Graphics graphics2 = this.prepareDisplayGraphics(graphics);
             String string = "FORWARD :: KOMPLEX";
-            ForwardFontSupport.prepare(graphics, this.kKAmAJA);
-            FontMetrics fontMetrics = graphics.getFontMetrics(this.kKAmAJA);
-            int n = fontMetrics.stringWidth(string) + 14;
-            int n2 = 20;
-            int n3 = (512 - n) / 2;
-            int n4 = (256 - n2) / 2;
-            graphics.setColor(Color.black);
-            graphics.fillRect(n3, n4, n, n2);
-            graphics.setColor(Color.white);
-            graphics.drawRect(n3, n4, n, n2);
-            graphics.drawString(string, n3 + 7, n4 + 14);
-            int n5 = this.kkAmAJA * (n - 1) / this.KKAmAJA;
-            if (n5 > n - 1) {
-                n5 = n - 1;
+            try {
+                ForwardFontSupport.prepare(graphics2, this.kKAmAJA);
+                FontMetrics fontMetrics = graphics2.getFontMetrics(this.kKAmAJA);
+                int n = fontMetrics.stringWidth(string) + 14;
+                int n2 = 20;
+                int n3 = (512 - n) / 2;
+                int n4 = (256 - n2) / 2;
+                graphics2.setColor(Color.black);
+                graphics2.fillRect(n3, n4, n, n2);
+                graphics2.setColor(Color.white);
+                graphics2.drawRect(n3, n4, n, n2);
+                graphics2.drawString(string, n3 + 7, n4 + 14);
+                int n5 = this.kkAmAJA * (n - 1) / this.KKAmAJA;
+                if (n5 > n - 1) {
+                    n5 = n - 1;
+                }
+                graphics2.setXORMode(Color.black);
+                graphics2.fillRect(n3 + 1, n4 + 1, n5, n2 - 1);
+                graphics2.setPaintMode();
+                return;
             }
-            graphics.setXORMode(Color.black);
-            graphics.fillRect(n3 + 1, n4 + 1, n5, n2 - 1);
-            graphics.setPaintMode();
+            finally {
+                if (graphics2 != null) {
+                    graphics2.dispose();
+                }
+            }
         }
     }
 
@@ -633,15 +658,22 @@ implements Runnable {
         this.paint(this.getGraphics());
     }
 
-    void exitAfterCapture() {
-        Container container = this;
-        while (container != null) {
-            if (container instanceof Frame) {
-                ((Frame)container).dispose();
-                break;
-            }
-            container = container.getParent();
+    Graphics prepareDisplayGraphics(Graphics graphics) {
+        if (graphics == null) {
+            return null;
         }
-        System.exit(0);
+        Graphics graphics2 = graphics.create();
+        if (graphics2 instanceof Graphics2D) {
+            Graphics2D graphics2D = (Graphics2D)graphics2;
+            graphics2D.scale(Math.max(1, this.displayWidth / 512), Math.max(1, this.displayHeight / 256));
+            graphics2D.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+            graphics2D.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
+            graphics2D.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_SPEED);
+        }
+        return graphics2;
+    }
+
+    void exitAfterCapture() {
+        ForwardExitSupport.requestExit(this);
     }
 }
