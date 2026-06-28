@@ -30,9 +30,13 @@ Without interactive launch arguments, the desktop launcher now opens a small sta
 
 - `Windowed`
 - `Fullscreen`
+- a display resolution loaded from `forward-launcher.ini`
+- `1x1 pixel mode`
+
+If `forward-launcher.ini` is missing, the launcher falls back to two built-in choices:
+
 - `Native 512x256`
 - `X2 1024x512`
-- `1x1 pixel mode`
 
 `Fullscreen` keeps a black background across the entire screen and centers the demo at the selected size.
 `1x1 pixel mode` matches the original Java binary flag `1x1 1`. It is now enabled by default in the desktop port.
@@ -64,6 +68,8 @@ The historical `1x1 1` flag still controls the internal rendering mode. `1x1 0` 
 
 The script compiles `java-desktop/src/main/java` into `java-desktop/build/classes`, then launches `ForwardDesktopLauncher` using `original/forward` as the working directory so the original assets can be reused.
 
+`forward-launcher.ini` is read from the repository root in the source workflow and can be edited to change the resolution list shown by the startup GUI.
+
 ## Win64 Packaging
 
 A `jpackage` workflow is now available to produce a standalone Windows build with an embedded Java runtime:
@@ -82,6 +88,7 @@ java-desktop\dist\jpackage\app-image\forward-komplex\forward-komplex.exe
 The packaging script also converts `java-desktop/app-icon.png` into a standard Windows `.ico` and embeds it into the packaged launcher.
 
 The packaged build uses the same launcher GUI as the source build, with the same `displaymode`, `displayscale`, and `launcher 0` options.
+The packaging script also copies `forward-launcher.ini` next to `forward-komplex.exe` so the packaged resolution list stays editable after distribution.
 
 Optional Windows installer:
 

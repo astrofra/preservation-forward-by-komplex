@@ -54,7 +54,7 @@ final class ForwardStartupDialog {
             if ("capture".equals(string3) || "captureexit".equals(string3) || "captureevery".equals(string3) || "captureintervalms".equals(string3) || "capturestartms".equals(string3) || "capturestopms".equals(string3) || "capturelimit".equals(string3)) {
                 return false;
             }
-            if (ForwardLaunchConfiguration.PARAM_DISPLAY_MODE.equals(string3) || ForwardLaunchConfiguration.PARAM_DISPLAY_SCALE.equals(string3) || ForwardLaunchConfiguration.PARAM_FULLSCREEN.equals(string3)) {
+            if (ForwardLaunchConfiguration.PARAM_DISPLAY_MODE.equals(string3) || ForwardLaunchConfiguration.PARAM_DISPLAY_SCALE.equals(string3) || ForwardLaunchConfiguration.PARAM_DISPLAY_WIDTH.equals(string3) || ForwardLaunchConfiguration.PARAM_DISPLAY_HEIGHT.equals(string3) || ForwardLaunchConfiguration.PARAM_FULLSCREEN.equals(string3)) {
                 return false;
             }
             if (ForwardLaunchConfiguration.PARAM_LAUNCHER.equals(string3) && !ForwardStartupDialog.isTruthy(string2)) {
@@ -131,7 +131,8 @@ final class ForwardStartupDialog {
         gridBagConstraints.insets = new Insets(12, 0, 4, 0);
         gridBagConstraints.weightx = 1.0;
         gridBagConstraints.fill = 2;
-        final JComboBox<String> jComboBox = new JComboBox<String>(new String[]{"512x256", "1024x512"});
+        final List<ForwardDisplayOptions.ResolutionOption> list = ForwardDisplayOptions.loadResolutions();
+        final JComboBox<ForwardDisplayOptions.ResolutionOption> jComboBox = new JComboBox<ForwardDisplayOptions.ResolutionOption>(list.toArray(new ForwardDisplayOptions.ResolutionOption[0]));
         jPanel2.add((Component)jComboBox, gridBagConstraints);
         gridBagConstraints.gridx = 0;
         gridBagConstraints.gridy = 3;
@@ -151,7 +152,11 @@ final class ForwardStartupDialog {
         jDialog.getRootPane().setDefaultButton(jButton2);
         final ForwardStartupSelection[] forwardStartupSelectionArray = new ForwardStartupSelection[1];
         jButton2.addActionListener(actionEvent -> {
-            forwardStartupSelectionArray[0] = new ForwardStartupSelection(jRadioButton2.isSelected(), jComboBox.getSelectedIndex() == 1 ? 2 : 1, jCheckBox.isSelected());
+            ForwardDisplayOptions.ResolutionOption resolutionOption = (ForwardDisplayOptions.ResolutionOption)jComboBox.getSelectedItem();
+            if (resolutionOption == null) {
+                resolutionOption = ForwardDisplayOptions.defaultResolutions().get(0);
+            }
+            forwardStartupSelectionArray[0] = new ForwardStartupSelection(jRadioButton2.isSelected(), resolutionOption.width, resolutionOption.height, jCheckBox.isSelected());
             blArray[0] = true;
             jDialog.dispose();
         });
@@ -177,7 +182,7 @@ final class ForwardStartupDialog {
         if (stringArray != null) {
             int n = 0;
             while (n < stringArray.length) {
-                if (n < stringArray.length - 1 && "1x1".equalsIgnoreCase(stringArray[n])) {
+                if (n < stringArray.length - 1 && ForwardStartupDialog.isLauncherControlParameter(stringArray[n])) {
                     n += 2;
                     continue;
                 }
@@ -187,8 +192,10 @@ final class ForwardStartupDialog {
         }
         list.add(ForwardLaunchConfiguration.PARAM_DISPLAY_MODE);
         list.add(forwardStartupSelection.fullscreen ? ForwardLaunchConfiguration.MODE_FULLSCREEN : ForwardLaunchConfiguration.MODE_WINDOWED);
-        list.add(ForwardLaunchConfiguration.PARAM_DISPLAY_SCALE);
-        list.add(String.valueOf(forwardStartupSelection.displayScale));
+        list.add(ForwardLaunchConfiguration.PARAM_DISPLAY_WIDTH);
+        list.add(String.valueOf(forwardStartupSelection.displayWidth));
+        list.add(ForwardLaunchConfiguration.PARAM_DISPLAY_HEIGHT);
+        list.add(String.valueOf(forwardStartupSelection.displayHeight));
         list.add("1x1");
         list.add(forwardStartupSelection.pixelMode1x1 ? "1" : "0");
         list.add(ForwardLaunchConfiguration.PARAM_LAUNCHER);
@@ -218,14 +225,24 @@ final class ForwardStartupDialog {
         return string2.equals("1") || string2.equals("true") || string2.equals("yes") || string2.equals("on");
     }
 
+    private static boolean isLauncherControlParameter(String string) {
+        if (string == null) {
+            return false;
+        }
+        String string2 = string.trim().toLowerCase(Locale.ROOT);
+        return "1x1".equals(string2) || ForwardLaunchConfiguration.PARAM_DISPLAY_MODE.equals(string2) || ForwardLaunchConfiguration.PARAM_DISPLAY_SCALE.equals(string2) || ForwardLaunchConfiguration.PARAM_DISPLAY_WIDTH.equals(string2) || ForwardLaunchConfiguration.PARAM_DISPLAY_HEIGHT.equals(string2) || ForwardLaunchConfiguration.PARAM_FULLSCREEN.equals(string2) || ForwardLaunchConfiguration.PARAM_LAUNCHER.equals(string2);
+    }
+
     private static final class ForwardStartupSelection {
         final boolean fullscreen;
-        final int displayScale;
+        final int displayWidth;
+        final int displayHeight;
         final boolean pixelMode1x1;
 
-        ForwardStartupSelection(boolean bl, int n, boolean bl2) {
+        ForwardStartupSelection(boolean bl, int n, int n2, boolean bl2) {
             this.fullscreen = bl;
-            this.displayScale = n;
+            this.displayWidth = n;
+            this.displayHeight = n2;
             this.pixelMode1x1 = bl2;
         }
     }

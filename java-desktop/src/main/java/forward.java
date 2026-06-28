@@ -170,7 +170,7 @@ implements Runnable {
 
     void KAMAjak() {
         MAD.component = this;
-        this.KaMAjAk = new majakmk(this.KkAmAjA, this.kkAmAjA, Math.max(1, this.displayWidth / 512), Math.max(1, this.displayHeight / 256));
+        this.KaMAjAk = new majakmk(this.KkAmAjA, this.kkAmAjA, (double)this.displayWidth / 512.0, (double)this.displayHeight / 256.0);
         this.KaMAjAk.reshape(0, 0, this.displayWidth, this.displayHeight);
         this.KaMAjAk.show();
         this.KaMAjAk.requestFocus();
@@ -665,7 +665,7 @@ implements Runnable {
         Graphics graphics2 = graphics.create();
         if (graphics2 instanceof Graphics2D) {
             Graphics2D graphics2D = (Graphics2D)graphics2;
-            graphics2D.scale(Math.max(1, this.displayWidth / 512), Math.max(1, this.displayHeight / 256));
+            graphics2D.scale((double)this.displayWidth / 512.0, (double)this.displayHeight / 256.0);
             graphics2D.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
             graphics2D.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
             graphics2D.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_SPEED);

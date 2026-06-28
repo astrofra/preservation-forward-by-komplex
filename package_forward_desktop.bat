@@ -22,6 +22,8 @@ set "JAR_FILE=%INPUT_DIR%\forward-desktop.jar"
 set "ASSETS_DIR=%INPUT_DIR%\forward-assets"
 set "ICON_PNG=%JAVA_PROJECT%\app-icon.png"
 set "ICON_ICO=%INPUT_DIR%\%APP_NAME%.ico"
+set "LAUNCHER_INI_SOURCE=%ROOT%\forward-launcher.ini"
+set "APP_IMAGE_DIR=%APP_IMAGE_OUT%\%APP_NAME%"
 set "PACKAGE_MODE=%~1"
 if "%PACKAGE_MODE%"=="" set "PACKAGE_MODE=app-image"
 
@@ -70,6 +72,9 @@ for %%D in (asses images meshes mods) do (
 )
 
 call :build_app_image
+if errorlevel 1 exit /b %errorlevel%
+
+call :stage_launcher_ini
 if errorlevel 1 exit /b %errorlevel%
 
 if /I "%PACKAGE_MODE%"=="app-image" goto :success
@@ -145,4 +150,10 @@ if not exist "%ICON_PNG%" (
     exit /b 1
 )
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; Add-Type -AssemblyName System.Drawing; $srcPath='%ICON_PNG%'; $dstPath='%ICON_ICO%'; $size=256; $src=[System.Drawing.Image]::FromFile($srcPath); try { $bmp=New-Object System.Drawing.Bitmap($size, $size, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb); try { $g=[System.Drawing.Graphics]::FromImage($bmp); try { $g.Clear([System.Drawing.Color]::Transparent); $g.InterpolationMode=[System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic; $g.PixelOffsetMode=[System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality; $g.SmoothingMode=[System.Drawing.Drawing2D.SmoothingMode]::HighQuality; $scale=[Math]::Min($size / [double]$src.Width, $size / [double]$src.Height); $w=[int][Math]::Round($src.Width * $scale); $h=[int][Math]::Round($src.Height * $scale); $x=[int](($size - $w) / 2); $y=[int](($size - $h) / 2); $g.DrawImage($src, $x, $y, $w, $h); $ms=New-Object System.IO.MemoryStream; try { $bmp.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png); $pngBytes=$ms.ToArray(); $fs=[System.IO.File]::Open($dstPath, [System.IO.FileMode]::Create, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None); try { $bw=New-Object System.IO.BinaryWriter($fs); try { $bw.Write([UInt16]0); $bw.Write([UInt16]1); $bw.Write([UInt16]1); $bw.Write([byte]0); $bw.Write([byte]0); $bw.Write([byte]0); $bw.Write([byte]0); $bw.Write([UInt16]1); $bw.Write([UInt16]32); $bw.Write([UInt32]$pngBytes.Length); $bw.Write([UInt32]22); $bw.Write($pngBytes); } finally { $bw.Dispose() } } finally { $fs.Dispose() } } finally { $ms.Dispose() } } finally { $g.Dispose() } } finally { $bmp.Dispose() } } finally { $src.Dispose() }"
+exit /b %errorlevel%
+
+:stage_launcher_ini
+if not exist "%LAUNCHER_INI_SOURCE%" exit /b 0
+if not exist "%APP_IMAGE_DIR%" exit /b 0
+copy /y "%LAUNCHER_INI_SOURCE%" "%APP_IMAGE_DIR%\forward-launcher.ini" >nul
 exit /b %errorlevel%
