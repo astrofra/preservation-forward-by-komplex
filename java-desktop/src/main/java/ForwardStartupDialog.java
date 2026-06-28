@@ -98,12 +98,12 @@ final class ForwardStartupDialog {
 
     private static ForwardStartupSelection createAndShowDialog(String[] stringArray, boolean[] blArray) {
         final JDialog jDialog = new JDialog();
-        jDialog.setTitle("Forward Launcher");
+        jDialog.setTitle("forward :: komplex");
         jDialog.setModal(true);
         jDialog.setDefaultCloseOperation(2);
         JPanel jPanel = new JPanel(new BorderLayout(0, 14));
         jPanel.setBorder(BorderFactory.createEmptyBorder(14, 16, 14, 16));
-        JLabel jLabel = new JLabel("Choose how to start the Java desktop reconstruction.");
+        JLabel jLabel = new JLabel("Display options:");
         jLabel.setFont(jLabel.getFont().deriveFont(Font.BOLD, jLabel.getFont().getSize2D() + 1.0f));
         jPanel.add((Component)jLabel, "North");
         JPanel jPanel2 = new JPanel(new GridBagLayout());
@@ -131,7 +131,7 @@ final class ForwardStartupDialog {
         gridBagConstraints.insets = new Insets(12, 0, 4, 0);
         gridBagConstraints.weightx = 1.0;
         gridBagConstraints.fill = 2;
-        final JComboBox<String> jComboBox = new JComboBox<String>(new String[]{"Native 512x256", "X2 1024x512"});
+        final JComboBox<String> jComboBox = new JComboBox<String>(new String[]{"512x256", "1024x512"});
         jPanel2.add((Component)jComboBox, gridBagConstraints);
         gridBagConstraints.gridx = 0;
         gridBagConstraints.gridy = 3;
@@ -142,8 +142,8 @@ final class ForwardStartupDialog {
         jPanel2.add((Component)jCheckBox, gridBagConstraints);
         jPanel.add((Component)jPanel2, "Center");
         JPanel jPanel3 = new JPanel(new FlowLayout(2, 8, 0));
-        JButton jButton = new JButton("Cancel");
-        JButton jButton2 = new JButton("Start Demo");
+        JButton jButton = new JButton("Quit :(");
+        JButton jButton2 = new JButton("Start Demo :)");
         jPanel3.add(jButton);
         jPanel3.add(jButton2);
         jPanel.add((Component)jPanel3, "South");
