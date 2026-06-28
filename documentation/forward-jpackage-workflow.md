@@ -17,9 +17,10 @@ This script:
 3. stages the original runtime asset directories from `original/forward`:
    `asses`, `images`, `meshes`, `mods`
 4. converts `java-desktop/app-icon.png` into a standard Windows `.ico`
-5. copies `forward-launcher.ini` next to the packaged launcher when that file exists at the repository root
-6. runs `jpackage` to create a self-contained Windows app image
-7. optionally builds a Windows installer `exe`
+5. copies `original/forward/README.TXT` and `original/forward/version.txt` next to the packaged launcher
+6. copies `forward-launcher.ini` next to the packaged launcher when that file exists at the repository root
+7. runs `jpackage` to create a self-contained Windows app image
+8. optionally builds a Windows installer `exe`
 
 ## Why a Dedicated Launcher Exists
 
@@ -57,6 +58,7 @@ Default output:
 
 This `app-image` already contains the Java runtime. It can be copied to another Windows machine without installing a separate JDK.
 The packaged executable icon is generated automatically from `java-desktop/app-icon.png`.
+The packaged app folder also includes `README.TXT` and `version.txt` from `original/forward`.
 If `forward-launcher.ini` exists at the repository root when packaging runs, it is copied next to `forward-komplex.exe` and remains editable after distribution.
 
 The packaged launcher shows the same startup GUI as `run_forward_desktop.bat` unless you force parameters such as:

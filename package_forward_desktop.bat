@@ -23,6 +23,9 @@ set "ASSETS_DIR=%INPUT_DIR%\forward-assets"
 set "ICON_PNG=%JAVA_PROJECT%\app-icon.png"
 set "ICON_ICO=%INPUT_DIR%\%APP_NAME%.ico"
 set "LAUNCHER_INI_SOURCE=%ROOT%\forward-launcher.ini"
+set "FORWARD_ROOT=%ROOT%\original\forward"
+set "FORWARD_README_SOURCE=%FORWARD_ROOT%\README.TXT"
+set "FORWARD_VERSION_SOURCE=%FORWARD_ROOT%\version.txt"
 set "APP_IMAGE_DIR=%APP_IMAGE_OUT%\%APP_NAME%"
 set "PACKAGE_MODE=%~1"
 if "%PACKAGE_MODE%"=="" set "PACKAGE_MODE=app-image"
@@ -72,6 +75,9 @@ for %%D in (asses images meshes mods) do (
 )
 
 call :build_app_image
+if errorlevel 1 exit /b %errorlevel%
+
+call :stage_release_notes
 if errorlevel 1 exit /b %errorlevel%
 
 call :stage_launcher_ini
@@ -157,3 +163,15 @@ if not exist "%LAUNCHER_INI_SOURCE%" exit /b 0
 if not exist "%APP_IMAGE_DIR%" exit /b 0
 copy /y "%LAUNCHER_INI_SOURCE%" "%APP_IMAGE_DIR%\forward-launcher.ini" >nul
 exit /b %errorlevel%
+
+:stage_release_notes
+if not exist "%APP_IMAGE_DIR%" exit /b 0
+if exist "%FORWARD_README_SOURCE%" (
+    copy /y "%FORWARD_README_SOURCE%" "%APP_IMAGE_DIR%\README.TXT" >nul
+    if errorlevel 1 exit /b %errorlevel%
+)
+if exist "%FORWARD_VERSION_SOURCE%" (
+    copy /y "%FORWARD_VERSION_SOURCE%" "%APP_IMAGE_DIR%\version.txt" >nul
+    if errorlevel 1 exit /b %errorlevel%
+)
+exit /b 0

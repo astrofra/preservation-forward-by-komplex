@@ -1,5 +1,5 @@
 
-Forward version history by saviour.
+Forward version history by saviour (+ fra).
 
      ddmmyyyy
      --------
@@ -14,3 +14,9 @@ Forward version history by saviour.
 		-"kosmiset ukot" jerks a lot less now, 'whops forgot a "new"
 		in the inner loop' :)
 		-"watercube" no longer reset kunigas mode.
+
+1.03 28062026	Modern Java desktop reconstruction (openjdk 17.0.15).
+		-Runs on desktop JDKs without the original browser/applets setup.
+		-Fixed a couple of timing issues.
+		-Added a standalone Win64 packaged build with bundled Java runtime.
+		-Packaged output now includes README.TXT and version.txt next to the executable.
