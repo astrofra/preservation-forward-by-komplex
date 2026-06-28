@@ -1,4 +1,4 @@
-# Forward Java Desktop
+# Forward by Komplex (Java desktop version)
 
 Desktop Java reconstruction base for `forward`, derived from the decompiled sources in `reverse/cfr_single`.
 
@@ -129,41 +129,3 @@ Outputs:
 The full Java capture + video extraction + comparison workflow is documented in:
 
 - `documentation/forward-reference-capture-workflow.md`
-
-## Saari Diagnostics
-
-A dedicated investigation note for the `saari` sky is maintained in:
-
-- `documentation/forward-saari-sky-investigation.md`
-
-The desktop build also exposes a temporary diagnostic switch to compare several interpretations of the backdrop mapping:
-
-```bat
-set JAVA_TOOL_OPTIONS=-Dforward.saariBackdropUvMode=procedural
-```
-
-Available values:
-
-- `procedural`
-- `mesh`
-- `spherical`
-
-The default mode remains `procedural`. These options exist only for the `saari` fidelity investigation.
-
-Numeric probe available:
-
-```bat
-probe_saari_sky_original.bat
-probe_saari_sky_java_desktop.bat
-compare_saari_sky_probe.bat
-```
-
-The workflow and CSV outputs are documented in:
-
-- `documentation/forward-saari-probe-workflow.md`
-
-Currently confirmed result for `SCENE_TIME_MS=144000` in `procedural` mode:
-
-- backdrop UVs, projected vertices, and visible `saari` backdrop triangles are identical between `original` and `java-desktop`
-- a real reconstruction mismatch was fixed in `kaajmma.MajAkKa(float)` to restore the original bytecode `f2l; l2i` semantics
-- the probe `backdrop_raster_preview.png` is now pixel-identical between `original` and `java-desktop` at the `144000 ms` checkpoint

@@ -378,4 +378,4 @@ to:
 
 - "compilable desktop Java reconstruction with a local Windows launcher"
 
-That is a materially better base for further preservation work than trying to reverse engineer and port to C++ at the same time.
+That is a materially OK base for further preservation work than trying to reverse engineer and port to C++ at the same time.
