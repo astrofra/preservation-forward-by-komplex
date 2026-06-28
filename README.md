@@ -79,6 +79,7 @@ java-desktop\dist\jpackage\app-image\forward-komplex\forward-komplex.exe
 ```
 
 `forward-komplex.exe` does not require a JDK to be installed on the target machine.
+The packaging script also converts `java-desktop/app-icon.png` into a standard Windows `.ico` and embeds it into the packaged launcher.
 
 The packaged build uses the same launcher GUI as the source build, with the same `displaymode`, `displayscale`, and `launcher 0` options.
 
