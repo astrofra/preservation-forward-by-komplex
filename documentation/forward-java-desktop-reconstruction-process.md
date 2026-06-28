@@ -231,7 +231,7 @@ That is deliberate:
 
 The main user-facing additions are:
 
-- `java-desktop/README.md`
+- `README.md`
 - `run_forward_desktop.bat`
 - `package_forward_desktop.bat`
 - `probe_saari_sky_original.bat`

@@ -18,7 +18,7 @@ set "TEMP_ROOT=%DIST_ROOT%\temp"
 set "JAR_FILE=%INPUT_DIR%\forward-desktop.jar"
 set "ASSETS_DIR=%INPUT_DIR%\forward-assets"
 
-set "APP_NAME=Forward"
+set "APP_NAME=forward-komplex"
 set "APP_VERSION=1.0.2"
 set "PACKAGE_MODE=%~1"
 if "%PACKAGE_MODE%"=="" set "PACKAGE_MODE=app-image"
@@ -96,9 +96,9 @@ jpackage ^
   --type app-image ^
   --name "%APP_NAME%" ^
   --app-version "%APP_VERSION%" ^
-  --vendor "Preservation Forward by Komplex" ^
-  --copyright "Komplex, reconstructed desktop build" ^
-  --description "Forward Java desktop reconstruction" ^
+  --vendor "Komplex.org" ^
+  --copyright "Komplex, desktop build" ^
+  --description "Forward demo by Komplex, reactivated Java desktop version." ^
   --input "%INPUT_DIR%" ^
   --main-jar "forward-desktop.jar" ^
   --main-class "ForwardDesktopLauncher" ^
@@ -113,9 +113,9 @@ jpackage ^
   --type exe ^
   --name "%APP_NAME%" ^
   --app-version "%APP_VERSION%" ^
-  --vendor "Preservation Forward by Komplex" ^
-  --copyright "Komplex, reconstructed desktop build" ^
-  --description "Forward Java desktop reconstruction" ^
+  --vendor "Komplex.org" ^
+  --copyright "Komplex, desktop build" ^
+  --description "Forward demo by Komplex, reactivated Java desktop version." ^
   --dest "%INSTALLER_OUT%" ^
   --temp "%TEMP_ROOT%\installer" ^
   --app-image "%APP_IMAGE_OUT%\%APP_NAME%" ^

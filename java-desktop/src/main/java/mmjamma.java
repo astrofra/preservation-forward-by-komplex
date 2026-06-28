@@ -47,7 +47,7 @@ extends Panel {
             }
         }
         ForwardLaunchConfiguration forwardLaunchConfiguration = ForwardLaunchConfiguration.fromParameters(this);
-        ForwardHostFrame forwardHostFrame = new ForwardHostFrame(this.getClass().getName(), forwardLaunchConfiguration);
+        ForwardHostFrame forwardHostFrame = new ForwardHostFrame(ForwardLaunchConfiguration.APPLICATION_TITLE, forwardLaunchConfiguration);
         forwardHostFrame.attach(this.MAjAkka);
         this.MAjAkka.mAJAkka = true;
         this.MAjAkka.init();

@@ -3,6 +3,7 @@ import java.awt.Toolkit;
 import java.util.Locale;
 
 final class ForwardLaunchConfiguration {
+    static final String APPLICATION_TITLE = "forward::komplex";
     static final int NATIVE_WIDTH = 512;
     static final int NATIVE_HEIGHT = 256;
     static final String PARAM_DISPLAY_MODE = "displaymode";

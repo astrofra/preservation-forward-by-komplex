@@ -98,7 +98,7 @@ final class ForwardStartupDialog {
 
     private static ForwardStartupSelection createAndShowDialog(String[] stringArray, boolean[] blArray) {
         final JDialog jDialog = new JDialog();
-        jDialog.setTitle("forward :: komplex");
+        jDialog.setTitle(ForwardLaunchConfiguration.APPLICATION_TITLE);
         jDialog.setModal(true);
         jDialog.setDefaultCloseOperation(2);
         JPanel jPanel = new JPanel(new BorderLayout(0, 14));

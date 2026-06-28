@@ -75,10 +75,10 @@ package_forward_desktop.bat
 Default output:
 
 ```text
-java-desktop\dist\jpackage\app-image\Forward\Forward.exe
+java-desktop\dist\jpackage\app-image\forward-komplex\forward-komplex.exe
 ```
 
-`Forward.exe` does not require a JDK to be installed on the target machine.
+`forward-komplex.exe` does not require a JDK to be installed on the target machine.
 
 The packaged build uses the same launcher GUI as the source build, with the same `displaymode`, `displayscale`, and `launcher 0` options.
 
