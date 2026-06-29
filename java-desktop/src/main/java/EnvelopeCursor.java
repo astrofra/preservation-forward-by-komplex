@@ -1,22 +1,22 @@
 /*
  * Decompiled with CFR 0.152.
  */
-class mmjjmmk {
-    kajamma jaKkAMA;
+class EnvelopeCursor {
+    Envelope jaKkAMA;
     public int JAKkAMA;
     boolean jAKkAMA;
     boolean JakkAMA;
     int jakkAMA;
 
-    mmjjmmk() {
+    EnvelopeCursor() {
         this.KKAMAja(null);
     }
 
-    mmjjmmk(kajamma kajamma2) {
+    EnvelopeCursor(Envelope kajamma2) {
         this.KKAMAja(kajamma2);
     }
 
-    void KKAMAja(kajamma kajamma2) {
+    void KKAMAja(Envelope kajamma2) {
         if (kajamma2 == null || !kajamma2.majAKKa) {
             this.JakkAMA = false;
             this.jaKkAMA = null;

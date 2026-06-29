@@ -23,14 +23,14 @@ extends GraphicsRoutine {
 
     public static IndexedSurface kAMAjaK(DesktopAppletBase mmjamma2) {
         if (aMAjAKk == null) {
-            aMAjAKk = (IndexedSurface)mmaakma.majaKkA(mmjamma2.amAjAkK("images/phorward.gif"));
+            aMAjAKk = (IndexedSurface)ImageSupport.majaKkA(mmjamma2.amAjAkK("images/phorward.gif"));
         }
         return aMAjAKk;
     }
 
     public void init(DesktopAppletBase mmjamma2) {
         if (this.amAjAKk) {
-            this.AmAjAKk = (IndexedSurface)mmaakma.majaKkA(mmjamma2.amAjAkK("images/komplex.gif"));
+            this.AmAjAKk = (IndexedSurface)ImageSupport.majaKkA(mmjamma2.amAjAkK("images/komplex.gif"));
             this.AmAjAKk.AMajAkk(true);
             ForwardDemoApp.kkamAJA.kAMajak();
         } else {
@@ -64,7 +64,7 @@ extends GraphicsRoutine {
         this.amajAKk = f3;
         int n = 0;
         while (n < 256) {
-            int n2 = this.AMajAKk ? mmaakma.maJaKkA(0, 0, 0, this.amaJakk[n], this.AMaJakk[n], this.aMaJakk[n], 1.0f - this.amajAKk) : mmaakma.maJaKkA(255, 255, 255, this.amaJakk[n], this.AMaJakk[n], this.aMaJakk[n], 1.0f - this.amajAKk);
+            int n2 = this.AMajAKk ? ImageSupport.maJaKkA(0, 0, 0, this.amaJakk[n], this.AMaJakk[n], this.aMaJakk[n], 1.0f - this.amajAKk) : ImageSupport.maJaKkA(255, 255, 255, this.amaJakk[n], this.AMaJakk[n], this.aMaJakk[n], 1.0f - this.amajAKk);
             this.AMAjAKk.aMajakK[n] = (byte)(n2 >> 16 & 0xFF);
             this.AMAjAKk.AmAJakK[n] = (byte)(n2 >> 8 & 0xFF);
             this.AMAjAKk.amAJakK[n] = (byte)(n2 & 0xFF);

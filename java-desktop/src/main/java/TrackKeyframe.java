@@ -1,7 +1,7 @@
 /*
  * Decompiled with CFR 0.152.
  */
-public class kmjjmma {
+public class TrackKeyframe {
     public float render;
     public float handleMessage;
     public float dispose;
@@ -10,11 +10,11 @@ public class kmjjmma {
     public float onShow;
     public float[] mAjakkA;
     public int[] MaJAkkA;
-    public maaakmk[] maJAkkA;
-    public maaakmk[] MAJAkkA;
-    public maaakmk[] mAJAkkA;
+    public Quaternionf[] maJAkkA;
+    public Quaternionf[] MAJAkkA;
+    public Quaternionf[] mAJAkkA;
 
-    public kmjjmma(float f, float f2, float f3, float f4, float[] fArray) {
+    public TrackKeyframe(float f, float f2, float f3, float f4, float[] fArray) {
         this.render = f;
         this.handleMessage = f2;
         this.dispose = f3;
@@ -22,7 +22,7 @@ public class kmjjmma {
         this.mAjakkA = fArray;
     }
 
-    public kmjjmma(float f, kmjjmma kmjjmma2) {
+    public TrackKeyframe(float f, TrackKeyframe kmjjmma2) {
         this.render = f;
         this.handleMessage = kmjjmma2.handleMessage;
         this.dispose = kmjjmma2.dispose;
@@ -32,7 +32,7 @@ public class kmjjmma {
         this.maJAkkA = kmjjmma2.maJAkkA;
     }
 
-    public kmjjmma(kmjjmma kmjjmma2) {
+    public TrackKeyframe(TrackKeyframe kmjjmma2) {
         this.render = kmjjmma2.render;
         this.handleMessage = kmjjmma2.handleMessage;
         this.dispose = kmjjmma2.dispose;
@@ -42,7 +42,7 @@ public class kmjjmma {
         this.maJAkkA = kmjjmma2.maJAkkA;
     }
 
-    public kmjjmma(float f, float f2, float f3, float f4, float f5) {
+    public TrackKeyframe(float f, float f2, float f3, float f4, float f5) {
         this.render = f;
         this.handleMessage = f2;
         this.dispose = f3;
@@ -51,7 +51,7 @@ public class kmjjmma {
         this.mAjakkA = fArray;
     }
 
-    public kmjjmma(float f, float f2, float f3, float f4, float f5, float f6) {
+    public TrackKeyframe(float f, float f2, float f3, float f4, float f5, float f6) {
         this.render = f;
         this.handleMessage = f2;
         this.dispose = f3;
@@ -60,7 +60,7 @@ public class kmjjmma {
         this.mAjakkA = fArray;
     }
 
-    public kmjjmma(float f, float f2, float f3, float f4, float f5, float f6, float f7) {
+    public TrackKeyframe(float f, float f2, float f3, float f4, float f5, float f6, float f7) {
         this.render = f;
         this.handleMessage = f2;
         this.dispose = f3;
@@ -69,7 +69,7 @@ public class kmjjmma {
         this.mAjakkA = fArray;
     }
 
-    public kmjjmma(float f, float f2, float f3, float f4, float f5, float f6, float f7, float f8) {
+    public TrackKeyframe(float f, float f2, float f3, float f4, float f5, float f6, float f7, float f8) {
         this.render = f;
         this.handleMessage = f2;
         this.dispose = f3;
@@ -78,16 +78,16 @@ public class kmjjmma {
         this.mAjakkA = fArray;
     }
 
-    public kmjjmma(float f, float f2, float f3, float f4, maaakmk maaakmk2) {
+    public TrackKeyframe(float f, float f2, float f3, float f4, Quaternionf maaakmk2) {
         this.render = f;
         this.handleMessage = f2;
         this.dispose = f3;
         this.init = f4;
-        maaakmk[] maaakmkArray = new maaakmk[]{maaakmk2};
+        Quaternionf[] maaakmkArray = new Quaternionf[]{maaakmk2};
         this.maJAkkA = maaakmkArray;
     }
 
-    public kmjjmma(float f, float f2, float f3, float f4, maaakmk[] maaakmkArray) {
+    public TrackKeyframe(float f, float f2, float f3, float f4, Quaternionf[] maaakmkArray) {
         this.render = f;
         this.handleMessage = f2;
         this.dispose = f3;

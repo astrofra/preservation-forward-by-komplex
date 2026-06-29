@@ -23,7 +23,7 @@ extends Scene {
         this.KkAMaJA.JAkKAMa = 512;
         this.KkAMaJA.jAkKAMa = 256;
         this.KkAMaJA.JAKkaMa.MaJaKka(0.0f, 0.0f, 2.0f);
-        kaaakma kaaakma2 = new kaaakma(this.kkaMaJA, this.kkaMaJA.amAjAkK("images/verax/kosmusp.jpg"), true);
+        BackdropMesh kaaakma2 = new BackdropMesh(this.kkaMaJA, this.kkaMaJA.amAjAkK("images/verax/kosmusp.jpg"), true);
         this.kkAMaJA.maJAKkA(kaaakma2);
         ForwardDemoApp.kkamAJA.kAMajak();
         this.KkAMaJA.jaKkaMa = 1.9f;
@@ -35,7 +35,7 @@ extends Scene {
         this.kKAMaJA = new mmaamka(300, 20.0f);
         this.kKAMaJA.jaKKaMA.mAjakKA(new Vec3f(0.0f, 0.0f, 0.0f));
         this.kKAMaJA.KamaJAk(0);
-        RgbSurface mmaamma2 = (RgbSurface)mmaakma.majaKkA(this.kkaMaJA.amAjAkK("images/flare1.jpg"));
+        RgbSurface mmaamma2 = (RgbSurface)ImageSupport.majaKkA(this.kkaMaJA.amAjAkK("images/flare1.jpg"));
         this.kKAMaJA.KkaMaja(mmaamma2);
         ForwardDemoApp.kkamAJA.kAMajak();
         this.kkAMaJA.maJAKkA(this.kKAMaJA);
@@ -226,7 +226,7 @@ extends Scene {
         mmajmmk2.JAKKaMA.MajaKka(0.09);
         mmajmmk2.JAkKaMA = true;
         mmajmmk2.jAkKAma = 0;
-        RgbSurface mmaamma2 = (RgbSurface)mmaakma.majaKkA(this.kkaMaJA.amAjAkK("images/babyenv.jpg"));
+        RgbSurface mmaamma2 = (RgbSurface)ImageSupport.majaKkA(this.kkaMaJA.amAjAkK("images/babyenv.jpg"));
         mmajmmk2.KkaMaja(mmaamma2);
         int n = 0;
         while (n < 65536) {

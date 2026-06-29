@@ -4,9 +4,9 @@
 import muhmu.hifi.device.MAD;
 import muhmu.hifi.device.Mixable;
 
-public class mmjjkmk
+public class ModuleChannel
 implements Mixable {
-    mmajmka kKamAja;
+    ModuleSample kKamAja;
     int KkAMAja = 64;
     int kkAMAja = 64;
     int KKAMAja = 128;
@@ -79,17 +79,17 @@ implements Mixable {
 
     public void KamAjAk(int n) {
         this.kKaMAja = this.KKaMAja = n;
-        this.KkAmaja = mmajmka.kAmajAK(this.kKaMAja);
+        this.KkAmaja = ModuleSample.kAmajAK(this.kKaMAja);
     }
 
     public void kaMajAk(int n) {
         this.kKaMAja = this.KKaMAja + n;
-        this.KkAmaja = mmajmka.kAmajAK(this.kKaMAja);
+        this.KkAmaja = ModuleSample.kAmajAK(this.kKaMAja);
     }
 
     public void KAMajAk(int n) {
         this.kKaMAja += n;
-        this.KkAmaja = mmajmka.kAmajAK(this.kKaMAja);
+        this.KkAmaja = ModuleSample.kAmajAK(this.kKaMAja);
     }
 
     public void kAmajAk(int n) {
@@ -106,11 +106,11 @@ implements Mixable {
         this.kKAMAja = n2 <= 0 ? 0 : (n2 > 255 ? 255 : n2);
     }
 
-    public void KAMAjAk(mmajmka mmajmka2, int n) {
+    public void KAMAjAk(ModuleSample mmajmka2, int n) {
         this.KkAmAjA(mmajmka2, n, true);
     }
 
-    public void KkAmAjA(mmajmka mmajmka2, int n, boolean bl) {
+    public void KkAmAjA(ModuleSample mmajmka2, int n, boolean bl) {
         if (mmajmka2 == null) {
             this.KAmAjAk();
             return;
@@ -292,18 +292,18 @@ implements Mixable {
         kkamaJa = new int[256];
         int n3 = 0;
         while (n3 < 256) {
-            mmjjkmk.kkamaJa[n3] = n2 = (int)(-Math.sin((double)n3 / 256.0 * Math.PI * 2.0) * 64.55);
+            ModuleChannel.kkamaJa[n3] = n2 = (int)(-Math.sin((double)n3 / 256.0 * Math.PI * 2.0) * 64.55);
             ++n3;
         }
         n2 = 0;
         while (n2 < 768) {
-            mmjjkmk.kKAmaJa[n2] = n = (int)(8363.0 * Math.pow(2.0, (4608.0 - (double)n2) / 768.0));
+            ModuleChannel.kKAmaJa[n2] = n = (int)(8363.0 * Math.pow(2.0, (4608.0 - (double)n2) / 768.0));
             ++n2;
         }
         n = 0;
         while (n < 32) {
             int n4;
-            mmjjkmk.KkamaJa[n] = n4 = (int)(Math.sin((double)n / 32.0 * Math.PI) * 255.0);
+            ModuleChannel.KkamaJa[n] = n4 = (int)(Math.sin((double)n / 32.0 * Math.PI) * 255.0);
             ++n;
         }
     }

@@ -1,12 +1,12 @@
 /*
  * Decompiled with CFR 0.152.
  */
-class kmaakmk
-extends maaamma {
+class ScheduledScriptEvent
+extends SortableItem {
     long JaKKamA;
     String jaKKamA;
 
-    kmaakmk(float f, String string) {
+    ScheduledScriptEvent(float f, String string) {
         this.majAkKa = f;
         this.jaKKamA = string;
     }

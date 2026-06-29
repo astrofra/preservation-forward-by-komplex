@@ -3,13 +3,13 @@
  */
 import java.net.URL;
 
-public class kaaakma
+public class BackdropMesh
 extends MeshObject {
     float MaJakkA = 10000.0f;
 
     private static final String SAARI_BACKDROP_UV_MODE_PROPERTY = "forward.saariBackdropUvMode";
 
-    public kaaakma(DesktopAppletBase mmjamma2, URL uRL, boolean bl) {
+    public BackdropMesh(DesktopAppletBase mmjamma2, URL uRL, boolean bl) {
         boolean bl2 = true;
         MeshObject mmajmmk2 = bl ? IguMeshLoader.kAMaJAk(mmjamma2.amAjAkK("meshes/octa8.igu")) : IguMeshLoader.kAMaJAk(mmjamma2.amAjAkK("meshes/half8.igu"));
         this.jAkkaMA = mmajmmk2.jAkkaMA;
@@ -22,20 +22,20 @@ extends MeshObject {
             RgbSurface mmaamma2;
             RgbSurface mmaamma3;
             if (bl) {
-                mmaamma3 = (RgbSurface)mmaakma.majaKkA(uRL);
+                mmaamma3 = (RgbSurface)ImageSupport.majaKkA(uRL);
                 mmaamma2 = new RgbSurface(256, 256, 1, false);
                 mmaamma2.aMAJakK(mmaamma3, 0, 0);
                 RgbSurface mmaamma4 = new RgbSurface(256, 256, 1, false);
                 mmaamma4.aMAjakK(mmaamma3, 0, 0, 256, 0, 256, 256);
                 this.KKAmaJa(mmaamma2, mmaamma4);
             } else {
-                mmaamma3 = (RgbSurface)mmaakma.majaKkA(uRL);
+                mmaamma3 = (RgbSurface)ImageSupport.majaKkA(uRL);
                 mmaamma2 = new RgbSurface(256, 256, 1, false);
                 mmaamma2.aMAJakK(mmaamma3, 0, 0);
                 this.kAmAjAK(mmaamma2, mmaamma2, false);
             }
         } else {
-            RgbSurface mmaamma5 = (RgbSurface)mmaakma.majaKkA(mmjamma2.amAjAkK("images/verax/test.jpg"));
+            RgbSurface mmaamma5 = (RgbSurface)ImageSupport.majaKkA(mmjamma2.amAjAkK("images/verax/test.jpg"));
             this.KkaMaja(mmaamma5);
             this.KkAMaja();
         }
@@ -58,7 +58,7 @@ extends MeshObject {
     private void kaMAJAk(RgbSurface mmaamma2, RgbSurface mmaamma3) {
         int n = 0;
         while (n < this.JAkkaMA.length) {
-            kmjamma kmjamma2 = this.JAkkaMA[n];
+            RenderPrimitive kmjamma2 = this.JAkkaMA[n];
             kmjamma2.maJaKKa = kmjamma2.MajaKKa < 0.0f ? mmaamma2 : mmaamma3;
             ++n;
         }

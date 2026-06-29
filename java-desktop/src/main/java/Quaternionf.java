@@ -1,52 +1,52 @@
 /*
  * Decompiled with CFR 0.152.
  */
-public class maaakmk {
+public class Quaternionf {
     public float JAKKamA;
     public float jAKKamA;
     public float JakKamA;
     public float jakKamA;
     final static double JAkKamA = 1.0E-6;
 
-    public maaakmk(float f, float f2, float f3, float f4) {
+    public Quaternionf(float f, float f2, float f3, float f4) {
         this.JAKKamA = f;
         this.jAKKamA = f2;
         this.JakKamA = f3;
         this.jakKamA = f4;
     }
 
-    public maaakmk(double d, double d2, double d3, double d4) {
+    public Quaternionf(double d, double d2, double d3, double d4) {
         this.JAKKamA = (float)d;
         this.jAKKamA = (float)d2;
         this.JakKamA = (float)d3;
         this.jakKamA = (float)d4;
     }
 
-    public maaakmk(Vec3f mmajmma2, float f) {
+    public Quaternionf(Vec3f mmajmma2, float f) {
         this.JAKKamA = mmajmma2.maJakKA;
         this.jAKKamA = mmajmma2.MAJakKA;
         this.JakKamA = mmajmma2.mAJakKA;
         this.jakKamA = f;
     }
 
-    public maaakmk(Vec3f mmajmma2) {
+    public Quaternionf(Vec3f mmajmma2) {
         this.JAKKamA = mmajmma2.maJakKA;
         this.jAKKamA = mmajmma2.MAJakKA;
         this.JakKamA = mmajmma2.mAJakKA;
         this.jakKamA = 0.0f;
     }
 
-    public maaakmk(maaakmk maaakmk2) {
+    public Quaternionf(Quaternionf maaakmk2) {
         this.JAKKamA = maaakmk2.JAKKamA;
         this.jAKKamA = maaakmk2.jAKKamA;
         this.JakKamA = maaakmk2.JakKamA;
         this.jakKamA = maaakmk2.jakKamA;
     }
 
-    public maaakmk() {
+    public Quaternionf() {
     }
 
-    public void kKAmaJA(maaakmk maaakmk2) {
+    public void kKAmaJA(Quaternionf maaakmk2) {
         this.JAKKamA = maaakmk2.JAKKamA;
         this.jAKKamA = maaakmk2.jAKKamA;
         this.JakKamA = maaakmk2.JakKamA;
@@ -87,17 +87,17 @@ public class maaakmk {
         this.KkaMaJA(f);
     }
 
-    public float KkAmaJA(maaakmk maaakmk2) {
+    public float KkAmaJA(Quaternionf maaakmk2) {
         float f = (this.JAKKamA * maaakmk2.JAKKamA + this.jAKKamA * maaakmk2.jAKKamA + this.JakKamA * maaakmk2.JakKamA + this.jakKamA * maaakmk2.jakKamA) / (this.KkamaJA() * maaakmk2.KkamaJA());
         return f;
     }
 
-    public float KkAMaJA(maaakmk maaakmk2) {
+    public float KkAMaJA(Quaternionf maaakmk2) {
         float f = this.JAKKamA * maaakmk2.JAKKamA + this.jAKKamA * maaakmk2.jAKKamA + this.JakKamA * maaakmk2.JakKamA + this.jakKamA * maaakmk2.jakKamA;
         return f;
     }
 
-    public void renderFrame(maaakmk maaakmk2) {
+    public void renderFrame(Quaternionf maaakmk2) {
         float f = this.jakKamA * maaakmk2.jakKamA - this.JAKKamA * maaakmk2.JAKKamA - this.jAKKamA * maaakmk2.jAKKamA - this.JakKamA * maaakmk2.JakKamA;
         float f2 = this.jakKamA * maaakmk2.JAKKamA + this.JAKKamA * maaakmk2.jakKamA + this.jAKKamA * maaakmk2.JakKamA - this.JakKamA * maaakmk2.jAKKamA;
         float f3 = this.jakKamA * maaakmk2.jAKKamA + this.jAKKamA * maaakmk2.jakKamA + this.JakKamA * maaakmk2.JAKKamA - this.JAKKamA * maaakmk2.JakKamA;
@@ -143,10 +143,10 @@ public class maaakmk {
         this.JakKamA *= f;
     }
 
-    public void kKaMAJA(maaakmk maaakmk2) {
-        maaakmk maaakmk3 = new maaakmk(this);
+    public void kKaMAJA(Quaternionf maaakmk2) {
+        Quaternionf maaakmk3 = new Quaternionf(this);
         maaakmk3.kkAMaJA();
-        maaakmk maaakmk4 = new maaakmk(maaakmk3);
+        Quaternionf maaakmk4 = new Quaternionf(maaakmk3);
         maaakmk4.renderFrame(maaakmk2);
         double d = Math.sqrt(maaakmk4.JAKKamA * maaakmk4.JAKKamA + maaakmk4.jAKKamA * maaakmk4.jAKKamA + maaakmk4.JakKamA * maaakmk4.JakKamA);
         float f = this.JAKKamA * maaakmk2.JAKKamA + this.jAKKamA * maaakmk2.jAKKamA + this.JakKamA * maaakmk2.JakKamA + this.jakKamA * maaakmk2.jakKamA;
@@ -237,7 +237,7 @@ public class maaakmk {
     }
 
     public float kkaMaJA(Vec3f mmajmma2) {
-        maaakmk maaakmk2 = new maaakmk(this);
+        Quaternionf maaakmk2 = new Quaternionf(this);
         maaakmk2.KkaMAJA();
         double d = Math.acos(maaakmk2.jakKamA);
         float f = (float)Math.sin(d);
@@ -301,7 +301,7 @@ public class maaakmk {
         this.JakKamA = (maajkka2.AmajAKK + maajkka2.AmAjAKK) * f6;
     }
 
-    public void kkamaJA(maaakmk maaakmk2, maaakmk maaakmk3, float f, float f2) {
+    public void kkamaJA(Quaternionf maaakmk2, Quaternionf maaakmk3, float f, float f2) {
         float f3;
         float f4;
         float f5;
@@ -328,7 +328,7 @@ public class maaakmk {
         this.jakKamA = f4 * maaakmk2.jakKamA + f3 * maaakmk3.jakKamA;
     }
 
-    public void kkAmaJA(maaakmk maaakmk2, maaakmk maaakmk3, float f, float f2) {
+    public void kkAmaJA(Quaternionf maaakmk2, Quaternionf maaakmk3, float f, float f2) {
         float f3;
         float f4;
         double d = maaakmk2.KkAMaJA(maaakmk3);

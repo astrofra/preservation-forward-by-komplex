@@ -1,7 +1,7 @@
 /*
  * Decompiled with CFR 0.152.
  */
-final class mmajmka {
+final class ModuleSample {
     static final byte KamajaK = 0;
     static final byte kamajaK = 1;
     static final byte KAmajaK = 2;
@@ -35,7 +35,7 @@ final class mmajmka {
         if (n < 0) {
             return 1111111;
         }
-        int n2 = mmjjkmk.kKAmaJa[n % 768] >> n / 768;
+        int n2 = ModuleChannel.kKAmaJa[n % 768] >> n / 768;
         int n3 = n2 << 12;
         return n3;
     }
@@ -257,6 +257,6 @@ final class mmajmka {
         return n3;
     }
 
-    mmajmka() {
+    ModuleSample() {
     }
 }

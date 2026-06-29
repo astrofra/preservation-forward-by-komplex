@@ -7,7 +7,7 @@ extends Scene {
     AseSceneLoader aMajAkK;
     RgbSurface AmAJAkK;
     RgbSurface amAJAkK;
-    kmjjmmk AMAJAkK;
+    FlashNoiseOverlay AMAJAkK;
     float aMAJAkK;
     float AmaJAkK;
     DesktopAppletBase amaJAkK;
@@ -33,7 +33,7 @@ extends Scene {
         this.aMajAkK = new AseSceneLoader();
         this.aMajAkK.KamAJaK(this.amaJAkK.amAjAkK("asses/under1.ase"));
         ForwardDemoApp.kkamAJA.kAMajak();
-        IndexedSurface kmajkka2 = (IndexedSurface)mmaakma.majaKkA(this.amaJAkK.amAjAkK("images/envplane.gif"));
+        IndexedSurface kmajkka2 = (IndexedSurface)ImageSupport.majaKkA(this.amaJAkK.amAjAkK("images/envplane.gif"));
         ForwardDemoApp.kkamAJA.kAMajak();
         this.AmAJAkK = KukotScene.aMAjAkk(kmajkka2, 48.0f, 192.0f, 80.0f);
         ForwardDemoApp.kkamAJA.kAMajak();
@@ -48,7 +48,7 @@ extends Scene {
             mmajmmk2.jAkKAma = 2;
             ++n;
         }
-        RgbSurface mmaamma2 = (RgbSurface)mmaakma.majaKkA(this.amaJAkK.amAjAkK("images/flare1.jpg"));
+        RgbSurface mmaamma2 = (RgbSurface)ImageSupport.majaKkA(this.amaJAkK.amAjAkK("images/flare1.jpg"));
         ForwardDemoApp.kkamAJA.kAMajak();
         mmaamka mmaamka2 = new mmaamka(180, 2 * ForwardDemoApp.kAmajAk);
         mmaamka2.KkamaJA = 110.0f;
@@ -71,7 +71,7 @@ extends Scene {
             ++n2;
         }
         ForwardDemoApp.kkamAJA.kAMajak();
-        this.AMAJAkK = new kmjjmmk(38, 16, 87);
+        this.AMAJAkK = new FlashNoiseOverlay(38, 16, 87);
     }
 
     public void render(RgbSurface mmaamma2, float f, float f2) {

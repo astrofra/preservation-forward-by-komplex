@@ -1,7 +1,7 @@
 /*
  * Decompiled with CFR 0.152.
  */
-public class majamka {
+public class ModulePattern {
     public int KamAJAk;
     int kamAJAk;
     byte[][] KAmAJAk;
@@ -11,7 +11,7 @@ public class majamka {
     final static int KAMajAk = 3;
     final static int kAMajAk = 4;
 
-    majamka(int n, int n2) {
+    ModulePattern(int n, int n2) {
         this.KamAJAk = n;
         this.kamAJAk = n2;
         this.KAmAJAk = new byte[n][n2 * 5];

@@ -76,7 +76,7 @@ public class ModuleLoader {
     public static boolean kAMAJAK(byte[] byArray) {
         try {
             String string = new String(byArray, 0, 0, 17);
-            int n = kaaakmk.KkAmAja(byArray, 58);
+            int n = ByteReaders.KkAmAja(byArray, 58);
             return string.equals("Extended Module: ") && n >= 260;
         }
         catch (Exception exception) {
@@ -124,24 +124,24 @@ public class ModuleLoader {
             return null;
         }
         String string2 = new String(byArray, 0, n6, 20);
-        int n8 = kaaakmk.kKaMaJA(byArray, n6 + 950);
-        int n9 = kaaakmk.kKaMaJA(byArray, n6 + 951);
+        int n8 = ByteReaders.kKaMaJA(byArray, n6 + 950);
+        int n9 = ByteReaders.kKaMaJA(byArray, n6 + 951);
         if (n9 >= n8) {
             n9 = 0;
         }
-        kmajmmk kmajmmk2 = new kmajmmk();
+        ModuleSequencer kmajmmk2 = new ModuleSequencer();
         kmajmmk2.KkaMaJa(byArray, n6 + 952, n8);
         kmajmmk2.KkAMaJa(n9);
         int n10 = 0;
         int n11 = 0;
         while (n11 < 128) {
-            int n12 = kaaakmk.kKaMaJA(byArray, n6 + 952 + n11);
+            int n12 = ByteReaders.kKaMaJA(byArray, n6 + 952 + n11);
             if (n12 > n10) {
                 n10 = n12;
             }
             ++n11;
         }
-        majamka[] majamkaArray = new majamka[++n10];
+        ModulePattern[] majamkaArray = new ModulePattern[++n10];
         if (KaMajaK > 1) {
             System.out.println("numChans=" + n7);
         }
@@ -155,15 +155,15 @@ public class ModuleLoader {
         byte[] byArray2 = new byte[31];
         int n13 = 0;
         while (n13 < n10) {
-            majamkaArray[n13] = new majamka(64, n7);
+            majamkaArray[n13] = new ModulePattern(64, n7);
             n5 = 0;
             while (n5 < 64) {
                 int n14 = 0;
                 while (n14 < n7) {
-                    int n15 = (kaaakmk.kKaMaJA(byArray, n6) & 0xF) << 8 | kaaakmk.kKaMaJA(byArray, n6 + 1);
-                    n4 = (kaaakmk.kKaMaJA(byArray, n6) & 0xF0) + (kaaakmk.kKaMaJA(byArray, n6 + 2) >> 4);
-                    n3 = kaaakmk.kKaMaJA(byArray, n6 + 2) & 0xF;
-                    n2 = kaaakmk.kKaMaJA(byArray, n6 + 3);
+                    int n15 = (ByteReaders.kKaMaJA(byArray, n6) & 0xF) << 8 | ByteReaders.kKaMaJA(byArray, n6 + 1);
+                    n4 = (ByteReaders.kKaMaJA(byArray, n6) & 0xF0) + (ByteReaders.kKaMaJA(byArray, n6 + 2) >> 4);
+                    n3 = ByteReaders.kKaMaJA(byArray, n6 + 2) & 0xF;
+                    n2 = ByteReaders.kKaMaJA(byArray, n6 + 3);
                     if (n4 > 0) {
                         byArray2[n4 - 1] = 1;
                     }
@@ -185,14 +185,14 @@ public class ModuleLoader {
             ++n13;
         }
         n5 = 31;
-        mmajmka[] mmajmkaArray = new mmajmka[n5];
-        mmjakmk[] mmjakmkArray = new mmjakmk[n5];
+        ModuleSample[] mmajmkaArray = new ModuleSample[n5];
+        ModuleInstrument[] mmjakmkArray = new ModuleInstrument[n5];
         n4 = 0;
         while (n4 < n5) {
             n3 = 20 + n4 * 30;
-            n2 = 2 * kaaakmk.KkamAja(byArray, n3 + 22);
-            n = 2 * kaaakmk.KkamAja(byArray, n3 + 26);
-            int n16 = 2 * kaaakmk.KkamAja(byArray, n3 + 28);
+            n2 = 2 * ByteReaders.KkamAja(byArray, n3 + 22);
+            n = 2 * ByteReaders.KkamAja(byArray, n3 + 26);
+            int n16 = 2 * ByteReaders.KkamAja(byArray, n3 + 28);
             String string3 = new String(byArray, 0, n3, 21);
             if (KaMajaK > 1) {
                 System.out.println("samplename=" + string3);
@@ -200,15 +200,15 @@ public class ModuleLoader {
             if (n2 == 0) {
                 mmajmkaArray[n4] = null;
             } else {
-                mmajmkaArray[n4] = new mmajmka();
+                mmajmkaArray[n4] = new ModuleSample();
                 mmajmkaArray[n4].kAMajAK(byArray, n6, n2);
             }
-            mmjakmkArray[n4] = new mmjakmk();
+            mmjakmkArray[n4] = new ModuleInstrument();
             mmjakmkArray[n4].routineRegistry(mmajmkaArray[n4]);
             if (mmajmkaArray[n4] != null) {
                 mmajmkaArray[n4].kAmAJAK(string3);
-                mmajmkaArray[n4].KAMajAK(kaaakmk.kKaMaJA(byArray, n3 + 24));
-                mmajmkaArray[n4].KaMajAK(kaaakmk.kKaMaJA(byArray, n3 + 25));
+                mmajmkaArray[n4].KAMajAK(ByteReaders.kKaMaJA(byArray, n3 + 24));
+                mmajmkaArray[n4].KaMajAK(ByteReaders.kKaMaJA(byArray, n3 + 25));
                 if (n16 > 2) {
                     if (n > n2) {
                         n = n2;
@@ -249,16 +249,16 @@ public class ModuleLoader {
         String string = new String(byArray, 0, 0, 17);
         String string2 = new String(byArray, 0, 17, 20);
         String string3 = new String(byArray, 0, 38, 20);
-        int n11 = kaaakmk.KkAmAja(byArray, 58);
-        int n12 = kaaakmk.kKamAja(byArray, 60);
-        int n13 = kaaakmk.KkAmAja(byArray, 64);
-        int n14 = kaaakmk.KkAmAja(byArray, 66);
-        int n15 = kaaakmk.KkAmAja(byArray, 68);
-        int n16 = kaaakmk.KkAmAja(byArray, 70);
-        int n17 = kaaakmk.KkAmAja(byArray, 72);
-        int n18 = kaaakmk.KkAmAja(byArray, 74);
-        int n19 = kaaakmk.KkAmAja(byArray, 76);
-        int n20 = kaaakmk.KkAmAja(byArray, 78);
+        int n11 = ByteReaders.KkAmAja(byArray, 58);
+        int n12 = ByteReaders.kKamAja(byArray, 60);
+        int n13 = ByteReaders.KkAmAja(byArray, 64);
+        int n14 = ByteReaders.KkAmAja(byArray, 66);
+        int n15 = ByteReaders.KkAmAja(byArray, 68);
+        int n16 = ByteReaders.KkAmAja(byArray, 70);
+        int n17 = ByteReaders.KkAmAja(byArray, 72);
+        int n18 = ByteReaders.KkAmAja(byArray, 74);
+        int n19 = ByteReaders.KkAmAja(byArray, 76);
+        int n20 = ByteReaders.KkAmAja(byArray, 78);
         if (!string.equals("Extended Module: ") || n11 < 260) {
             if (KaMajaK > 1) {
                 System.out.println("ERROR LOADING XM: Invalid module");
@@ -268,7 +268,7 @@ public class ModuleLoader {
         ModuleSong maajmmk2 = new ModuleSong();
         maajmmk2.jAKkAMa = n19;
         maajmmk2.JAKkAMa = n20;
-        kmajmmk kmajmmk2 = new kmajmmk();
+        ModuleSequencer kmajmmk2 = new ModuleSequencer();
         kmajmmk2.KkAMaJa(n14);
         if (KaMajaK > 1) {
             System.out.println("initializing song.");
@@ -277,7 +277,7 @@ public class ModuleLoader {
         int n22 = 0;
         int n23 = 0;
         while (n23 < n13) {
-            int n24 = kaaakmk.kKaMaJA(byArray, 80 + n23);
+            int n24 = ByteReaders.kKaMaJA(byArray, 80 + n23);
             if (n24 > n22) {
                 n22 = n24;
             }
@@ -287,8 +287,8 @@ public class ModuleLoader {
             n16 = n22 + 1;
         }
         kmajmmk2.KkaMaJa(byArray, 80, n13);
-        majamka[] majamkaArray = new majamka[n16];
-        majamka majamka2 = new majamka(64, n15);
+        ModulePattern[] majamkaArray = new ModulePattern[n16];
+        ModulePattern majamka2 = new ModulePattern(64, n15);
         int n25 = 0;
         int n26 = n12 + 60;
         if (KaMajaK > 1) {
@@ -338,11 +338,11 @@ public class ModuleLoader {
         int n28 = 0;
         while (n28 < n16) {
             if (n28 < n21) {
-                int n29 = kaaakmk.kKamAja(byArray, n26);
-                kaaakmk.kKaMaJA(byArray, n26 + 4);
-                int n30 = kaaakmk.KkAmAja(byArray, n26 + 5);
-                n10 = kaaakmk.KkAmAja(byArray, n26 + 7);
-                majamkaArray[n28] = new majamka(n30, n15);
+                int n29 = ByteReaders.kKamAja(byArray, n26);
+                ByteReaders.kKaMaJA(byArray, n26 + 4);
+                int n30 = ByteReaders.KkAmAja(byArray, n26 + 5);
+                n10 = ByteReaders.KkAmAja(byArray, n26 + 7);
+                majamkaArray[n28] = new ModulePattern(n30, n15);
                 n9 = n26 + n29;
                 n8 = 0;
                 while (n8 < n30) {
@@ -385,11 +385,11 @@ public class ModuleLoader {
             }
             ++n28;
         }
-        mmjakmk[] mmjakmkArray = new mmjakmk[n27];
-        mmajmka[] mmajmkaArray = new mmajmka[n17 * 20];
+        ModuleInstrument[] mmjakmkArray = new ModuleInstrument[n27];
+        ModuleSample[] mmajmkaArray = new ModuleSample[n17 * 20];
         n10 = 0;
         while (n10 < n17 * 20) {
-            mmajmkaArray[n10] = new mmajmka();
+            mmajmkaArray[n10] = new ModuleSample();
             ++n10;
         }
         n9 = 0;
@@ -416,12 +416,12 @@ public class ModuleLoader {
             int n42;
             n4 = n25;
             if (n5 < n27) {
-                mmjakmkArray[n5] = new mmjakmk();
-                mmjakmk mmjakmk2 = mmjakmkArray[n5];
-                n7 = kaaakmk.kKamAja(byArray, n26);
+                mmjakmkArray[n5] = new ModuleInstrument();
+                ModuleInstrument mmjakmk2 = mmjakmkArray[n5];
+                n7 = ByteReaders.kKamAja(byArray, n26);
                 String string4 = new String(byArray, 0, n26 + 4, 22);
-                kaaakmk.kKaMaJA(byArray, n26 + 26);
-                n8 = kaaakmk.KkAmAja(byArray, n26 + 27);
+                ByteReaders.kKaMaJA(byArray, n26 + 26);
+                n8 = ByteReaders.KkAmAja(byArray, n26 + 27);
                 if (KaMajaK > 1) {
                     System.out.println("samplename=" + string4);
                 }
@@ -448,12 +448,12 @@ public class ModuleLoader {
                     Point[] pointArray = new Point[n40];
                     n38 = 0;
                     while (n38 < n40) {
-                        n37 = kaaakmk.KkAmAja(byArray, n26 + 100 + n38 * 4);
-                        n36 = kaaakmk.KkAmAja(byArray, n26 + 100 + n38 * 4 + 2);
+                        n37 = ByteReaders.KkAmAja(byArray, n26 + 100 + n38 * 4);
+                        n36 = ByteReaders.KkAmAja(byArray, n26 + 100 + n38 * 4 + 2);
                         pointArray[n38] = new Point(n37, n36);
                         ++n38;
                     }
-                    mmjakmk2.akkamAJ = new kajamma(pointArray, n39, (int)by2, (int)by);
+                    mmjakmk2.akkamAJ = new Envelope(pointArray, n39, (int)by2, (int)by);
                     mmjakmk2.akkamAJ.majAKKa = n42 != 0;
                     mmjakmk2.akkamAJ.MAjAKKa = bl;
                     mmjakmk2.akkamAJ.mAjAKKa = n41 != 0;
@@ -477,21 +477,21 @@ public class ModuleLoader {
                     pointArray = new Point[n37];
                     n33 = 0;
                     while (n33 < n37) {
-                        n32 = kaaakmk.KkAmAja(byArray, n26 + 148 + n33 * 4);
-                        n31 = kaaakmk.KkAmAja(byArray, n26 + 148 + n33 * 4 + 2);
+                        n32 = ByteReaders.KkAmAja(byArray, n26 + 148 + n33 * 4);
+                        n31 = ByteReaders.KkAmAja(byArray, n26 + 148 + n33 * 4 + 2);
                         pointArray[n33] = new Point(n32, n31);
                         ++n33;
                     }
-                    mmjakmk2.AKkamAJ = new kajamma(pointArray, n36, n35, n34);
+                    mmjakmk2.AKkamAJ = new Envelope(pointArray, n36, n35, n34);
                     mmjakmk2.AKkamAJ.majAKKa = n42 != 0;
                     mmjakmk2.AKkamAJ.MAjAKKa = bl;
                     mmjakmk2.AKkamAJ.mAjAKKa = n41 != 0;
-                    n32 = kaaakmk.KkAmAja(byArray, n26 + 210);
+                    n32 = ByteReaders.KkAmAja(byArray, n26 + 210);
                     mmjakmk2.akkamAJ.amAjakK(n32);
-                    n31 = kaaakmk.kKaMaJA(byArray, n26 + 206);
-                    int n43 = kaaakmk.kKaMaJA(byArray, n26 + 207);
-                    int n44 = kaaakmk.kKaMaJA(byArray, n26 + 208);
-                    int n45 = kaaakmk.kKaMaJA(byArray, n26 + 209);
+                    n31 = ByteReaders.kKaMaJA(byArray, n26 + 206);
+                    int n43 = ByteReaders.kKaMaJA(byArray, n26 + 207);
+                    int n44 = ByteReaders.kKaMaJA(byArray, n26 + 208);
+                    int n45 = ByteReaders.kKaMaJA(byArray, n26 + 209);
                     mmjakmk2.AKKAmAJ = n31;
                     mmjakmk2.akKAmAJ = n43;
                     mmjakmk2.AkKAmAJ = (n44 & 0xF) << 4;
@@ -510,10 +510,10 @@ public class ModuleLoader {
                             System.out.println("typ=" + n31);
                         }
                     }
-                    n = kaaakmk.kKamAja(byArray, n26);
+                    n = ByteReaders.kKamAja(byArray, n26);
                     int n46 = 0;
                     while (n46 < 96) {
-                        int n47 = kaaakmk.kKaMaJA(byArray, n26 + 4 + n46);
+                        int n47 = ByteReaders.kKaMaJA(byArray, n26 + 4 + n46);
                         mmjakmk2.AkkamAJ[n46] = mmajmkaArray[n47 + n4];
                         if (n47 >= n9) {
                             n9 = n47 + 1;
@@ -533,11 +533,11 @@ public class ModuleLoader {
             n42 = 0;
             while (n42 < n8) {
                 String string5 = new String(byArray, 0, n26 + 18, 22);
-                n41 = kaaakmk.kKamAja(byArray, n26);
+                n41 = ByteReaders.kKamAja(byArray, n26);
                 mmajmkaArray[n25].kAmAJAK(string5);
-                by3 = (byte)(kaaakmk.kKaMaJA(byArray, n26 + 14) & 3);
-                n40 = kaaakmk.kKamAja(byArray, n26 + 4);
-                n39 = kaaakmk.kKamAja(byArray, n26 + 8);
+                by3 = (byte)(ByteReaders.kKaMaJA(byArray, n26 + 14) & 3);
+                n40 = ByteReaders.kKamAja(byArray, n26 + 4);
+                n39 = ByteReaders.kKamAja(byArray, n26 + 8);
                 by2 = byArray[n26 + 16];
                 by = byArray[n26 + 12];
                 byte by4 = byArray[n26 + 13];
@@ -551,13 +551,13 @@ public class ModuleLoader {
                 n34 = n35 = n3 + n2;
                 n33 = n41;
                 n32 = n35;
-                if ((kaaakmk.kKaMaJA(byArray, n26 + 14) & 0x10) != 0) {
+                if ((ByteReaders.kKaMaJA(byArray, n26 + 14) & 0x10) != 0) {
                     n33 /= 2;
                     n40 /= 2;
                     n39 /= 2;
                     n31 = 0;
                     while (n31 < n41 / 2) {
-                        byArray[n34] = (byte)((n36 += kaaakmk.KKAmAja(byArray, n35)) >>> 8);
+                        byArray[n34] = (byte)((n36 += ByteReaders.KKAmAja(byArray, n35)) >>> 8);
                         n35 += 2;
                         ++n34;
                         ++n31;

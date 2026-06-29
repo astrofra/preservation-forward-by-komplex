@@ -13,8 +13,8 @@ import java.util.zip.GZIPInputStream;
 public class AseSceneLoader
 extends SceneRenderer {
     SceneRenderer aMajAKK;
-    public kajakmk AmAJAKK;
-    public kajakmk amAJAKK;
+    public SplineTrack AmAJAKK;
+    public SplineTrack amAJAKK;
     Hashtable AMAJAKK;
     Hashtable aMAJAKK;
     Camera AmaJAKK = new Camera();
@@ -32,7 +32,7 @@ extends SceneRenderer {
         this.AmAJAKK.KKAmAJA(f * 1000.0f);
         this.amAJAKK.KKAmAJA(f * 1000.0f);
         float[] fArray = this.AmAJAKK.akkAmAj;
-        maaakmk[] maaakmkArray = this.amAJAKK.aKkAmAj;
+        Quaternionf[] maaakmkArray = this.amAJAKK.aKkAmAj;
         int n = fArray.length / 3 - 2;
         if (kaajmmk2 != null) {
             kaajmmk2.JAKkaMa.MaJaKka(fArray[0], fArray[1], fArray[2]);
@@ -447,20 +447,20 @@ extends SceneRenderer {
             if (((Vector)object).size() <= ((Vector)object2).size()) continue;
             object2 = object;
         }
-        kmjjmma[] kmjjmmaArray2;
-        kmjjmma[] kmjjmmaArray;
+        TrackKeyframe[] kmjjmmaArray2;
+        TrackKeyframe[] kmjjmmaArray;
         n = ((Vector)object2).size();
         int n2 = 2 + this.MaJAKkA.size();
-        kmjjmmaArray2 = new kmjjmma[n];
-        kmjjmmaArray = new kmjjmma[n];
+        kmjjmmaArray2 = new TrackKeyframe[n];
+        kmjjmmaArray = new TrackKeyframe[n];
         int n3 = 0;
         while (n3 < n) {
             float[] fArray = (float[])((Vector)object2).elementAt(n3);
-            kmjjmmaArray2[n3] = new kmjjmma(fArray[0], 0.0f, 0.0f, 0.0f, new float[3 * n2]);
-            kmjjmmaArray[n3] = new kmjjmma(fArray[0], 0.0f, 0.0f, 0.0f, new maaakmk[n2]);
+            kmjjmmaArray2[n3] = new TrackKeyframe(fArray[0], 0.0f, 0.0f, 0.0f, new float[3 * n2]);
+            kmjjmmaArray[n3] = new TrackKeyframe(fArray[0], 0.0f, 0.0f, 0.0f, new Quaternionf[n2]);
             int n4 = 0;
             while (n4 < n2) {
-                kmjjmmaArray[n3].maJAkkA[n4] = new maaakmk();
+                kmjjmmaArray[n3].maJAkkA[n4] = new Quaternionf();
                 ++n4;
             }
             ++n3;
@@ -471,7 +471,7 @@ extends SceneRenderer {
             Vector vector;
             Vector vector2;
             float[] fArray = new float[3];
-            maaakmk maaakmk2 = new maaakmk();
+            Quaternionf maaakmk2 = new Quaternionf();
             switch (n5) {
                 case 0: {
                     vector2 = (Vector)this.AMAJAKK.get(this.AmaJAKK);
@@ -520,22 +520,22 @@ extends SceneRenderer {
             n8 = 0;
             while (n8 < n9) {
                 float[] fArray2 = (float[])vector.elementAt(n8);
-                maaakmk maaakmk3 = new maaakmk();
+                Quaternionf maaakmk3 = new Quaternionf();
                 maaakmk3.deltaSeconds(new Vec3f(fArray2[1], fArray2[2], fArray2[3]), fArray2[4]);
                 if (object4 != null) {
-                    maaakmk3.renderFrame((maaakmk)object4);
+                    maaakmk3.renderFrame((Quaternionf)object4);
                 }
-                object4 = new maaakmk(maaakmk3);
+                object4 = new Quaternionf(maaakmk3);
                 Vec3f mmajmma2 = new Vec3f();
                 float f = maaakmk3.kkaMaJA(mmajmma2);
-                kmjjmmaArray[n8].maJAkkA[n5] = new maaakmk(mmajmma2.maJakKA, mmajmma2.MAJakKA, mmajmma2.mAJakKA, f);
+                kmjjmmaArray[n8].maJAkkA[n5] = new Quaternionf(mmajmma2.maJakKA, mmajmma2.MAJakKA, mmajmma2.mAJakKA, f);
                 maaakmk2 = kmjjmmaArray[n8].maJAkkA[n5];
                 ++n8;
             }
             ++n5;
         }
-        this.AmAJAKK = new kajakmk(kmjjmmaArray2, 2, 0);
-        this.amAJAKK = new kajakmk(kmjjmmaArray, 2, 2);
+        this.AmAJAKK = new SplineTrack(kmjjmmaArray2, 2, 0);
+        this.amAJAKK = new SplineTrack(kmjjmmaArray, 2, 2);
     }
 
     public static float kamajaK(String string) {

@@ -3,7 +3,7 @@
  */
 import java.awt.Point;
 
-class kajamma {
+class Envelope {
     byte[] MaJAKKa;
     int maJAKKa;
     int MAJAKKa;
@@ -13,14 +13,14 @@ class kajamma {
     public boolean MAjAKKa = false;
     public boolean mAjAKKa = false;
 
-    kajamma(byte[] byArray, int n, int n2, int n3) {
+    Envelope(byte[] byArray, int n, int n2, int n3) {
         this.MaJAKKa = byArray;
         this.maJAKKa = n;
         this.MAJAKKa = n2;
         this.mAJAKKa = n3;
     }
 
-    kajamma(Point[] pointArray, int n, int n2, int n3) {
+    Envelope(Point[] pointArray, int n, int n2, int n3) {
         if (n < pointArray.length) {
             this.maJAKKa = pointArray[n].x;
         }

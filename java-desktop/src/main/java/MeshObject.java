@@ -129,7 +129,7 @@ public class MeshObject {
             mmajmma2.majaKKA();
             double d = mmajmma2.mAJAkKA();
             double d2 = Math.min(Math.abs(1.0 / Math.cos(d)), Math.abs(1.0 / Math.cos(1.5707963267948966 - d)));
-            kmajmma kmajmma2 = new kmajmma(mmajmma2.maJakKA, mmajmma2.MAJakKA, 0.0);
+            Vec3d kmajmma2 = new Vec3d(mmajmma2.maJakKA, mmajmma2.MAJakKA, 0.0);
             kmajmma2.MajAKka();
             kmajmma2.maJakka(Math.acos(Math.abs(mmajmma2.mAJakKA)) / 1.5707963267948966);
             kmajmma2.maJakka(d2);
@@ -142,7 +142,7 @@ public class MeshObject {
         int n2 = 0;
         while (n2 < this.JAkkaMA.length) {
             object = this.JAkkaMA[n2];
-            ((kmjamma)object).maJaKKa = ((kmjamma)object).MajaKKa < 0.0f ? mmaamma2 : mmaamma3;
+            ((RenderPrimitive)object).maJaKKa = ((RenderPrimitive)object).MajaKKa < 0.0f ? mmaamma2 : mmaamma3;
             ++n2;
         }
     }
@@ -194,8 +194,8 @@ public class MeshObject {
         int n = 0;
         while (n < this.JAkkaMA.length) {
             object = this.JAkkaMA[n];
-            ((kmjamma)object).aMaJAkK();
-            ((kmjamma)object).AMaJAkK();
+            ((RenderPrimitive)object).aMaJAkK();
+            ((RenderPrimitive)object).AMaJAkK();
             ++n;
         }
         if (this.JAkKaMA) {
@@ -299,7 +299,7 @@ public class MeshObject {
 
     public void kkaMAJa(Camera kaajmmk2, int n) {
         this.jaKkAma = kaajmmk2;
-        this.jAKkAma = kmjamma.MAjaKKa;
+        this.jAKkAma = RenderPrimitive.MAjaKKa;
         this.kKAmAJa();
         if (this.jAkKAma != 0) {
             this.KKAmaja();
@@ -582,8 +582,8 @@ public class MeshObject {
     }
 
     public void Kkamaja(Triangle[] kmaammaArray, int n) {
-        Triangle[] kmaammaArray2 = kmjamma.majaKKa;
-        int n2 = kmjamma.MAjaKKa;
+        Triangle[] kmaammaArray2 = RenderPrimitive.majaKKa;
+        int n2 = RenderPrimitive.MAjaKKa;
         Vec3f mmajmma2 = this.kKAMaja();
         float f = mmajmma2.maJakKA;
         float f2 = mmajmma2.MAJakKA;
@@ -595,7 +595,7 @@ public class MeshObject {
             kmaamma2.majAkKa = -(kmaamma2.mAjakKa.init + kmaamma2.MaJAkKa.init + kmaamma2.maJAkKa.init);
             kmaammaArray2[n2++] = kmaamma2;
         }
-        kmjamma.MAjaKKa = n2;
+        RenderPrimitive.MAjaKKa = n2;
     }
 
     public void KkaMAJa() {
@@ -603,8 +603,8 @@ public class MeshObject {
     }
 
     public void KkAmaJa(Triangle[] kmaammaArray, int n) {
-        Triangle[] kmaammaArray2 = kmjamma.majaKKa;
-        int n2 = kmjamma.MAjaKKa;
+        Triangle[] kmaammaArray2 = RenderPrimitive.majaKKa;
+        int n2 = RenderPrimitive.MAjaKKa;
         Vec3f mmajmma2 = this.kKAMaja();
         float f = mmajmma2.maJakKA;
         float f2 = mmajmma2.MAJakKA;
@@ -623,14 +623,14 @@ public class MeshObject {
             kmaamma2.majAkKa = -(kmaamma2.mAjakKa.init + kmaamma2.MaJAkKa.init + kmaamma2.maJAkKa.init);
             this.KKamAJa(kmaamma2);
         }
-        kmjamma.MAjaKKa = n2;
+        RenderPrimitive.MAjaKKa = n2;
     }
 
     public void KKAmAJa() {
         Triangle[] kmaammaArray = this.JAkkaMA;
         int n = kmaammaArray.length;
-        Triangle[] kmaammaArray2 = kmjamma.majaKKa;
-        int n2 = kmjamma.MAjaKKa;
+        Triangle[] kmaammaArray2 = RenderPrimitive.majaKKa;
+        int n2 = RenderPrimitive.MAjaKKa;
         int n3 = 0;
         while (n3 < n) {
             Triangle kmaamma2 = kmaammaArray[n3++];
@@ -644,14 +644,14 @@ public class MeshObject {
             kmaamma2.majAkKa = -(kmaamma2.mAjakKa.init + kmaamma2.MaJAkKa.init + kmaamma2.maJAkKa.init);
             kmaammaArray2[n2++] = kmaamma2;
         }
-        kmjamma.MAjaKKa = n2;
+        RenderPrimitive.MAjaKKa = n2;
     }
 
     public void kKamaja() {
         Triangle[] kmaammaArray = this.JAkkaMA;
         int n = kmaammaArray.length;
-        Triangle[] kmaammaArray2 = kmjamma.majaKKa;
-        int n2 = kmjamma.MAjaKKa;
+        Triangle[] kmaammaArray2 = RenderPrimitive.majaKKa;
+        int n2 = RenderPrimitive.MAjaKKa;
         float f = this.JAKKAma;
         int n3 = 0;
         while (n3 < n) {
@@ -667,7 +667,7 @@ public class MeshObject {
             kmaamma2.majAkKa = -(kmaamma2.mAjakKa.init + kmaamma2.MaJAkKa.init + kmaamma2.maJAkKa.init);
             kmaammaArray2[n2++] = kmaamma2;
         }
-        kmjamma.MAjaKKa = n2;
+        RenderPrimitive.MAjaKKa = n2;
     }
 
     public final void KKAMaja() {
@@ -769,7 +769,7 @@ public class MeshObject {
         MeshObject.Jakkama[MeshObject.jAKkama++] = mmjakka6;
         Triangle kmaamma3 = new Triangle(kmaamma2, mmjakka2, mmjakka5, mmjakka6, kmajkmk2, kmajkmk5, kmajkmk6);
         kmaamma3.majAkKa = kmaamma2.majAkKa;
-        kmjamma.majaKKa[kmjamma.MAjaKKa++] = kmaamma3;
+        RenderPrimitive.majaKKa[RenderPrimitive.MAjaKKa++] = kmaamma3;
     }
 
     void KkamaJa(Triangle kmaamma2, Vertex mmjakka2, Vertex mmjakka3, Vertex mmjakka4, UvCoord kmajkmk2, UvCoord kmajkmk3, UvCoord kmajkmk4) {
@@ -789,10 +789,10 @@ public class MeshObject {
         MeshObject.Jakkama[MeshObject.jAKkama++] = mmjakka6;
         Triangle kmaamma3 = new Triangle(kmaamma2, mmjakka5, mmjakka2, mmjakka3, kmajkmk5, kmajkmk2, kmajkmk3);
         kmaamma3.majAkKa = kmaamma2.majAkKa;
-        kmjamma.majaKKa[kmjamma.MAjaKKa++] = kmaamma3;
+        RenderPrimitive.majaKKa[RenderPrimitive.MAjaKKa++] = kmaamma3;
         kmaamma3 = new Triangle(kmaamma2, mmjakka5, mmjakka6, mmjakka3, kmajkmk5, kmajkmk6, kmajkmk3);
         kmaamma3.majAkKa = kmaamma2.majAkKa;
-        kmjamma.majaKKa[kmjamma.MAjaKKa++] = kmaamma3;
+        RenderPrimitive.majaKKa[RenderPrimitive.MAjaKKa++] = kmaamma3;
     }
 
     public void kKaMAJa(Vertex[] mmjakkaArray, int n) {

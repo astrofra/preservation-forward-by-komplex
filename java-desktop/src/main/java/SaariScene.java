@@ -6,7 +6,7 @@ import java.awt.Color;
 public class SaariScene
 extends Scene {
     Camera KAmaJak;
-    kmjakmk kAmaJak;
+    SaariTerrainMesh kAmaJak;
     MeshObject KaMAJak;
     AseSceneLoader kaMAJak;
     RgbSurface KAMAJak;
@@ -63,7 +63,7 @@ extends Scene {
             ++n;
         }
         this.kaMAJak.maJAKkA(this.kAmaJak);
-        kaaakma kaaakma2 = new kaaakma(this.kAmAJak, this.kAmAJak.amAjAkK("images/verax/tai1sp.jpg"), false);
+        BackdropMesh kaaakma2 = new BackdropMesh(this.kAmAJak, this.kAmAJak.amAjAkK("images/verax/tai1sp.jpg"), false);
         kaajkka2.maJAKkA(kaaakma2);
         kaaakma2.jaKKaMA.MaJaKka(0.0f, 0.0f, -1000.0f);
         ForwardDemoApp.kkamAJA.kAMajak();
@@ -157,7 +157,7 @@ extends Scene {
         this.KaMAJak.JAKKaMA.MajaKka(0.9);
         this.KaMAJak.JAkKaMA = true;
         this.KaMAJak.jAkKAma = 0;
-        this.showScene = (IndexedSurface)mmaakma.majaKkA(this.kAmAJak.amAjAkK("images/scape/envi_klu.gif"));
+        this.showScene = (IndexedSurface)ImageSupport.majaKkA(this.kAmAJak.amAjAkK("images/scape/envi_klu.gif"));
         this.KamAJak = SaariScene.kaMaJak(this.showScene, 255, 255, 255);
         this.kamAJak = SaariScene.kaMaJak(this.showScene, 0, 0, 0);
         this.KaMAJak.jAkKaMA = true;
@@ -192,12 +192,12 @@ extends Scene {
         int[] nArray = new int[256];
         int n7 = 0;
         while (n7 < 128) {
-            nArray[n7] = mmaakma.maJaKkA(0, 0, 0, n, n2, n3, 1.0f - (float)n7 / 128.0f);
+            nArray[n7] = ImageSupport.maJaKkA(0, 0, 0, n, n2, n3, 1.0f - (float)n7 / 128.0f);
             ++n7;
         }
         int n8 = 0;
         while (n8 < 128) {
-            nArray[n8 + 128] = mmaakma.maJaKkA(n, n2, n3, n4, n5, n6, 1.0f - (float)n8 / 128.0f);
+            nArray[n8 + 128] = ImageSupport.maJaKkA(n, n2, n3, n4, n5, n6, 1.0f - (float)n8 / 128.0f);
             ++n8;
         }
         int n9 = 0;
@@ -251,23 +251,23 @@ extends Scene {
         return sArray;
     }
 
-    public static kmjakmk KAmAjAK(Camera kaajmmk2, DesktopAppletBase mmjamma2) {
+    public static SaariTerrainMesh KAmAjAK(Camera kaajmmk2, DesktopAppletBase mmjamma2) {
         RgbSurface mmaamma2;
         int n;
         int n2;
         RgbSurface mmaamma3;
         String string = "images/scape/saarih15.gif";
         String string2 = "images/scape/saari.gif";
-        IndexedSurface kmajkka2 = (IndexedSurface)mmaakma.majaKkA(mmjamma2.amAjAkK(string));
+        IndexedSurface kmajkka2 = (IndexedSurface)ImageSupport.majaKkA(mmjamma2.amAjAkK(string));
         int n3 = kmajkka2.amAjakK;
         int n4 = kmajkka2.AMAjakK;
         short[][] sArray = SaariScene.KAMaJak(kmajkka2, -16);
         kaajmmk2.JAKkaMa.MaJaKka(0.0f, 2.0f, 0.0f);
-        kmjakmk kmjakmk2 = new kmjakmk(sArray, 200.0f / (float)n3, 0.16f, kaajmmk2, true);
+        SaariTerrainMesh kmjakmk2 = new SaariTerrainMesh(sArray, 200.0f / (float)n3, 0.16f, kaajmmk2, true);
         kmjakmk2.AKkAmAJ = -n3 / 2;
         kmjakmk2.aKkAmAJ = -n4 / 2;
         kaajmmk2.JaKKaMa = kaajmmk2.jAkkaMa * 0.4f;
-        IndexedSurface kmajkka3 = (IndexedSurface)mmaakma.majaKkA(mmjamma2.amAjAkK(string2));
+        IndexedSurface kmajkka3 = (IndexedSurface)ImageSupport.majaKkA(mmjamma2.amAjAkK(string2));
         IndexedSurface kmajkka4 = new IndexedSurface(256, 256, 1, false);
         IndexedSurface kmajkka5 = new IndexedSurface(256, 256, 1, false);
         kmajkka4.aMAJakk(kmajkka3, 0, 0, 0, 0, 256, 256);
@@ -300,7 +300,7 @@ extends Scene {
                 n2 = kmajkka3.aMajakK[n9] & 0xFF;
                 n = kmajkka3.AmAJakK[n9] & 0xFF;
                 int n10 = kmajkka3.aMajakK[n9] & 0xFF;
-                int n11 = mmaakma.MAjaKkA(n2, n, n10, 0.0f, 0.0f, 0.0f, f);
+                int n11 = ImageSupport.MAjaKkA(n2, n, n10, 0.0f, 0.0f, 0.0f, f);
                 mmaamma2.MAJakKa[n8 * 256 + n9] = RgbSurface.AMajAKK(n11);
                 ++n9;
             }

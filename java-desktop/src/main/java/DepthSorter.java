@@ -2,25 +2,25 @@
  * Decompiled with CFR 0.152.
  */
 public final class DepthSorter {
-    public maaamma[] mAjAKkA;
+    public SortableItem[] mAjAKkA;
 
     public DepthSorter(int n) {
         this(n, false);
     }
 
     public DepthSorter(int n, boolean bl) {
-        this.mAjAKkA = new maaamma[n];
+        this.mAjAKkA = new SortableItem[n];
         if (bl) {
             int n2 = 0;
             while (n2 < n) {
-                this.mAjAKkA[n2] = new majamma();
+                this.mAjAKkA[n2] = new ObjectSortEntry();
                 this.mAjAKkA[n2].majAkKa = 100.0f;
                 ++n2;
             }
         }
     }
 
-    public DepthSorter(maaamma[] maaammaArray) {
+    public DepthSorter(SortableItem[] maaammaArray) {
         this.mAjAKkA = maaammaArray;
     }
 
@@ -32,8 +32,8 @@ public final class DepthSorter {
     }
 
     final void MAjAKkA(int n, int n2) {
-        maaamma maaamma2;
-        maaamma[] maaammaArray = this.mAjAKkA;
+        SortableItem maaamma2;
+        SortableItem[] maaammaArray = this.mAjAKkA;
         int n3 = n2 - n;
         if (n3 > 4) {
             int n4 = this.majAKkA(n, n2);
@@ -44,7 +44,7 @@ public final class DepthSorter {
             }
         } else if (n3 == 1) {
             if (maaammaArray[n].majAkKa > maaammaArray[n2].majAkKa) {
-                maaamma maaamma3 = maaammaArray[n];
+                SortableItem maaamma3 = maaammaArray[n];
                 maaammaArray[n] = maaammaArray[n2];
                 maaammaArray[n2] = maaamma3;
             }
@@ -76,7 +76,7 @@ public final class DepthSorter {
     }
 
     final void mAjAKkA(int n, int n2) {
-        maaamma maaamma2 = this.mAjAKkA[n];
+        SortableItem maaamma2 = this.mAjAKkA[n];
         this.mAjAKkA[n] = this.mAjAKkA[n2];
         this.mAjAKkA[n2] = maaamma2;
     }

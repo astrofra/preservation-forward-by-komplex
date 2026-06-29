@@ -4,7 +4,7 @@
 public class MakuScene
 extends Scene {
     Camera aMaJaKk;
-    kmjakmk KaMaJaK;
+    SaariTerrainMesh KaMaJaK;
     AseSceneLoader kaMaJaK;
     IndexedSurface KAMaJaK;
     RgbSurface kAMaJaK;
@@ -129,19 +129,19 @@ extends Scene {
         return sArray;
     }
 
-    kmjakmk KAmaJAK(Camera kaajmmk2, DesktopAppletBase mmjamma2) {
+    SaariTerrainMesh KAmaJAK(Camera kaajmmk2, DesktopAppletBase mmjamma2) {
         RgbSurface mmaamma2;
         kaajmmk2.JAKkaMa.MaJaKka(0.0f, 0.0f, 500.0f);
         String string = "images/scape/loopk40.gif";
         String string2 = "images/scape/loopa2.gif";
-        IndexedSurface kmajkka2 = (IndexedSurface)mmaakma.majaKkA(mmjamma2.amAjAkK(string));
+        IndexedSurface kmajkka2 = (IndexedSurface)ImageSupport.majaKkA(mmjamma2.amAjAkK(string));
         ForwardDemoApp.kkamAJA.kAMajak();
         int n = kmajkka2.amAjakK;
         int n2 = kmajkka2.AMAjakK;
         short[][] sArray = MakuScene.kAmaJAK(kmajkka2, 0);
-        kmjakmk kmjakmk2 = new kmjakmk(sArray, 200.0f / (float)n, 1.94f, kaajmmk2, false);
+        SaariTerrainMesh kmjakmk2 = new SaariTerrainMesh(sArray, 200.0f / (float)n, 1.94f, kaajmmk2, false);
         kmjakmk2.akkamaj = true;
-        IndexedSurface kmajkka3 = (IndexedSurface)mmaakma.majaKkA(mmjamma2.amAjAkK(string2));
+        IndexedSurface kmajkka3 = (IndexedSurface)ImageSupport.majaKkA(mmjamma2.amAjAkK(string2));
         ForwardDemoApp.kkamAJA.kAMajak();
         kmjakmk2.aKkaMaj = kmajkka3;
         kmjakmk2.AkKAMaj = kmajkka3;
@@ -153,12 +153,12 @@ extends Scene {
         int[] nArray = new int[256];
         int n3 = 0;
         while (n3 < 128) {
-            nArray[n3] = mmaakma.maJaKkA(0, 0, 0, 80, 140, 200, 1.0f - (float)n3 / 128.0f);
+            nArray[n3] = ImageSupport.maJaKkA(0, 0, 0, 80, 140, 200, 1.0f - (float)n3 / 128.0f);
             ++n3;
         }
         int n4 = 0;
         while (n4 < 128) {
-            nArray[n4 + 128] = mmaakma.maJaKkA(80, 140, 200, 255, 255, 255, 1.0f - (float)n4 / 128.0f);
+            nArray[n4 + 128] = ImageSupport.maJaKkA(80, 140, 200, 255, 255, 255, 1.0f - (float)n4 / 128.0f);
             ++n4;
         }
         int n5 = 0;

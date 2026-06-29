@@ -17,7 +17,7 @@ extends Panel {
     private final AppletParameterStub KAjAkka = new AppletParameterStub();
 
     public DesktopAppletBase() {
-        mmaakma.MAjaKkA = this;
+        ImageSupport.MAjaKkA = this;
     }
 
     public boolean mAjAkKa() {

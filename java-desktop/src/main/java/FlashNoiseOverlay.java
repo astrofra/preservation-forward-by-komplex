@@ -1,7 +1,7 @@
 /*
  * Decompiled with CFR 0.152.
  */
-public class kmjjmmk {
+public class FlashNoiseOverlay {
     public int[] JAkkAMA = new int[1000];
     public int[] jAkkAMA = new int[ForwardDemoApp.kAmajAk];
 
@@ -34,7 +34,7 @@ public class kmjjmmk {
         }
     }
 
-    public kmjjmmk(int n, int n2, int n3) {
+    public FlashNoiseOverlay(int n, int n2, int n3) {
         int n4;
         int n5;
         int n6;

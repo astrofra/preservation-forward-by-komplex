@@ -1,6 +1,6 @@
 /*
  * Decompiled with CFR 0.152.
  */
-public class maaamma {
+public class SortableItem {
     public float majAkKa;
 }

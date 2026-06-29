@@ -1,7 +1,7 @@
 /*
  * Decompiled with CFR 0.152.
  */
-public class kmajmmk {
+public class ModuleSequencer {
     int[] jAkkama;
     int JaKKama;
     ModuleSong jaKKama;
@@ -40,7 +40,7 @@ public class kmajmmk {
     }
 
     public void kKAMaJa(int n) {
-        majamka majamka2 = this.jaKKama.JAkKama[this.jAkkama[this.jAKKama]];
+        ModulePattern majamka2 = this.jaKKama.JAkKama[this.jAkkama[this.jAKKama]];
         this.JakKama = n < 0 ? 0 : (n < majamka2.KamAJAk ? n : majamka2.KamAJAk - 1);
     }
 
@@ -60,7 +60,7 @@ public class kmajmmk {
     }
 
     public byte[] kkAMaJa() {
-        majamka majamka2 = this.jaKKama.JAkKama[this.jAkkama[this.jAKKama]];
+        ModulePattern majamka2 = this.jaKKama.JAkKama[this.jAkkama[this.jAKKama]];
         byte[] byArray = majamka2.kaMAJak(this.JakKama);
         ++this.JakKama;
         if (this.JakKama == majamka2.KamAJAk) {

@@ -107,7 +107,7 @@ extends MeshObject {
                 this.KkAmaJA[n++].AmajAkk = f3;
                 Triangle kmaamma2 = this.JAkkaMA[n3];
                 kmaamma2.majAkKa = -mmaakka2.init * 3.0f;
-                kmjamma.majaKKa[kmjamma.MAjaKKa++] = kmaamma2;
+                RenderPrimitive.majaKKa[RenderPrimitive.MAjaKKa++] = kmaamma2;
             } else {
                 ++n;
             }

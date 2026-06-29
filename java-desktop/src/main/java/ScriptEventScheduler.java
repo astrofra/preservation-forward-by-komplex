@@ -1,27 +1,27 @@
 /*
  * Decompiled with CFR 0.152.
  */
-public class kajjmmk
+public class ScriptEventScheduler
 extends Thread {
     int jAkKAMA;
-    kmaakmk[] JaKkaMA;
-    kajakma jaKkaMA;
+    ScheduledScriptEvent[] JaKkaMA;
+    ScriptEventListener jaKkaMA;
     int JAKkaMA;
     int jAKkaMA;
     long JakkaMA = -1L;
 
-    public kajjmmk(int n, kajakma kajakma2) {
+    public ScriptEventScheduler(int n, ScriptEventListener kajakma2) {
         super("Muhmu Event Pipe");
-        this.JaKkaMA = new kmaakmk[n];
+        this.JaKkaMA = new ScheduledScriptEvent[n];
         this.jaKkaMA = kajakma2;
     }
 
     public void KKaMAja(int n, String string) {
-        this.JaKkaMA[this.jAkKAMA++] = new kmaakmk(n, string);
+        this.JaKkaMA[this.jAkKAMA++] = new ScheduledScriptEvent(n, string);
     }
 
     public void kkaMAja(int n, long l) {
-        kmaakmk kmaakmk2;
+        ScheduledScriptEvent kmaakmk2;
         float f;
         while (true) {
             if (this.JAKkaMA >= this.jAkKAMA) {
@@ -56,7 +56,7 @@ extends Thread {
             this.jAKkaMA = 0;
             while (this.jAKkaMA < this.jAkKAMA) {
                 long l;
-                kmaakmk kmaakmk2 = this.JaKkaMA[this.jAKkaMA];
+                ScheduledScriptEvent kmaakmk2 = this.JaKkaMA[this.jAKkaMA];
                 if (kmaakmk2.JaKKamA == 0L) {
                     this.wait();
                 }

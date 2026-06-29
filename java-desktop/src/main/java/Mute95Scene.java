@@ -59,21 +59,21 @@ extends Scene {
 
     public void init(DesktopAppletBase mmjamma2) {
         ForwardDemoApp.KkaMAjA.amAjakk(0);
-        this.akkaMaJ = (RgbSurface)mmaakma.majaKkA(mmjamma2.amAjAkK("images/kosmos/sav1.jpg"));
-        this.AKkaMaJ = (RgbSurface)mmaakma.majaKkA(mmjamma2.amAjAkK("images/kosmos/sav2.jpg"));
+        this.akkaMaJ = (RgbSurface)ImageSupport.majaKkA(mmjamma2.amAjAkK("images/kosmos/sav1.jpg"));
+        this.AKkaMaJ = (RgbSurface)ImageSupport.majaKkA(mmjamma2.amAjAkK("images/kosmos/sav2.jpg"));
         ForwardDemoApp.kkamAJA.kAMajak();
-        this.aKkaMaJ = (RgbSurface)mmaakma.majaKkA(mmjamma2.amAjAkK("images/kosmos/jmag1.jpg"));
-        this.AkKAMaJ = (RgbSurface)mmaakma.majaKkA(mmjamma2.amAjAkK("images/kosmos/jmag2.jpg"));
+        this.aKkaMaJ = (RgbSurface)ImageSupport.majaKkA(mmjamma2.amAjAkK("images/kosmos/jmag1.jpg"));
+        this.AkKAMaJ = (RgbSurface)ImageSupport.majaKkA(mmjamma2.amAjAkK("images/kosmos/jmag2.jpg"));
         ForwardDemoApp.kkamAJA.kAMajak();
-        this.akKAMaJ = (RgbSurface)mmaakma.majaKkA(mmjamma2.amAjAkK("images/kosmos/jugi1.jpg"));
-        this.AKKAMaJ = (RgbSurface)mmaakma.majaKkA(mmjamma2.amAjAkK("images/kosmos/jugi2.jpg"));
+        this.akKAMaJ = (RgbSurface)ImageSupport.majaKkA(mmjamma2.amAjAkK("images/kosmos/jugi1.jpg"));
+        this.AKKAMaJ = (RgbSurface)ImageSupport.majaKkA(mmjamma2.amAjAkK("images/kosmos/jugi2.jpg"));
         ForwardDemoApp.kkamAJA.kAMajak();
-        this.aKKAMaJ = (RgbSurface)mmaakma.majaKkA(mmjamma2.amAjAkK("images/kosmos/car1.jpg"));
-        this.AkkAMaJ = (RgbSurface)mmaakma.majaKkA(mmjamma2.amAjAkK("images/kosmos/car2.jpg"));
+        this.aKKAMaJ = (RgbSurface)ImageSupport.majaKkA(mmjamma2.amAjAkK("images/kosmos/car1.jpg"));
+        this.AkkAMaJ = (RgbSurface)ImageSupport.majaKkA(mmjamma2.amAjAkK("images/kosmos/car2.jpg"));
         ForwardDemoApp.kkamAJA.kAMajak();
-        this.akkAMaJ = (RgbSurface)mmaakma.majaKkA(mmjamma2.amAjAkK("images/kosmos/anis1.jpg"));
-        this.AKkAMaJ = (RgbSurface)mmaakma.majaKkA(mmjamma2.amAjAkK("images/kosmos/anis2.jpg"));
-        IndexedSurface kmajkka2 = (IndexedSurface)mmaakma.majaKkA(mmjamma2.amAjAkK("images/kosmos/krad3.gif"));
+        this.akkAMaJ = (RgbSurface)ImageSupport.majaKkA(mmjamma2.amAjAkK("images/kosmos/anis1.jpg"));
+        this.AKkAMaJ = (RgbSurface)ImageSupport.majaKkA(mmjamma2.amAjAkK("images/kosmos/anis2.jpg"));
+        IndexedSurface kmajkka2 = (IndexedSurface)ImageSupport.majaKkA(mmjamma2.amAjAkK("images/kosmos/krad3.gif"));
         System.arraycopy(kmajkka2.aMajakK, 0, this.KKAMaJa, 0, 256);
         System.arraycopy(kmajkka2.AmAJakK, 0, this.kKAMaJa, 0, 256);
         System.arraycopy(kmajkka2.amAJakK, 0, this.KkaMaJa, 0, 256);

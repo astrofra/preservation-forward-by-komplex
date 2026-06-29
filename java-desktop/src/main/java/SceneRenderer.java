@@ -27,8 +27,8 @@ public class SceneRenderer {
     }
 
     public void MajAKkA(Camera kaajmmk2, SurfacePresenter mmajkmk2) {
-        kmjamma.majaKKa = this.maJAKkA;
-        kmjamma.MAjaKKa = 0;
+        RenderPrimitive.majaKKa = this.maJAKkA;
+        RenderPrimitive.MAjaKKa = 0;
         kaajmmk2.JAkKAMa = mmajkmk2.AKkamaJ;
         kaajmmk2.jAkKAMa = mmajkmk2.aKkamaJ;
         ViewFrustum kaajmka2 = new ViewFrustum();
@@ -50,26 +50,26 @@ public class SceneRenderer {
                 maajkka2.AmAjAKK *= -1.0f;
                 maajkka2.aMAjAKK *= -1.0f;
                 maajkka2.AMajAKK *= -1.0f;
-                int n2 = kmjamma.MAjaKKa;
+                int n2 = RenderPrimitive.MAjaKKa;
                 n = kaajmka2.KAmaJak(mmajmmk3);
                 if (n != -1) {
                     mmajmmk3.kkaMAJa(kaajmmk2, n);
                 }
                 int n3 = n2;
-                while (n3 < kmjamma.MAjaKKa) {
-                    kmjamma.majaKKa[n3].majAkKa *= -1.0f;
+                while (n3 < RenderPrimitive.MAjaKKa) {
+                    RenderPrimitive.majaKKa[n3].majAkKa *= -1.0f;
                     ++n3;
                 }
             }
         }
         if (MajAKkA) {
-            this.MAJAKkA.MaJakkA(kmjamma.MAjaKKa);
+            this.MAJAKkA.MaJakkA(RenderPrimitive.MAjaKKa);
         }
     }
 
     public void MAJAKkA(SurfacePresenter mmajkmk2) {
         if (MAjAKkA) {
-            mmajkmk2.kKAMAjA(kmjamma.majaKKa, kmjamma.MAjaKKa);
+            mmajkmk2.kKAMAjA(RenderPrimitive.majaKKa, RenderPrimitive.MAjaKKa);
         }
     }
 

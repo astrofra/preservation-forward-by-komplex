@@ -1,20 +1,20 @@
 /*
  * Decompiled with CFR 0.152.
  */
-public class mmjjkka
-extends mmjjkmk {
-    mmjakmk MAjAkKa;
-    mmjjmmk mAjAkKa = new mmjjmmk();
-    mmjjmmk AmAjAkK = new mmjjmmk();
+public class ModuleVoice
+extends ModuleChannel {
+    ModuleInstrument MAjAkKa;
+    EnvelopeCursor mAjAkKa = new EnvelopeCursor();
+    EnvelopeCursor AmAjAkK = new EnvelopeCursor();
     int amAjAkK;
     int AMAjAkK;
     int aMAjAkK;
     boolean AmajAkK = false;
 
-    mmjjkka() {
+    ModuleVoice() {
     }
 
-    public void amajaKK(mmjakmk mmjakmk2, int n) {
+    public void amajaKK(ModuleInstrument mmjakmk2, int n) {
         this.MAjAkKa = mmjakmk2;
         if (this.MAjAkKa == null) {
             this.mAjAkKa.KKAMAja(null);
@@ -26,7 +26,7 @@ extends mmjjkmk {
         this.AmAjAkK.KKAMAja(this.MAjAkKa.AKkamAJ);
         this.AMajaKK();
         int n2 = n < 0 ? 0 : (n > 95 ? 95 : n);
-        mmajmka mmajmka2 = this.MAjAkKa.AkkamAJ[n2];
+        ModuleSample mmajmka2 = this.MAjAkKa.AkkamAJ[n2];
         super.KAMAjAk(mmajmka2, n);
     }
 
@@ -78,7 +78,7 @@ extends mmjjkmk {
                 break;
             }
             case 0: {
-                n = mmjjkmk.kkamaJa[this.amAjAkK & 0xFF];
+                n = ModuleChannel.kkamaJa[this.amAjAkK & 0xFF];
                 break;
             }
         }

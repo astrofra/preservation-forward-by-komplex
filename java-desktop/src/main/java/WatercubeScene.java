@@ -3,7 +3,7 @@
  */
 public class WatercubeScene
 extends Scene {
-    kmjjmmk kamaJAK;
+    FlashNoiseOverlay kamaJAK;
     float KAmaJAK;
     float kAmaJAK;
     boolean KaMAJAK = true;
@@ -53,9 +53,9 @@ extends Scene {
         this.kaMAJAK = new AseSceneLoader();
         this.kaMAJAK.KamAJaK(mmjamma2.amAjAkK("asses/nosto3.ase"));
         ForwardDemoApp.kkamAJA.kAMajak();
-        this.KamAJAK = (RgbSurface)mmaakma.majaKkA(mmjamma2.amAjAkK("images/txt1.jpg"));
+        this.KamAJAK = (RgbSurface)ImageSupport.majaKkA(mmjamma2.amAjAkK("images/txt1.jpg"));
         ForwardDemoApp.kkamAJA.kAMajak();
-        RgbSurface mmaamma2 = (RgbSurface)mmaakma.majaKkA(mmjamma2.amAjAkK("images/reunus2.jpg"));
+        RgbSurface mmaamma2 = (RgbSurface)ImageSupport.majaKkA(mmjamma2.amAjAkK("images/reunus2.jpg"));
         ForwardDemoApp.kkamAJA.kAMajak();
         int n = 0;
         while (n < this.kaMAJAK.MaJAKkA.size()) {
@@ -71,7 +71,7 @@ extends Scene {
             }
             ++n;
         }
-        RgbSurface mmaamma3 = (RgbSurface)mmaakma.majaKkA(mmjamma2.amAjAkK("images/env3.jpg"));
+        RgbSurface mmaamma3 = (RgbSurface)ImageSupport.majaKkA(mmjamma2.amAjAkK("images/env3.jpg"));
         ForwardDemoApp.kkamAJA.kAMajak();
         MeshObject mmajmmk3 = IguMeshLoader.kAMaJAk(mmjamma2.amAjAkK("meshes/kluns1.igu"));
         ForwardDemoApp.kkamAJA.kAMajak();
@@ -97,18 +97,18 @@ extends Scene {
             this.kaMAJAK.maJAKkA(this.KaMaJak);
         }
         this.kaMAJAK.mAJAKkA();
-        this.kAMAJAK = (RgbSurface)mmaakma.majaKkA(mmjamma2.amAjAkK("images/1.jpg"));
+        this.kAMAJAK = (RgbSurface)ImageSupport.majaKkA(mmjamma2.amAjAkK("images/1.jpg"));
         ForwardDemoApp.kkamAJA.kAMajak();
         this.KAMAJAK = new RgbSurface(128, 128, 1, false);
-        this.kamaJAK = new kmjjmmk(68, 56, 37);
+        this.kamaJAK = new FlashNoiseOverlay(68, 56, 37);
         this.kamajAK = -1L;
         this.kaMAjAK = 0;
     }
 
     public void KaMAjAK(DesktopAppletBase mmjamma2) {
-        this.kaMajAK = (RgbSurface)mmaakma.majaKkA(mmjamma2.amAjAkK("images/rinku2.jpg"));
+        this.kaMajAK = (RgbSurface)ImageSupport.majaKkA(mmjamma2.amAjAkK("images/rinku2.jpg"));
         ForwardDemoApp.kkamAJA.kAMajak();
-        this.KAMajAK = (RgbSurface)mmaakma.majaKkA(mmjamma2.amAjAkK("images/riple2.jpg"));
+        this.KAMajAK = (RgbSurface)ImageSupport.majaKkA(mmjamma2.amAjAkK("images/riple2.jpg"));
         ForwardDemoApp.kkamAJA.kAMajak();
         this.kAMajAK = 256;
         this.KamajAK = 256;

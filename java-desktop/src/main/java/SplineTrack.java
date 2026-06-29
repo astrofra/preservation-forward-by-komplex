@@ -1,7 +1,7 @@
 /*
  * Decompiled with CFR 0.152.
  */
-public class kajakmk {
+public class SplineTrack {
     int aKkaMAj;
     static final public int AkKAMAj = 0;
     static final public int akKAMAj = 1;
@@ -12,9 +12,9 @@ public class kajakmk {
     static final public int AKkAMAj = 2;
     int aKkAMAj = -1;
     int AkKamAj;
-    kmjjmma[] akKamAj;
-    kmjjmma AKKamAj;
-    kmjjmma aKKamAj;
+    TrackKeyframe[] akKamAj;
+    TrackKeyframe AKKamAj;
+    TrackKeyframe aKKamAj;
     public float AkkamAj;
     float[] akkamAj;
     float[] AKkamAj;
@@ -26,9 +26,9 @@ public class kajakmk {
     float AkkAmAj;
     public float[] akkAmAj;
     public int[] AKkAmAj;
-    public maaakmk[] aKkAmAj;
+    public Quaternionf[] aKkAmAj;
 
-    public kajakmk(kmjjmma[] kmjjmmaArray, int n, int n2) {
+    public SplineTrack(TrackKeyframe[] kmjjmmaArray, int n, int n2) {
         this.akKamAj = kmjjmmaArray;
         this.AkkamAj = this.akKamAj[this.akKamAj.length - 1].render;
         this.aKKAMAj = n2;
@@ -49,10 +49,10 @@ public class kajakmk {
             }
             case 2: {
                 this.AkKamAj = this.akKamAj[0].maJAkkA.length;
-                this.aKkAmAj = new maaakmk[this.AkKamAj];
+                this.aKkAmAj = new Quaternionf[this.AkKamAj];
                 int n3 = 0;
                 while (n3 < this.AkKamAj) {
-                    this.aKkAmAj[n3] = new maaakmk();
+                    this.aKkAmAj[n3] = new Quaternionf();
                     ++n3;
                 }
                 this.kkAmAJA();
@@ -75,7 +75,7 @@ public class kajakmk {
         this.kKAmAJA(0);
     }
 
-    kmjjmma KkamAJA(int n) {
+    TrackKeyframe KkamAJA(int n) {
         if (n < 0) {
             return this.AKKamAj;
         }
@@ -90,10 +90,10 @@ public class kajakmk {
             return;
         }
         this.aKkAMAj = n;
-        kmjjmma kmjjmma2 = this.KkamAJA(n - 1);
-        kmjjmma kmjjmma3 = this.KkamAJA(n);
-        kmjjmma kmjjmma4 = this.KkamAJA(n + 1);
-        kmjjmma kmjjmma5 = this.KkamAJA(n + 2);
+        TrackKeyframe kmjjmma2 = this.KkamAJA(n - 1);
+        TrackKeyframe kmjjmma3 = this.KkamAJA(n);
+        TrackKeyframe kmjjmma4 = this.KkamAJA(n + 1);
+        TrackKeyframe kmjjmma5 = this.KkamAJA(n + 2);
         this.akKAmAj = 0.5f * (1.0f - kmjjmma3.handleMessage) * (1.0f + kmjjmma3.dispose) * (1.0f + kmjjmma3.init);
         this.AKKAmAj = 0.5f * (1.0f - kmjjmma3.handleMessage) * (1.0f - kmjjmma3.dispose) * (1.0f - kmjjmma3.init);
         this.aKKAmAj = 0.5f * (1.0f - kmjjmma4.handleMessage) * (1.0f + kmjjmma4.dispose) * (1.0f - kmjjmma4.init);
@@ -127,13 +127,13 @@ public class kajakmk {
         int n2;
         int n3 = 0;
         while (n3 < this.akKamAj.length) {
-            kmjjmma kmjjmma2 = this.akKamAj[n3];
-            kmjjmma2.MAJAkkA = new maaakmk[this.AkKamAj];
-            kmjjmma2.mAJAkkA = new maaakmk[this.AkKamAj];
+            TrackKeyframe kmjjmma2 = this.akKamAj[n3];
+            kmjjmma2.MAJAkkA = new Quaternionf[this.AkKamAj];
+            kmjjmma2.mAJAkkA = new Quaternionf[this.AkKamAj];
             n2 = 0;
             while (n2 < this.AkKamAj) {
-                kmjjmma2.MAJAkkA[n2] = new maaakmk();
-                kmjjmma2.mAJAkkA[n2] = new maaakmk();
+                kmjjmma2.MAJAkkA[n2] = new Quaternionf();
+                kmjjmma2.mAJAkkA[n2] = new Quaternionf();
                 ++n2;
             }
             ++n3;
@@ -156,57 +156,57 @@ public class kajakmk {
         }
     }
 
-    void kkamAJA(kmjjmma kmjjmma2, kmjjmma kmjjmma3, kmjjmma kmjjmma4, int n) {
-        maaakmk maaakmk2 = null;
-        maaakmk maaakmk3 = null;
-        maaakmk maaakmk4 = new maaakmk();
-        maaakmk maaakmk5 = new maaakmk();
-        maaakmk maaakmk6 = new maaakmk(kmjjmma3.maJAkkA[n]);
-        maaakmk maaakmk7 = new maaakmk(kmjjmma3.maJAkkA[n]);
+    void kkamAJA(TrackKeyframe kmjjmma2, TrackKeyframe kmjjmma3, TrackKeyframe kmjjmma4, int n) {
+        Quaternionf maaakmk2 = null;
+        Quaternionf maaakmk3 = null;
+        Quaternionf maaakmk4 = new Quaternionf();
+        Quaternionf maaakmk5 = new Quaternionf();
+        Quaternionf maaakmk6 = new Quaternionf(kmjjmma3.maJAkkA[n]);
+        Quaternionf maaakmk7 = new Quaternionf(kmjjmma3.maJAkkA[n]);
         maaakmk7.showDebugTimecode();
-        maaakmk maaakmk8 = null;
-        maaakmk maaakmk9 = null;
-        maaakmk maaakmk10 = null;
-        maaakmk maaakmk11 = null;
+        Quaternionf maaakmk8 = null;
+        Quaternionf maaakmk9 = null;
+        Quaternionf maaakmk10 = null;
+        Quaternionf maaakmk11 = null;
         if (kmjjmma2 != null) {
-            maaakmk8 = new maaakmk(kmjjmma2.maJAkkA[n]);
-            maaakmk9 = new maaakmk(kmjjmma2.maJAkkA[n]);
+            maaakmk8 = new Quaternionf(kmjjmma2.maJAkkA[n]);
+            maaakmk9 = new Quaternionf(kmjjmma2.maJAkkA[n]);
             maaakmk9.showDebugTimecode();
             if ((double)Math.abs(maaakmk6.jakKamA - maaakmk8.jakKamA) > 6.283175307179587) {
-                maaakmk3 = new maaakmk(maaakmk6);
+                maaakmk3 = new Quaternionf(maaakmk6);
                 maaakmk3.jakKamA = 0.0f;
                 maaakmk3.sceneTimeSeconds();
             } else {
-                maaakmk maaakmk12 = new maaakmk(maaakmk9);
+                Quaternionf maaakmk12 = new Quaternionf(maaakmk9);
                 if (maaakmk12.KkAMaJA(maaakmk7) < 0.0f) {
                     maaakmk12.KKaMaJA();
                 }
-                maaakmk3 = new maaakmk(maaakmk12);
+                maaakmk3 = new Quaternionf(maaakmk12);
                 maaakmk3.kKaMAJA(maaakmk7);
             }
         }
         if (kmjjmma4 != null) {
-            maaakmk10 = new maaakmk(kmjjmma4.maJAkkA[n]);
-            maaakmk11 = new maaakmk(kmjjmma4.maJAkkA[n]);
+            maaakmk10 = new Quaternionf(kmjjmma4.maJAkkA[n]);
+            maaakmk11 = new Quaternionf(kmjjmma4.maJAkkA[n]);
             maaakmk11.showDebugTimecode();
             if ((double)Math.abs(maaakmk10.jakKamA - maaakmk6.jakKamA) > 6.283175307179587) {
-                maaakmk2 = new maaakmk(maaakmk10);
+                maaakmk2 = new Quaternionf(maaakmk10);
                 maaakmk2.jakKamA = 0.0f;
                 maaakmk2.sceneTimeSeconds();
             } else {
-                maaakmk maaakmk13 = new maaakmk(maaakmk11);
+                Quaternionf maaakmk13 = new Quaternionf(maaakmk11);
                 if (maaakmk13.KkAMaJA(maaakmk7) < 0.0f) {
                     maaakmk13.KKaMaJA();
                 }
-                maaakmk2 = new maaakmk(maaakmk7);
+                maaakmk2 = new Quaternionf(maaakmk7);
                 maaakmk2.kKaMAJA(maaakmk13);
             }
         }
         if (kmjjmma2 == null) {
-            maaakmk3 = new maaakmk(maaakmk2);
+            maaakmk3 = new Quaternionf(maaakmk2);
         }
         if (kmjjmma4 == null) {
-            maaakmk2 = new maaakmk(maaakmk3);
+            maaakmk2 = new Quaternionf(maaakmk3);
         }
         float f = 1.0f;
         float f2 = 1.0f;
@@ -237,12 +237,12 @@ public class kajakmk {
         maaakmk5.JakKamA = 0.5f * (f12 * maaakmk3.JakKamA + f13 * maaakmk2.JakKamA);
         maaakmk4.jakKamA = 0.5f * (f14 * maaakmk3.jakKamA + f15 * maaakmk2.jakKamA);
         maaakmk5.jakKamA = 0.5f * (f12 * maaakmk3.jakKamA + f13 * maaakmk2.jakKamA);
-        maaakmk maaakmk14 = new maaakmk(maaakmk4);
+        Quaternionf maaakmk14 = new Quaternionf(maaakmk4);
         maaakmk14.kkaMAJA();
-        maaakmk maaakmk15 = new maaakmk(maaakmk5);
+        Quaternionf maaakmk15 = new Quaternionf(maaakmk5);
         maaakmk15.kkaMAJA();
-        maaakmk maaakmk16 = kmjjmma3.MAJAkkA[n];
-        maaakmk maaakmk17 = kmjjmma3.mAJAkkA[n];
+        Quaternionf maaakmk16 = kmjjmma3.MAJAkkA[n];
+        Quaternionf maaakmk17 = kmjjmma3.mAJAkkA[n];
         maaakmk16.kKAmaJA(maaakmk7);
         maaakmk16.renderFrame(maaakmk14);
         maaakmk17.kKAmaJA(maaakmk7);
@@ -260,8 +260,8 @@ public class kajakmk {
         } else if ((this.aKkaMAj == 1 || this.aKkaMAj == 2) && (f %= this.AkkamAj) < 0.0f) {
             f += this.AkkamAj;
         }
-        kmjjmma kmjjmma2 = this.KkamAJA(this.aKkAMAj);
-        kmjjmma kmjjmma3 = this.KkamAJA(this.aKkAMAj + 1);
+        TrackKeyframe kmjjmma2 = this.KkamAJA(this.aKkAMAj);
+        TrackKeyframe kmjjmma3 = this.KkamAJA(this.aKkAMAj + 1);
         int n = this.aKkAMAj;
         while (f < kmjjmma2.render && n > 0) {
             kmjjmma2 = this.KkamAJA(--n);
@@ -300,26 +300,26 @@ public class kajakmk {
                 float f9 = (1.0f - f2) * 2.0f * f2;
                 int n4 = 0;
                 while (n4 < n2) {
-                    maaakmk maaakmk2;
-                    maaakmk maaakmk3;
-                    maaakmk maaakmk4 = new maaakmk(kmjjmma2.maJAkkA[n4]);
+                    Quaternionf maaakmk2;
+                    Quaternionf maaakmk3;
+                    Quaternionf maaakmk4 = new Quaternionf(kmjjmma2.maJAkkA[n4]);
                     maaakmk4.showDebugTimecode();
-                    maaakmk maaakmk5 = new maaakmk(kmjjmma3.maJAkkA[n4]);
+                    Quaternionf maaakmk5 = new Quaternionf(kmjjmma3.maJAkkA[n4]);
                     maaakmk5.showDebugTimecode();
                     float f10 = kmjjmma3.maJAkkA[n4].jakKamA - kmjjmma2.maJAkkA[n4].jakKamA;
                     float f11 = f10 > 0.0f ? (float)Math.floor((double)f10 / (Math.PI * 2)) : (float)Math.ceil((double)f10 / (Math.PI * 2));
                     f10 -= (float)Math.PI * 2 * f11;
-                    maaakmk maaakmk6 = new maaakmk();
+                    Quaternionf maaakmk6 = new Quaternionf();
                     if ((double)Math.abs(f10) > Math.PI) {
-                        maaakmk3 = new maaakmk();
+                        maaakmk3 = new Quaternionf();
                         maaakmk3.kkAmaJA(maaakmk4, maaakmk5, f2, f11);
-                        maaakmk2 = new maaakmk();
+                        maaakmk2 = new Quaternionf();
                         maaakmk2.kkAmaJA(kmjjmma2.mAJAkkA[n4], kmjjmma3.MAJAkkA[n4], f2, f11);
                         maaakmk6.kkAmaJA(maaakmk3, maaakmk2, f9, 0.0f);
                     } else {
-                        maaakmk3 = new maaakmk();
+                        maaakmk3 = new Quaternionf();
                         maaakmk3.kkamaJA(maaakmk4, maaakmk5, f2, f11);
-                        maaakmk2 = new maaakmk();
+                        maaakmk2 = new Quaternionf();
                         maaakmk2.kkamaJA(kmjjmma2.mAJAkkA[n4], kmjjmma3.MAJAkkA[n4], f2, f11);
                         maaakmk6.kkamaJA(maaakmk3, maaakmk2, f9, 0.0f);
                     }

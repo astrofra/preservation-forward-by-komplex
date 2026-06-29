@@ -2,24 +2,24 @@
  * Decompiled with CFR 0.152.
  */
 public class ModuleSong
-implements maajmma {
-    public kmajmmk jakKama;
-    public majamka[] JAkKama;
-    public mmajmka[] jAkKama;
-    public mmjakmk[] JaKkAMa;
+implements MixerBusListener {
+    public ModuleSequencer jakKama;
+    public ModulePattern[] JAkKama;
+    public ModuleSample[] jAkKama;
+    public ModuleInstrument[] JaKkAMa;
     public int jaKkAMa;
     public int JAKkAMa;
     public int jAKkAMa;
     public String JakkAMa;
-    majamka jakkAMa;
+    ModulePattern jakkAMa;
     int JAkkAMa;
     int jAkkAMa;
     int JaKKAMa;
-    public mmjjkka[] jaKKAMa;
+    public ModuleVoice[] jaKKAMa;
     MixerBus JAKKAMa;
-    kajjmmk jAKKAMa;
+    ScriptEventScheduler jAKKAMa;
     boolean JakKAMa = false;
-    kmjjkka jakKAMa = new kmjjkka();
+    SongPositionQueue jakKAMa = new SongPositionQueue();
 
     public void akKaMaJ(MixerBus majjmma2) {
         this.JAKKAMa = majjmma2;
@@ -28,11 +28,11 @@ implements maajmma {
         this.JAkkAMa = this.jAKkAMa;
         this.jAkkAMa = this.JAKkAMa;
         this.JAKKAMa.majAkkA(ModuleSong.aKKaMaJ(this.jAkkAMa));
-        this.jaKKAMa = new mmjjkka[this.jaKkAMa];
+        this.jaKKAMa = new ModuleVoice[this.jaKkAMa];
         int n = 0;
         while (n < this.jaKkAMa) {
-            mmjjkka mmjjkka2;
-            this.jaKKAMa[n] = mmjjkka2 = new mmjjkka();
+            ModuleVoice mmjjkka2;
+            this.jaKKAMa[n] = mmjjkka2 = new ModuleVoice();
             this.JAKKAMa.maJAkkA(n, mmjjkka2);
             ++n;
         }
@@ -40,7 +40,7 @@ implements maajmma {
         this.JaKKAMa = 0;
     }
 
-    public void kKaMaJa(kajjmmk kajjmmk2) {
+    public void kKaMaJa(ScriptEventScheduler kajjmmk2) {
         this.jAKKAMa = kajjmmk2;
     }
 
@@ -80,7 +80,7 @@ implements maajmma {
         }
     }
 
-    mmjakmk akkaMaJ(int n) {
+    ModuleInstrument akkaMaJ(int n) {
         if (n < 0 || n >= this.JaKkAMa.length) {
             return null;
         }
@@ -96,7 +96,7 @@ implements maajmma {
         int n4 = 0;
         while (n4 < this.jaKkAMa) {
             int n5;
-            mmjjkka mmjjkka2 = this.jaKKAMa[n4];
+            ModuleVoice mmjjkka2 = this.jaKKAMa[n4];
             byte by = byArray[n3 + 2];
             int n6 = byArray[n3] & 0xFF;
             if (n6 != 0 && n6 <= 96) {
@@ -105,7 +105,7 @@ implements maajmma {
                     if (n5 == 0) {
                         mmjjkka2.kAMajAk(n6, false);
                     } else {
-                        mmjakmk mmjakmk2 = this.akkaMaJ(n5 - 1);
+                        ModuleInstrument mmjakmk2 = this.akkaMaJ(n5 - 1);
                         mmjjkka2.amajaKK(mmjakmk2, n6);
                         mmjjkka2.kKaMAJa = 0;
                         mmjjkka2.KKAmaJa = 0;

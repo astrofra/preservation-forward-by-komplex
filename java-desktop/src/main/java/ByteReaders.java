@@ -1,7 +1,7 @@
 /*
  * Decompiled with CFR 0.152.
  */
-public final class kaaakmk {
+public final class ByteReaders {
     final static int jAkKamA = 128;
     final static int[] JaKkAMA;
 

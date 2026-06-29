@@ -4,19 +4,19 @@
 import java.util.Enumeration;
 import java.util.Vector;
 
-class kmjjkka {
+class SongPositionQueue {
     Vector amajAkK = new Vector(100);
 
     synchronized void AmAJaKK(int n, long l) {
         Vector vector = this.amajAkK;
         synchronized (vector) {
-            maaamka maaamka2 = new maaamka(n, l);
+            ScheduledSongPosition maaamka2 = new ScheduledSongPosition(n, l);
             this.amajAkK.addElement(maaamka2);
             long l2 = System.currentTimeMillis();
             Enumeration enumeration = this.amajAkK.elements();
             if (enumeration != null) {
                 while (enumeration.hasMoreElements()) {
-                    maaamka maaamka3 = (maaamka)enumeration.nextElement();
+                    ScheduledSongPosition maaamka3 = (ScheduledSongPosition)enumeration.nextElement();
                     if (maaamka3.kkAmAja > l2) continue;
                     this.amajAkK.removeElement(maaamka3);
                 }
@@ -26,7 +26,7 @@ class kmjjkka {
     }
 
     int aMAJaKK(int n) {
-        maaamka maaamka2 = this.AMAJaKK(n);
+        ScheduledSongPosition maaamka2 = this.AMAJaKK(n);
         long l = maaamka2.kkAmAja - System.currentTimeMillis();
         if (l > 0L) {
             try {
@@ -52,7 +52,7 @@ class kmjjkka {
             if (enumeration == null) return false;
             int n3 = 0;
             while (enumeration.hasMoreElements()) {
-                maaamka maaamka2 = (maaamka)enumeration.nextElement();
+                ScheduledSongPosition maaamka2 = (ScheduledSongPosition)enumeration.nextElement();
                 if (n3 == 0 && maaamka2.KkAmAja > n) {
                     return true;
                 }
@@ -65,11 +65,11 @@ class kmjjkka {
         }
     }
 
-    synchronized maaamka AMAJaKK(int var1_1) {
+    synchronized ScheduledSongPosition AMAJaKK(int var1_1) {
         synchronized (this.amajAkK) {
             Enumeration enumeration = this.amajAkK.elements();
             while (enumeration != null && enumeration.hasMoreElements()) {
-                maaamka maaamka2 = (maaamka)enumeration.nextElement();
+                ScheduledSongPosition maaamka2 = (ScheduledSongPosition)enumeration.nextElement();
                 if (maaamka2.KkAmAja >= var1_1) {
                     return maaamka2;
                 }
@@ -84,7 +84,7 @@ class kmjjkka {
             }
             Enumeration enumeration = this.amajAkK.elements();
             while (enumeration != null && enumeration.hasMoreElements()) {
-                maaamka maaamka2 = (maaamka)enumeration.nextElement();
+                ScheduledSongPosition maaamka2 = (ScheduledSongPosition)enumeration.nextElement();
                 if (maaamka2.KkAmAja >= var1_1) {
                     return maaamka2;
                 }
@@ -98,7 +98,7 @@ class kmjjkka {
             Enumeration enumeration = this.amajAkK.elements();
             if (enumeration != null) {
                 while (enumeration.hasMoreElements()) {
-                    maaamka maaamka2 = (maaamka)enumeration.nextElement();
+                    ScheduledSongPosition maaamka2 = (ScheduledSongPosition)enumeration.nextElement();
                     System.out.println(maaamka2);
                 }
             }
@@ -106,6 +106,6 @@ class kmjjkka {
         }
     }
 
-    kmjjkka() {
+    SongPositionQueue() {
     }
 }

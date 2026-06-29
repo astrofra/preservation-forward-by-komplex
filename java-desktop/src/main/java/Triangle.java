@@ -2,7 +2,7 @@
  * Decompiled with CFR 0.152.
  */
 public final class Triangle
-extends kmjamma {
+extends RenderPrimitive {
     public Vertex mAjakKa;
     public Vertex MaJAkKa;
     public Vertex maJAkKa;
@@ -77,7 +77,7 @@ extends kmjamma {
     }
 
     public final void amaJAkK() {
-        kmjamma.majaKKa[kmjamma.MAjaKKa++] = this;
+        RenderPrimitive.majaKKa[RenderPrimitive.MAjaKKa++] = this;
     }
 
     public final void aMaJAkK() {

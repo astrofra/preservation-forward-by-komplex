@@ -9,7 +9,7 @@ import java.io.DataInputStream;
 import java.io.InputStream;
 import java.net.URL;
 
-public final class mmaakma {
+public final class ImageSupport {
     static public Toolkit majaKkA;
     static public Component MAjaKkA;
     static final public byte[] mAjaKkA;
@@ -43,7 +43,7 @@ public final class mmaakma {
         double d6 = d * d + d3 / d4;
         double d7 = 2.0 * d * d2;
         double d8 = d2 * d2 - d5 * d5 / d4;
-        return mmaakma.MajaKkA(d6, d7, d8, dArray);
+        return ImageSupport.MajaKkA(d6, d7, d8, dArray);
     }
 
     public static final synchronized SoftwareImageSurface majaKkA(URL uRL) {
@@ -137,7 +137,7 @@ public final class mmaakma {
         float f5 = n4 & 0xFF;
         float f6 = n5 & 0xFF;
         float f7 = n6 & 0xFF;
-        return mmaakma.MAjaKkA(f2, f3, f4, f5, f6, f7, f);
+        return ImageSupport.MAjaKkA(f2, f3, f4, f5, f6, f7, f);
     }
 
     public static final int MAjaKkA(float f, float f2, float f3, float f4, float f5, float f6, float f7) {

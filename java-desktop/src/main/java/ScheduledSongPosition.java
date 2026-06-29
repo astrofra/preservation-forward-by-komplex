@@ -1,11 +1,11 @@
 /*
  * Decompiled with CFR 0.152.
  */
-class maaamka {
+class ScheduledSongPosition {
     public int KkAmAja;
     public long kkAmAja;
 
-    maaamka(int n, long l) {
+    ScheduledSongPosition(int n, long l) {
         this.KkAmAja = n;
         this.kkAmAja = l;
     }

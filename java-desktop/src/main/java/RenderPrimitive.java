@@ -1,8 +1,8 @@
 /*
  * Decompiled with CFR 0.152.
  */
-public abstract class kmjamma
-extends maaamma {
+public abstract class RenderPrimitive
+extends SortableItem {
     public int mAjAkka = 1;
     public IndexedSurface MaJaKKa;
     public RgbSurface maJaKKa;

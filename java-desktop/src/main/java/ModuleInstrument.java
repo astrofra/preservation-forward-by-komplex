@@ -1,16 +1,16 @@
 /*
  * Decompiled with CFR 0.152.
  */
-public class mmjakmk {
-    mmajmka[] AkkamAJ = new mmajmka[96];
-    kajamma akkamAJ;
-    kajamma AKkamAJ;
+public class ModuleInstrument {
+    ModuleSample[] AkkamAJ = new ModuleSample[96];
+    Envelope akkamAJ;
+    Envelope AKkamAJ;
     int aKkamAJ;
     int AkKAmAJ;
     int akKAmAJ;
     int AKKAmAJ;
 
-    public void routineRegistry(mmajmka mmajmka2) {
+    public void routineRegistry(ModuleSample mmajmka2) {
         int n = 0;
         while (n < 96) {
             this.AkkamAJ[n] = mmajmka2;
@@ -18,7 +18,7 @@ public class mmjakmk {
         }
     }
 
-    public void sceneRegistry(int n, mmajmka mmajmka2) {
+    public void sceneRegistry(int n, ModuleSample mmajmka2) {
         this.AkkamAJ[n] = mmajmka2;
     }
 }

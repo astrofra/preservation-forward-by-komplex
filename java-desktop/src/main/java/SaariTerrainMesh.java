@@ -1,7 +1,7 @@
 /*
  * Decompiled with CFR 0.152.
  */
-public class kmjakmk
+public class SaariTerrainMesh
 extends MeshObject {
     int aKKAmAJ;
     int AkkAmAJ;
@@ -33,7 +33,7 @@ extends MeshObject {
     boolean AKkamaj = false;
     final static float aKkamaj = 0.0f;
 
-    public kmjakmk(short[][] sArray, float f, float f2, Camera kaajmmk2, boolean bl) {
+    public SaariTerrainMesh(short[][] sArray, float f, float f2, Camera kaajmmk2, boolean bl) {
         this.AKKAMaj = bl;
         this.akkAmAJ = sArray;
         this.AkkAmAJ = this.akkAmAJ.length;
@@ -276,8 +276,8 @@ extends MeshObject {
     }
 
     public void KKAMajA() {
-        Triangle[] kmaammaArray = kmjamma.majaKKa;
-        int n = kmjamma.MAjaKKa;
+        Triangle[] kmaammaArray = RenderPrimitive.majaKKa;
+        int n = RenderPrimitive.MAjaKKa;
         Vec3f mmajmma2 = this.kKAMaja();
         float f = mmajmma2.maJakKA;
         float f2 = mmajmma2.MAJakKA;
@@ -325,12 +325,12 @@ extends MeshObject {
             }
             ++n4;
         }
-        kmjamma.MAjaKKa = n;
+        RenderPrimitive.MAjaKKa = n;
     }
 
     public void kkaMAJa(Camera kaajmmk2, int n) {
         this.jaKkAma = kaajmmk2;
-        this.jAKkAma = kmjamma.MAjaKKa;
+        this.jAKkAma = RenderPrimitive.MAjaKKa;
         this.AKkamaj = this.jaKkAma.JAKkaMa.mAJakKA < 0.0f;
         this.kKAmAJa();
         this.KKamajA();

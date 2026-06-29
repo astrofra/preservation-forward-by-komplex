@@ -10,7 +10,7 @@ public class MixerBus
 implements Mixable {
     Hashtable MajAkkA = new Hashtable(32);
     int majAkkA = -1;
-    maajmma MAjAkkA;
+    MixerBusListener MAjAkkA;
     float mAjAkkA;
     float MaJaKKA = 1.0f;
     public long maJaKKA;
@@ -23,7 +23,7 @@ implements Mixable {
         this.MajAkkA.clear();
     }
 
-    public void MajAkkA(maajmma maajmma2) {
+    public void MajAkkA(MixerBusListener maajmma2) {
         this.MAjAkkA = maajmma2;
     }
 
