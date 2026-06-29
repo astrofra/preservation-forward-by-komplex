@@ -57,7 +57,7 @@ final class ForwardFrameCapture {
         this.frameGraphics.setBackground(Color.black);
     }
 
-    public static ForwardFrameCapture create(mmjamma app, int width, int height) throws IOException {
+    public static ForwardFrameCapture create(DesktopAppletBase app, int width, int height) throws IOException {
         String captureDir = app.getParameter("capture");
         if (captureDir == null || captureDir.trim().isEmpty()) {
             return null;

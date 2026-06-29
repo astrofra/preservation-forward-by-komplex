@@ -10,7 +10,7 @@ public class mmjakmk {
     int akKAmAJ;
     int AKKAmAJ;
 
-    public void KkamajA(mmajmka mmajmka2) {
+    public void routineRegistry(mmajmka mmajmka2) {
         int n = 0;
         while (n < 96) {
             this.AkkamAJ[n] = mmajmka2;
@@ -18,7 +18,7 @@ public class mmjakmk {
         }
     }
 
-    public void kKAmajA(int n, mmajmka mmajmka2) {
+    public void sceneRegistry(int n, mmajmka mmajmka2) {
         this.AkkamAJ[n] = mmajmka2;
     }
 }

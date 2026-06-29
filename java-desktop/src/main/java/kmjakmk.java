@@ -2,7 +2,7 @@
  * Decompiled with CFR 0.152.
  */
 public class kmjakmk
-extends mmajmmk {
+extends MeshObject {
     int aKKAmAJ;
     int AkkAmAJ;
     short[][] akkAmAJ;
@@ -14,13 +14,13 @@ extends mmajmmk {
     int aKKaMaj;
     float AkkaMaj;
     float akkaMaj;
-    public mmaamma AKkaMaj;
-    public kmajkka aKkaMaj;
-    public kmajkka AkKAMaj;
-    public mmaamma akKAMaj;
+    public RgbSurface AKkaMaj;
+    public IndexedSurface aKkaMaj;
+    public IndexedSurface AkKAMaj;
+    public RgbSurface akKAMaj;
     public boolean AKKAMaj = true;
-    mmjakka[] aKKAMaj;
-    kmaamma[] AkkAMaj;
+    Vertex[] aKKAMaj;
+    Triangle[] AkkAMaj;
     int akkAMaj;
     int AKkAMaj;
     int aKkAMaj;
@@ -33,23 +33,23 @@ extends mmajmmk {
     boolean AKkamaj = false;
     final static float aKkamaj = 0.0f;
 
-    public kmjakmk(short[][] sArray, float f, float f2, kaajmmk kaajmmk2, boolean bl) {
+    public kmjakmk(short[][] sArray, float f, float f2, Camera kaajmmk2, boolean bl) {
         this.AKKAMaj = bl;
         this.akkAmAJ = sArray;
         this.AkkAmAJ = this.akkAmAJ.length;
         this.aKKAmAJ = this.akkAmAJ[0].length;
         this.AkkaMaj = f;
         this.akkaMaj = f2;
-        kaajmka kaajmka2 = new kaajmka();
+        ViewFrustum kaajmka2 = new ViewFrustum();
         kaajmka2.kamaJak(kaajmmk2, null);
         float f3 = kaajmka2.Kamajak.MAjaKka();
         float f4 = kaajmka2.kAmajak.mAjAKKA(kaajmka2.Kamajak).MAjaKka();
         float f5 = Math.max(f3, f4);
         this.AkKaMaj = this.akKaMaj = (int)(f5 /= this.AkkaMaj) + 4;
-        this.JaKKaMA = new kmajkmk[this.AkKaMaj * this.akKaMaj];
+        this.JaKKaMA = new UvCoord[this.AkKaMaj * this.akKaMaj];
         int n = 0;
         while (n < this.AkKaMaj * this.akKaMaj) {
-            this.JaKKaMA[n] = new kmajkmk((float)n / 10.0f, (float)n / 20.0f);
+            this.JaKKaMA[n] = new UvCoord((float)n / 10.0f, (float)n / 20.0f);
             ++n;
         }
         if (this.AKKAMaj) {
@@ -65,7 +65,7 @@ extends mmajmmk {
 
     public void kkamajA(int n, int n2, float f, int n3) {
         int n4;
-        this.jAkkaMA = new mmjakka[n * n2];
+        this.jAkkaMA = new Vertex[n * n2];
         int n5 = 0;
         int n6 = 0;
         while (n6 < n2) {
@@ -74,13 +74,13 @@ extends mmajmmk {
                 float f2 = (float)(-(n4 - n / 2)) * f;
                 float f3 = (float)(n6 - n2 / 2) * f;
                 float f4 = 0.0f;
-                this.jAkkaMA[n5] = new mmjakka(f2, f3, f4);
+                this.jAkkaMA[n5] = new Vertex(f2, f3, f4);
                 ++n5;
                 ++n4;
             }
             ++n6;
         }
-        this.JAkkaMA = new kmaamma[(n - 1) * (n2 - 1) * 2];
+        this.JAkkaMA = new Triangle[(n - 1) * (n2 - 1) * 2];
         n4 = 0;
         int n7 = 0;
         while (n7 < n2 - 1) {
@@ -90,8 +90,8 @@ extends mmajmmk {
                 int n10 = n7 * n2 + n8 + 1;
                 int n11 = (n7 + 1) * n2 + n8;
                 int n12 = (n7 + 1) * n2 + n8 + 1;
-                this.JAkkaMA[n4++] = new kmaamma(this, n9, n12, n10, n9, n12, n10);
-                this.JAkkaMA[n4++] = new kmaamma(this, n12, n9, n11, n12, n9, n11);
+                this.JAkkaMA[n4++] = new Triangle(this, n9, n12, n10, n9, n12, n10);
+                this.JAkkaMA[n4++] = new Triangle(this, n12, n9, n11, n12, n9, n11);
                 this.JAkkaMA[n4 - 2].mAjAkka = n3;
                 this.JAkkaMA[n4 - 1].mAjAkka = n3;
                 ++n8;
@@ -113,7 +113,7 @@ extends mmajmmk {
     }
 
     public void KKamajA() {
-        kaajmka kaajmka2 = new kaajmka();
+        ViewFrustum kaajmka2 = new ViewFrustum();
         kaajmka2.kamaJak(this.jaKkAma, null);
         float f = this.KkAMajA(0.0f, kaajmka2.Kamajak.maJakKA, kaajmka2.kamajak.maJakKA, kaajmka2.KAmajak.maJakKA, kaajmka2.kAmajak.maJakKA);
         float f2 = this.kkAMajA(0.0f, kaajmka2.Kamajak.maJakKA, kaajmka2.kamajak.maJakKA, kaajmka2.KAmajak.maJakKA, kaajmka2.kAmajak.maJakKA);
@@ -142,7 +142,7 @@ extends mmajmmk {
     }
 
     public void KkAmaja() {
-        maajkka maajkka2 = this.JakkAma;
+        Mat3f maajkka2 = this.JakkAma;
         float f = maajkka2.AMaJakK;
         float f2 = maajkka2.aMaJakK;
         float f3 = maajkka2.AmAjAKK;
@@ -174,8 +174,8 @@ extends mmajmmk {
                 float f24;
                 int n4;
                 int n5;
-                mmjakka mmjakka2 = this.jAkkaMA[n2];
-                kmajkmk kmajkmk2 = this.JaKKaMA[n2];
+                Vertex mmjakka2 = this.jAkkaMA[n2];
+                UvCoord kmajkmk2 = this.JaKKaMA[n2];
                 n3 -= this.AKkAmAJ;
                 n -= this.aKkAmAJ;
                 if (this.akkamaj) {
@@ -217,21 +217,21 @@ extends mmajmmk {
                     mmjakka2.aMAjAkk = f27 > f17 ? 4096 : 0;
                 }
                 float f28 = f13 / f27;
-                mmjakka2.amAjAkk = f25 * f28 + f14;
-                mmjakka2.AMAjAkk = -(f26 * f28) + f15;
-                if (mmjakka2.amAjAkk < 0.0f) {
+                mmjakka2.scriptName = f25 * f28 + f14;
+                mmjakka2.onShow = -(f26 * f28) + f15;
+                if (mmjakka2.scriptName < 0.0f) {
                     mmjakka2.aMAjAkk |= 1;
-                } else if (mmjakka2.amAjAkk >= f18) {
+                } else if (mmjakka2.scriptName >= f18) {
                     mmjakka2.aMAjAkk |= 8;
                 }
-                if (mmjakka2.AMAjAkk < 0.0f) {
+                if (mmjakka2.onShow < 0.0f) {
                     mmjakka2.aMAjAkk |= 0x40;
-                } else if (mmjakka2.AMAjAkk >= f19) {
+                } else if (mmjakka2.onShow >= f19) {
                     mmjakka2.aMAjAkk |= 0x200;
                 }
-                mmjakka2.AMaJaKK = f25;
-                mmjakka2.aMaJaKK = f26;
-                mmjakka2.AmAjAkk = f27;
+                mmjakka2.handleMessage = f25;
+                mmjakka2.dispose = f26;
+                mmjakka2.init = f27;
                 float f29 = (f27 - f20) / (this.jAKKAma - f20);
                 if (f29 < 0.0f) {
                     f29 = 0.0f;
@@ -241,7 +241,7 @@ extends mmajmmk {
                 }
                 mmjakka2.AmajAkk = f29;
                 if (this.AKKAMaj) {
-                    mmjakka mmjakka3 = this.aKKAMaj[n2];
+                    Vertex mmjakka3 = this.aKKAMaj[n2];
                     mmjakka3.AmajAkk = mmjakka2.AmajAkk;
                     f25 -= 2.0f * f7 * f24;
                     f26 -= 2.0f * f8 * f24;
@@ -252,17 +252,17 @@ extends mmajmmk {
                         mmjakka3.aMAjAkk = f27 > f17 ? 4096 : 0;
                     }
                     f28 = f13 / f27;
-                    mmjakka3.amAjAkk = f25 * f28 + f14;
-                    mmjakka3.AMAjAkk = -(f26 * f28) + f15;
-                    mmjakka3.AmAjAkk = f27;
-                    if (mmjakka3.amAjAkk < 0.0f) {
+                    mmjakka3.scriptName = f25 * f28 + f14;
+                    mmjakka3.onShow = -(f26 * f28) + f15;
+                    mmjakka3.init = f27;
+                    if (mmjakka3.scriptName < 0.0f) {
                         mmjakka3.aMAjAkk |= 1;
-                    } else if (mmjakka3.amAjAkk >= f18) {
+                    } else if (mmjakka3.scriptName >= f18) {
                         mmjakka3.aMAjAkk |= 8;
                     }
-                    if (mmjakka3.AMAjAkk < 0.0f) {
+                    if (mmjakka3.onShow < 0.0f) {
                         mmjakka3.aMAjAkk |= 0x40;
-                    } else if (mmjakka3.AMAjAkk >= f19) {
+                    } else if (mmjakka3.onShow >= f19) {
                         mmjakka3.aMAjAkk |= 0x200;
                     }
                 }
@@ -276,9 +276,9 @@ extends mmajmmk {
     }
 
     public void KKAMajA() {
-        kmaamma[] kmaammaArray = kmjamma.majaKKa;
+        Triangle[] kmaammaArray = kmjamma.majaKKa;
         int n = kmjamma.MAjaKKa;
-        mmajmma mmajmma2 = this.kKAMaja();
+        Vec3f mmajmma2 = this.kKAMaja();
         float f = mmajmma2.maJakKA;
         float f2 = mmajmma2.MAJakKA;
         float f3 = mmajmma2.mAJakKA;
@@ -291,7 +291,7 @@ extends mmajmmk {
             while (n5 < n6) {
                 float f4;
                 float f5;
-                kmaamma kmaamma2 = this.JAkkaMA[n5++];
+                Triangle kmaamma2 = this.JAkkaMA[n5++];
                 if ((n5 & 1) == 0) {
                     f5 = kmaamma2.mAjakKa.mAJakKA - kmaamma2.maJAkKa.mAJakKA;
                     f4 = -(kmaamma2.MaJAkKa.mAJakKA - kmaamma2.maJAkKa.mAJakKA);
@@ -304,23 +304,23 @@ extends mmajmmk {
                     if ((f + kmaamma2.mAjakKa.maJakKA) * f5 + (f2 + kmaamma2.mAjakKa.MAJakKA) * f4 + (f3 + kmaamma2.mAjakKa.mAJakKA) * -this.AkkaMaj > 0.0f) {
                         kmaamma2.MaJaKKa = kmaamma2.mAjakKa.mAJakKA < 0.0f || kmaamma2.MaJAkKa.mAJakKA < 0.0f || kmaamma2.maJAkKa.mAJakKA < 0.0f ? this.AkKAMaj : this.aKkaMaj;
                         kmaamma2.maJaKKa = this.AKkaMaj;
-                        kmaamma2.majAkKa = -(kmaamma2.mAjakKa.AmAjAkk + kmaamma2.MaJAkKa.AmAjAkk + kmaamma2.maJAkKa.AmAjAkk);
+                        kmaamma2.majAkKa = -(kmaamma2.mAjakKa.init + kmaamma2.MaJAkKa.init + kmaamma2.maJAkKa.init);
                         kmaammaArray[n++] = kmaamma2;
                     }
                 } else if ((n7 & 0x24924) == 0 && (f + kmaamma2.mAjakKa.maJakKA) * f5 + (f2 + kmaamma2.mAjakKa.MAJakKA) * f4 + (f3 + kmaamma2.mAjakKa.mAJakKA) * -this.AkkaMaj > 0.0f) {
                     kmaamma2.MaJaKKa = kmaamma2.mAjakKa.mAJakKA < 0.0f || kmaamma2.MaJAkKa.mAJakKA < 0.0f || kmaamma2.maJAkKa.mAJakKA < 0.0f ? this.AkKAMaj : this.aKkaMaj;
                     kmaamma2.maJaKKa = this.AKkaMaj;
-                    kmaamma2.majAkKa = -(kmaamma2.mAjakKa.AmAjAkk + kmaamma2.MaJAkKa.AmAjAkk + kmaamma2.maJAkKa.AmAjAkk);
+                    kmaamma2.majAkKa = -(kmaamma2.mAjakKa.init + kmaamma2.MaJAkKa.init + kmaamma2.maJAkKa.init);
                     this.KKamAJa(kmaamma2);
                 }
                 if (!this.AKKAMaj) continue;
-                kmaamma kmaamma3 = this.AkkAMaj[n5 - 1];
+                Triangle kmaamma3 = this.AkkAMaj[n5 - 1];
                 n7 = 37449 + kmaamma3.mAjakKa.aMAjAkk + kmaamma3.MaJAkKa.aMAjAkk + kmaamma3.maJAkKa.aMAjAkk;
                 if ((n7 & 0x34924) != 0 || !((f + kmaamma2.mAjakKa.maJakKA) * -f5 + (f2 + kmaamma2.mAjakKa.MAJakKA) * -f4 + (f3 - kmaamma2.mAjakKa.mAJakKA) * -this.AkkaMaj < 0.0f)) continue;
                 kmaamma3.mAjAkka = 259;
                 kmaamma3.maJaKKa = this.akKAMaj;
                 kmaamma3.MaJaKKa = this.aKkaMaj;
-                kmaamma3.majAkKa = kmaamma3.mAjakKa.AmAjAkk + kmaamma3.MaJAkKa.AmAjAkk + kmaamma3.maJAkKa.AmAjAkk;
+                kmaamma3.majAkKa = kmaamma3.mAjakKa.init + kmaamma3.MaJAkKa.init + kmaamma3.maJAkKa.init;
                 kmaammaArray[n++] = kmaamma3;
             }
             ++n4;
@@ -328,7 +328,7 @@ extends mmajmmk {
         kmjamma.MAjaKKa = n;
     }
 
-    public void kkaMAJa(kaajmmk kaajmmk2, int n) {
+    public void kkaMAJa(Camera kaajmmk2, int n) {
         this.jaKkAma = kaajmmk2;
         this.jAKkAma = kmjamma.MAjaKKa;
         this.AKkamaj = this.jaKkAma.JAKkaMa.mAJakKA < 0.0f;

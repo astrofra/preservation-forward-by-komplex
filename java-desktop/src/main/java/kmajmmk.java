@@ -4,7 +4,7 @@
 public class kmajmmk {
     int[] jAkkama;
     int JaKKama;
-    maajmmk jaKKama;
+    ModuleSong jaKKama;
     boolean JAKKama = false;
     int jAKKama;
     int JakKama;
@@ -13,7 +13,7 @@ public class kmajmmk {
         this.JaKKama = n;
     }
 
-    public void kKamaJa(maajmmk maajmmk2) {
+    public void kKamaJa(ModuleSong maajmmk2) {
         this.jaKKama = maajmmk2;
     }
 

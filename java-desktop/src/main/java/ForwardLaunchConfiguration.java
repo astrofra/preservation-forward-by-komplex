@@ -24,7 +24,7 @@ final class ForwardLaunchConfiguration {
         this.displayHeight = n2;
     }
 
-    static ForwardLaunchConfiguration fromParameters(mmjamma mmjamma2) {
+    static ForwardLaunchConfiguration fromParameters(DesktopAppletBase mmjamma2) {
         boolean bl = ForwardLaunchConfiguration.isTruthy(mmjamma2.getParameter(PARAM_FULLSCREEN));
         String string = ForwardLaunchConfiguration.normalizeMode(mmjamma2.getParameter(PARAM_DISPLAY_MODE));
         if (MODE_FULLSCREEN.equals(string)) {

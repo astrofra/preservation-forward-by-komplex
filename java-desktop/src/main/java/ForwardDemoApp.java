@@ -1,0 +1,679 @@
+/*
+ * Decompiled with CFR 0.152.
+ */
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Container;
+import java.awt.Event;
+import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.Frame;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Image;
+import java.awt.RenderingHints;
+import java.net.URL;
+import java.util.Hashtable;
+import java.util.StringTokenizer;
+import muhmu.hifi.device.MAD;
+
+public class ForwardDemoApp
+extends DesktopAppletBase
+implements Runnable {
+    final static int KamajAk = 512;
+    final static int kamajAk = 256;
+    static public int KAmajAk;
+    static public int kAmajAk;
+    majakmk KaMAjAk;
+    Image kaMAjAk;
+    static public int KAMAjAk;
+    static public int kAMAjAk;
+    static public boolean KamAjAk;
+    static public int kamAjAk;
+    static public int KAmAjAk;
+    static public boolean kAmAjAk;
+    boolean KkAmAjA;
+    boolean kkAmAjA;
+    mmjjmka KKAmAjA;
+    MAD kKAmAjA;
+    MixerBus KkamAjA;
+    ModuleSong kkamAjA;
+    ModuleSong KKamAjA;
+    ModuleSong kKamAjA;
+    boolean KkAMAjA = false;
+    static public RgbSurfacePresenter kkAMAjA;
+    static public RgbSurface KKAMAjA;
+    static public IndexedSurfacePresenter kKAMAjA;
+    static public IndexedSurface KkaMAjA;
+    boolean kkaMAjA;
+    int nextScriptTimeHex = -1;
+    int scriptCursor;
+    String deferredScriptCommand;
+    String[] scriptCommands = new String[]{"init mute95", "init domina", "init saari", "init kukot", "init maku", "init watercube", "init feta", "init uppol", "loaded", "mod 1", "_000", "show mute95", "go 13", "_300 msg mute95 saviour", "_500 msg mute95 jmagic", "_700 msg mute95 jugi", "_900 msg mute95 anis", "_b00 msg mute95 carebear", "_d00 shutdown", "show domina", "go 16", "_f00 msg domina fade2black", "_1024", "clear24 0", "mod 2", "killmod 1", "_000 filmbox", "kill domina", "kill mute95", "go 7", "_000 show saari", "msg saari suh0", "_100 msg saari suh", "_600 msg saari suh", "__8 msg saari suh", "__8 msg saari suh", "__8 msg saari suh", "__8 msg saari suh", "__8 msg saari suh", "__8 msg saari suh", "go 13", "_700 show kukot", "_900 msg kukot suh", "__10 msg kukot suh", "__10 msg kukot suh", "__10 msg kukot suh", "_900 msg kukot suh2", "_a00 msg kukot suh1", "_b00 msg kukot suh0", "__04 msg kukot suh", "__04 msg kukot suh", "__04 msg kukot suh", "__10 msg kukot suh0", "__10 msg kukot suh0", "__04 msg kukot suh", "__04 msg kukot suh", "__04 msg kukot suh", "__10 msg kukot suh0", "__04 msg kukot suh1", "__04 msg kukot suh1", "__04 msg kukot suh1", "_c00 msg kukot suh0", "__10 msg kukot suh0", "__10 msg kukot suh0", "__04 msg kukot suh", "__04 msg kukot suh", "__04 msg kukot suh", "__10 msg kukot suh1", "__04 msg kukot suh2", "__04 msg kukot suh2", "__04 msg kukot suh2", "_d00 show maku", "go 16", "msg maku go 160.5", "msg maku speed -3.0", "_e00", "msg maku go 25.5", "msg maku speed 2", "_e20", "msg maku go 0", "msg maku speed 2.5", "_f00", "msg maku go 42.5", "msg maku speed -2", "_f20", "msg maku ksor", "msg maku go 55.5", "msg maku speed 4", "__8", "msg maku ksor", "__8", "msg maku ksor", "__4", "msg maku ksor", "__4", "msg maku ksor", "__4", "msg maku ksor", "_1000 show watercube", "go 19", "__04 msg watercube pum", "__04 msg watercube rok", "__04 msg watercube suh", "_1030 msg watercube pum", "_1100 msg watercube rok", "msg watercube pum", "__10 msg watercube suh0", "__18 msg watercube suh0", "__8 msg watercube suh0", "_1200 msg watercube suh1", "msg watercube pum", "msg watercube rok", "__10 msg watercube suh0", "msg watercube tex0", "__10 msg watercube suh1", "msg watercube tex1", "__10 msg watercube suh0", "msg watercube tex2", "msg feta 1", "_1300 show feta", "go 21", "_1520 msg feta blackfeta", "_1530 msg feta blackmuna", "_1600 show uppol", "reality", "_22222", "_88800", ""};
+    Container KKAmajA;
+    Hashtable sceneRegistry = new Hashtable();
+    Hashtable routineRegistry = new Hashtable();
+    int kkamajA;
+    float KKamajA;
+    float kKamajA;
+    int KkAMajA;
+    static public boolean kkAMajA;
+    Graphics KKAMajA;
+    Graphics kKAMajA;
+    Component KkaMajA;
+    int kkaMajA;
+    int KKaMajA;
+    int kKaMajA;
+    int KkAmAJA;
+    int kkAmAJA;
+    int KKAmAJA = 31;
+    Font kKAmAJA = ForwardFontSupport.monospaceBold(15);
+    boolean KkamAJA = true;
+    static public ForwardDemoApp kkamAJA;
+    Scene activeScene;
+    GraphicsRoutine activeRoutine;
+    int renderFrame;
+    SmoothedFrameTimer frameTimer;
+    float deltaSeconds;
+    float sceneTimeSeconds;
+    float KkaMAJA;
+    float kkaMAJA;
+    boolean showDebugTimecode;
+    boolean captureAutoExit;
+    boolean captureWasActive;
+    ForwardFrameCapture captureSession;
+    ForwardFrameBuffer frameBuffer;
+    String activeSceneName;
+    int displayWidth = 512;
+    int displayHeight = 256;
+
+    public static void main(String[] stringArray) {
+        new ForwardDemoApp().aMajAkK(stringArray, 512, 256);
+    }
+
+    public void init() {
+        kkamAJA = this;
+        this.setLayout(null);
+        this.setBackground(Color.black);
+        ForwardLaunchConfiguration forwardLaunchConfiguration = ForwardLaunchConfiguration.fromParameters(this);
+        this.displayWidth = forwardLaunchConfiguration.displayWidth;
+        this.displayHeight = forwardLaunchConfiguration.displayHeight;
+        this.setSize(this.displayWidth, this.displayHeight);
+        this.KkAmAjA = ForwardLaunchConfiguration.isFalsey(this.getParameter("1x1"));
+        this.kkAmAjA = false;
+        if (this.getParameter("nosound") != null) {
+            this.kkAmAjA = true;
+        }
+    }
+
+    public void start() {
+        super.start();
+    }
+
+    public void stop() {
+        super.stop();
+        if (this.captureSession != null) {
+            this.captureSession.close();
+            this.captureSession = null;
+        }
+        if (this.KKAmAjA != null) {
+            this.KKAmAjA.dispose();
+            this.KKAmAjA = null;
+        }
+        if (this.kKAmAjA != null) {
+            this.kKAmAjA.stop();
+            this.kKAmAjA = null;
+        }
+        this.KkamAjA = null;
+    }
+
+    public boolean keyDown(Event event, int n) {
+        switch (event.key) {
+            case 27: {
+                ForwardExitSupport.requestExit(this);
+                return true;
+            }
+            case 102: {
+                this.showDebugTimecode = !this.showDebugTimecode;
+                break;
+            }
+            case 115: {
+                this.kkaMAjA = true;
+            }
+        }
+        return true;
+    }
+
+    public boolean mouseMove(Event event, int n, int n2) {
+        KAMAjAk = n;
+        kAMAjAk = n2;
+        KamAjAk = false;
+        return true;
+    }
+
+    public boolean mouseUp(Event event, int n, int n2) {
+        KamAjAk = false;
+        KAMAjAk = n;
+        kAMAjAk = n2;
+        kAmAjAk = true;
+        kamAjAk = n;
+        KAmAjAk = n2;
+        return true;
+    }
+
+    public boolean mouseDown(Event event, int n, int n2) {
+        KamAjAk = true;
+        KAMAjAk = n;
+        kAMAjAk = n2;
+        return true;
+    }
+
+    void KAMAjak() {
+        MAD.component = this;
+        this.KaMAjAk = new majakmk(this.KkAmAjA, this.kkAmAjA, (double)this.displayWidth / 512.0, (double)this.displayHeight / 256.0);
+        this.KaMAjAk.reshape(0, 0, this.displayWidth, this.displayHeight);
+        this.KaMAjAk.show();
+        this.KaMAjAk.requestFocus();
+        this.add(this.KaMAjAk);
+        this.KaMAjAk.kKAMajA();
+        this.KaMAjAk.KKaMajA();
+        this.remove(this.KaMAjAk);
+        this.kKAmAjA = this.KaMAjAk.akKaMAj;
+        this.KaMAjAk = null;
+        System.gc();
+        System.out.println("tuner finito.");
+    }
+
+    void kamajak() {
+        if (this.KKAmajA == null) {
+            this.KKAmajA = this.getParent();
+        }
+    }
+
+    void kaMajak() {
+    }
+
+    public void KaMAjak() {
+        this.KkamAjA = new MixerBus();
+        this.kKAmAjA.init(this.KkamAjA, 22050, 4, 22050, MAD.component);
+    }
+
+    public void kAmAJak(ModuleSong maajmmk2, int n) {
+        this.kKAmAjA.boost = n;
+        this.kKamAjA = null;
+        this.kKamAjA = maajmmk2;
+        this.kKamAjA.akKaMaJ(this.KkamAjA);
+        if (!this.KkAMAjA) {
+            this.kKAmAjA.start();
+            this.KkAMAjA = true;
+        }
+    }
+
+    public ModuleSong kAmAjak(String string) {
+        byte[] byArray = null;
+        try {
+            URL uRL = this.AmaJAkK(this.getDocumentBase(), string);
+            byArray = this.AMajAkK(uRL);
+        }
+        catch (Exception exception) {
+            exception.printStackTrace();
+            return null;
+        }
+        if (byArray == null) {
+            return null;
+        }
+        ModuleSong maajmmk2 = ModuleLoader.KAMAJAK(byArray);
+        byArray = null;
+        System.gc();
+        return maajmmk2;
+    }
+
+    void kaMAjak() {
+        int n = 1;
+        int n2 = 1;
+        if (this.KkAmAjA) {
+            n = 2;
+            n2 = 2;
+        }
+        int n3 = 512;
+        int n4 = 256;
+        kkAMAjA = new RgbSurfacePresenter();
+        kkAMAjA.kkamAjA(this, n3, n4, n, n2);
+        KKAMAjA = ForwardDemoApp.kkAMAjA.aMAjaKk;
+        kKAMAjA = new IndexedSurfacePresenter();
+        kKAMAjA.kkamAjA(this, n3, n4, n, n2);
+        KkaMAjA = ForwardDemoApp.kKAMAjA.kAmaJAk;
+        KAmajAk = ForwardDemoApp.KKAMAjA.amAjakK;
+        kAmajAk = ForwardDemoApp.KKAMAjA.AMAjakK;
+    }
+
+    void kAmajak() {
+        Graphics graphics = this.KAmAjak();
+        int n = 13;
+        long l = System.currentTimeMillis();
+        int n2 = 0;
+        while (n2 < n) {
+            kkAMAjA.KKAMAjA(graphics, 0, 0);
+            ++n2;
+        }
+        long l2 = System.currentTimeMillis();
+        System.out.println("slowness " + (l2 - l) / (long)n);
+    }
+
+    void advanceTimeline() {
+        if (this.kkaMAjA) {
+            this.kkaMAjA = false;
+            this.kAmajak();
+        }
+        if (this.nextScriptTimeHex != -1) {
+            if (this.kKamAjA == null) {
+                return;
+            }
+            if (!this.kKamAjA.AKkaMaJ(this.nextScriptTimeHex, (int)this.frameTimer.kaMaJAK())) {
+                return;
+            }
+        }
+        if (this.deferredScriptCommand != null) {
+            this.executeScriptCommand(this.deferredScriptCommand);
+            this.deferredScriptCommand = null;
+        }
+        boolean bl = false;
+        while (!bl && this.scriptCursor < this.scriptCommands.length) {
+            String string;
+            if ((string = this.scriptCommands[this.scriptCursor++]).trim().length() == 0 || string.charAt(0) == '#') break;
+            char c = (string = string.trim()).charAt(0);
+            if (c == '_') {
+                int n;
+                int n2 = this.nextScriptTimeHex;
+                int n3 = 1;
+                if (string.charAt(1) == '_') {
+                    n3 = 2;
+                }
+                if ((n = string.indexOf(32)) == -1) {
+                    this.nextScriptTimeHex = Integer.parseInt(string.substring(n3, string.length()), 16);
+                } else {
+                    this.nextScriptTimeHex = Integer.parseInt(string.substring(n3, n), 16);
+                    this.deferredScriptCommand = string.substring(n + 1, string.length());
+                }
+                if (n3 == 2) {
+                    this.nextScriptTimeHex = n2 + this.nextScriptTimeHex;
+                }
+                bl = true;
+                return;
+            }
+            this.executeScriptCommand(string);
+        }
+    }
+
+    void executeScriptCommand(String string) {
+        StringTokenizer stringTokenizer = new StringTokenizer(string);
+        if (stringTokenizer.hasMoreTokens()) {
+            String string2 = stringTokenizer.nextToken();
+            if (string2.equals("init")) {
+                this.kamAjak(stringTokenizer.nextToken());
+                return;
+            }
+            if (string2.equals("show")) {
+                this.showScene(stringTokenizer.nextToken());
+                return;
+            }
+            if (string2.equals("msg")) {
+                String string3 = stringTokenizer.nextToken();
+                String string4 = "";
+                while (stringTokenizer.hasMoreTokens()) {
+                    string4 = String.valueOf(string4) + stringTokenizer.nextToken() + " ";
+                }
+                string4 = string4.trim();
+                this.Kamajak(string3, string4);
+                return;
+            }
+            if (string2.equals("shutdown")) {
+                this.kamajak();
+                return;
+            }
+            if (string2.equals("post")) {
+                this.KAmAJak(Integer.parseInt(stringTokenizer.nextToken()));
+                return;
+            }
+            if (string2.equals("mod")) {
+                int n = Integer.parseInt(stringTokenizer.nextToken());
+                switch (n) {
+                    case 1: {
+                        this.kAmAJak(this.kkamAjA, 88);
+                        return;
+                    }
+                    case 2: {
+                        this.kAmAJak(this.KKamAjA, 128);
+                        return;
+                    }
+                    default: {
+                        return;
+                    }
+                }
+            }
+            if (string2.equals("go")) {
+                Integer.parseInt(stringTokenizer.nextToken());
+                return;
+            }
+            if (string2.equals("filmbox")) {
+                this.activeRoutine = null;
+                this.activeScene = null;
+                return;
+            }
+            if (string2.equals("clear24")) {
+                int n = Integer.parseInt(stringTokenizer.nextToken(), 16);
+                kkAMAjA.KAMaJAK(n);
+                return;
+            }
+            if (string2.equals("clear8")) {
+                Integer.parseInt(stringTokenizer.nextToken(), 16);
+                kKAMAjA.KkAMAjA();
+                return;
+            }
+            if (string2.equals("kill")) {
+                this.killScene(stringTokenizer.nextToken());
+                return;
+            }
+            if (string2.equals("killmod")) {
+                int n = Integer.parseInt(stringTokenizer.nextToken());
+                if (n == 1) {
+                    this.kkamAjA = null;
+                    return;
+                }
+            } else {
+                if (string2.equals("reality")) {
+                    if (this.KKAmAjA != null && this.KKAmajA != null) {
+                        this.KKAmAjA.remove(this);
+                        this.move(0, 0);
+                        this.KKAmajA.add("Center", this);
+                        this.KKAmajA.layout();
+                        this.show();
+                        this.KKAmAjA.dispose();
+                        this.KKAmAjA = null;
+                    }
+                    return;
+                }
+                if (string2.equals("loaded")) {
+                    this.KkamAJA = false;
+                    System.out.println("ml=" + this.kkAmAJA);
+                    this.repaint(0L);
+                }
+            }
+        }
+    }
+
+    void kamAjak(String string) {
+        System.out.print(String.valueOf(this.kkamajA++));
+        Scene mmjjmma2 = (Scene)this.sceneRegistry.get(string);
+        if (mmjjmma2 != null) {
+            mmjjmma2.init(this);
+            System.runFinalization();
+            System.gc();
+            return;
+        }
+        GraphicsRoutine majjkka2 = (GraphicsRoutine)this.routineRegistry.get(string);
+        if (majjkka2 != null) {
+            majjkka2.init(this);
+            System.runFinalization();
+            System.gc();
+            return;
+        }
+        System.out.println("muhmuscript error: no such routine " + string);
+    }
+
+    void Kamajak(String string, String string2) {
+        Scene mmjjmma2 = (Scene)this.sceneRegistry.get(string);
+        if (mmjjmma2 != null) {
+            mmjjmma2.handleMessage(string2, this.sceneTimeSeconds - this.kkaMAJA);
+            return;
+        }
+        GraphicsRoutine majjkka2 = (GraphicsRoutine)this.routineRegistry.get(string);
+        if (majjkka2 != null) {
+            majjkka2.handleMessage(string2, this.sceneTimeSeconds - this.kkaMAJA);
+            return;
+        }
+        System.out.println("muhmuscript error: no such routine " + string);
+    }
+
+    void showScene(String string) {
+        this.frameTimer.kAmAjaK(80L);
+        this.sceneTimeSeconds = (float)this.frameTimer.kamAjaK() / 1000.0f;
+        this.KkaMAJA = this.sceneTimeSeconds - 0.08f;
+        this.kkaMAJA = this.sceneTimeSeconds;
+        Scene mmjjmma2 = (Scene)this.sceneRegistry.get(string);
+        if (mmjjmma2 != null) {
+            mmjjmma2.onShow();
+            this.activeScene = mmjjmma2;
+            this.activeRoutine = null;
+            this.activeSceneName = string;
+            return;
+        }
+        GraphicsRoutine majjkka2 = (GraphicsRoutine)this.routineRegistry.get(string);
+        if (majjkka2 != null) {
+            majjkka2.onShow();
+            this.activeScene = null;
+            this.activeRoutine = majjkka2;
+            this.activeSceneName = string;
+            return;
+        }
+        System.out.println("muhmuscript error: no such routine " + string);
+    }
+
+    void killScene(String string) {
+        Scene mmjjmma2 = (Scene)this.sceneRegistry.get(string);
+        if (mmjjmma2 != null) {
+            mmjjmma2.dispose();
+            this.sceneRegistry.remove(string);
+            if (string.equals(this.activeSceneName)) {
+                this.activeSceneName = null;
+            }
+            System.runFinalization();
+            System.gc();
+            return;
+        }
+        GraphicsRoutine majjkka2 = (GraphicsRoutine)this.routineRegistry.get(string);
+        if (majjkka2 != null) {
+            majjkka2.dispose();
+            this.routineRegistry.remove(string);
+            if (string.equals(this.activeSceneName)) {
+                this.activeSceneName = null;
+            }
+            System.runFinalization();
+            System.gc();
+            return;
+        }
+        System.out.println("muhmuscript error: no such routine " + string);
+    }
+
+    void KAmAJak(int n) {
+        this.kKamajA = 0.0f;
+        this.KkAMajA = n;
+        this.KKamajA = this.sceneTimeSeconds;
+    }
+
+    void kAMAjak(Scene mmjjmma2) {
+        this.sceneRegistry.put(mmjjmma2.scriptName(), mmjjmma2);
+    }
+
+    void KAmajak(GraphicsRoutine majjkka2) {
+        this.routineRegistry.put(majjkka2.scriptName(), majjkka2);
+    }
+
+    public void kamAJak() {
+        this.kAMAjak(new Mute95Scene());
+        this.kAMAjak(new SaariScene());
+        this.kAMAjak(new FetaScene());
+        this.kAMAjak(new KukotScene());
+        this.kAMAjak(new WatercubeScene());
+        this.kAMAjak(new MakuScene());
+        this.KAmajak(new DominaRoutine());
+        this.KAmajak(new UppolRoutine());
+    }
+
+    public void run() {
+        this.KAMAjak();
+        System.gc();
+        System.runFinalization();
+        this.kaMAjak();
+        this.kamAJak();
+        this.kaMajak();
+        this.KaMAjak();
+        this.kkamAjA = this.kAmAjak("mods/kuninga.xm");
+        this.kAMajak();
+        this.KKamAjA = this.kAmAjak("mods/jarnomix.xm");
+        this.kAMajak();
+        this.frameTimer = new SmoothedFrameTimer(10, 60);
+        this.frameBuffer = new ForwardFrameBuffer(512, 256);
+        this.KamAJak(this, 0, 0, this.displayWidth, this.displayHeight);
+        this.requestFocus();
+        try {
+            this.captureAutoExit = this.getParameter("capture") != null && this.getParameter("captureexit") != null;
+            this.captureSession = ForwardFrameCapture.create(this, 512, 256);
+            this.captureWasActive = this.captureSession != null;
+            while (this.majAkka != null) {
+                if (!kkAMajA) {
+                    kkAMajA = true;
+                    this.KKAMajA = this.KAmAjak();
+                }
+                this.advanceTimeline();
+                Graphics graphics = this.KKAMajA;
+                Graphics frameGraphics = this.frameBuffer.beginFrame();
+                if (this.showDebugTimecode) {
+                    this.KaMaJAk(frameGraphics);
+                }
+                this.sceneTimeSeconds = (float)this.frameTimer.kamAjaK() / 1000.0f;
+                this.deltaSeconds = this.sceneTimeSeconds - this.KkaMAJA;
+                if (this.activeScene != null) {
+                    this.activeScene.render(KKAMAjA, this.sceneTimeSeconds - this.kkaMAJA, this.deltaSeconds);
+                    switch (this.KkAMajA) {
+                        case 1: {
+                            KKAMAjA.AMaJakK(RgbSurface.aMAJAKK(255, 255, 255));
+                            break;
+                        }
+                        case 2: {
+                            KKAMAjA.aMajAKK(Math.max(0.0f, 0.93f - (this.sceneTimeSeconds - this.KKamajA) * 2.0f));
+                            break;
+                        }
+                    }
+                    kkAMAjA.KKAMAjA(frameGraphics, 0, 0);
+                }
+                if (this.activeRoutine != null && frameGraphics != null) {
+                    this.activeRoutine.render(frameGraphics, this.sceneTimeSeconds - this.kkaMAJA, this.deltaSeconds);
+                }
+                if (graphics != null) {
+                    this.frameBuffer.present(graphics, 0, 0, this.displayWidth, this.displayHeight);
+                }
+                if (this.captureSession != null) {
+                    this.captureSession.copyFrame(this.frameBuffer.image());
+                    if (this.captureSession.captureFrame(this.renderFrame, this.sceneTimeSeconds, this.activeSceneName, this.nextScriptTimeHex)) {
+                        break;
+                    }
+                    if (this.captureSession.isEnded()) {
+                        this.captureSession = null;
+                    }
+                }
+                this.KkaMAJA = this.sceneTimeSeconds;
+                this.frameTimer.KAmAjaK();
+                ++this.renderFrame;
+                Thread.sleep(2L);
+            }
+        }
+        catch (Exception exception) {
+            exception.printStackTrace();
+        }
+        finally {
+            if (this.captureSession != null) {
+                this.captureSession.close();
+            }
+        }
+        if (this.captureAutoExit && this.captureWasActive) {
+            this.exitAfterCapture();
+        }
+    }
+
+    void KaMaJAk(Graphics graphics) {
+        int n = 2;
+        int n2 = 12;
+        String string = String.valueOf((int)this.frameTimer.kaMaJAK());
+        ForwardFontSupport.prepare(graphics, this.kKAmAJA);
+        graphics.setColor(Color.black);
+        graphics.drawString(string, n + 1, n2);
+        graphics.drawString(string, n - 1, n2);
+        graphics.drawString(string, n, n2 + 1);
+        graphics.drawString(string, n, n2 - 1);
+        graphics.setColor(Color.white);
+        graphics.drawString(string, n, n2);
+    }
+
+    void KamAJak(Component component, int n, int n2, int n3, int n4) {
+        this.KkaMajA = component;
+        this.kkaMajA = n;
+        this.KKaMajA = n2;
+        this.kKaMajA = n3;
+        this.KkAmAJA = n4;
+        kkAMajA = false;
+    }
+
+    Graphics KAmAjak() {
+        Graphics graphics = this.KkaMajA.getGraphics();
+        return graphics.create(this.kkaMajA, this.KKaMajA, this.kKaMajA, this.KkAmAJA);
+    }
+
+    public void paint(Graphics graphics) {
+        kkAMajA = false;
+        if (this.KkamAJA) {
+            Graphics graphics2 = this.prepareDisplayGraphics(graphics);
+            String string = "FORWARD :: KOMPLEX";
+            try {
+                ForwardFontSupport.prepare(graphics2, this.kKAmAJA);
+                FontMetrics fontMetrics = graphics2.getFontMetrics(this.kKAmAJA);
+                int n = fontMetrics.stringWidth(string) + 14;
+                int n2 = 20;
+                int n3 = (512 - n) / 2;
+                int n4 = (256 - n2) / 2;
+                graphics2.setColor(Color.black);
+                graphics2.fillRect(n3, n4, n, n2);
+                graphics2.setColor(Color.white);
+                graphics2.drawRect(n3, n4, n, n2);
+                graphics2.drawString(string, n3 + 7, n4 + 14);
+                int n5 = this.kkAmAJA * (n - 1) / this.KKAmAJA;
+                if (n5 > n - 1) {
+                    n5 = n - 1;
+                }
+                graphics2.setXORMode(Color.black);
+                graphics2.fillRect(n3 + 1, n4 + 1, n5, n2 - 1);
+                graphics2.setPaintMode();
+                return;
+            }
+            finally {
+                if (graphics2 != null) {
+                    graphics2.dispose();
+                }
+            }
+        }
+    }
+
+    public void kAMajak() {
+        ++this.kkAmAJA;
+        this.paint(this.getGraphics());
+    }
+
+    Graphics prepareDisplayGraphics(Graphics graphics) {
+        if (graphics == null) {
+            return null;
+        }
+        Graphics graphics2 = graphics.create();
+        if (graphics2 instanceof Graphics2D) {
+            Graphics2D graphics2D = (Graphics2D)graphics2;
+            graphics2D.scale((double)this.displayWidth / 512.0, (double)this.displayHeight / 256.0);
+            graphics2D.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+            graphics2D.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
+            graphics2D.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_SPEED);
+        }
+        return graphics2;
+    }
+
+    void exitAfterCapture() {
+        ForwardExitSupport.requestExit(this);
+    }
+}

@@ -2,9 +2,9 @@
  * Decompiled with CFR 0.152.
  */
 public class majjkmk {
-    public majjkmk(kmajkka kmajkka2) {
+    public majjkmk(IndexedSurface kmajkka2) {
     }
 
-    public void KkamAjA(kmaamma kmaamma2) {
+    public void KkamAjA(Triangle kmaamma2) {
     }
 }

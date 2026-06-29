@@ -130,14 +130,14 @@ implements Runnable {
                 this.kkaMajA(500L);
                 if (this.AKKaMAj < this.aKKaMAj) {
                     string = "kunigas";
-                    mmajkmk.akkAmaJ = true;
+                    SurfacePresenter.akkAmaJ = true;
                 } else {
                     string = "normal";
-                    mmajkmk.akkAmaJ = false;
+                    SurfacePresenter.akkAmaJ = false;
                 }
                 this.AkKAmaj.addElement(new kmaakka("choosing " + string + " mode", 10, this.AkKaMAj += 15));
                 this.paint(this.getGraphics());
-                System.out.println("kunigas=" + mmajkmk.akkAmaJ);
+                System.out.println("kunigas=" + SurfacePresenter.akkAmaJ);
             }
             this.kkaMajA(1000L);
             if (!this.AKKAmaj) {

@@ -46,13 +46,13 @@ public final class mmaakma {
         return mmaakma.MajaKkA(d6, d7, d8, dArray);
     }
 
-    public static final synchronized mmajkka majaKkA(URL uRL) {
+    public static final synchronized SoftwareImageSurface majaKkA(URL uRL) {
         Image image = Toolkit.getDefaultToolkit().getImage(uRL);
         if (image == null) {
             System.err.println("couldn't fetch image " + uRL);
             return null;
         }
-        mmjamka mmjamka2 = new mmjamka();
+        ImageDecodeConsumer mmjamka2 = new ImageDecodeConsumer();
         ImageProducer imageProducer = image.getSource();
         if (imageProducer == null) {
             System.err.println("couldn't fetch image " + uRL);
@@ -68,7 +68,7 @@ public final class mmaakma {
         return mmjamka2.KamaJAk;
     }
 
-    public static final mmajkka MAJaKkA(URL uRL) {
+    public static final SoftwareImageSurface MAJaKkA(URL uRL) {
         try {
             InputStream inputStream = uRL.openConnection().getInputStream();
             DataInputStream dataInputStream = new DataInputStream(inputStream);
@@ -99,7 +99,7 @@ public final class mmaakma {
                     }
                     ++n11;
                 }
-                mmaamma mmaamma2 = new mmaamma(n7, n8, nArray);
+                RgbSurface mmaamma2 = new RgbSurface(n7, n8, nArray);
                 nArray = null;
                 return mmaamma2;
             }
@@ -117,7 +117,7 @@ public final class mmaakma {
                 byArray5[n14] = byArray[n14 * 3 + 2];
                 ++n14;
             }
-            kmajkka kmajkka2 = new kmajkka(n7, n8, byArray2, byArray3, byArray4, byArray5);
+            IndexedSurface kmajkka2 = new IndexedSurface(n7, n8, byArray2, byArray3, byArray4, byArray5);
             byArray5 = null;
             byArray4 = null;
             byArray3 = null;

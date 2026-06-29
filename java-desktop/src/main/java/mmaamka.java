@@ -2,7 +2,7 @@
  * Decompiled with CFR 0.152.
  */
 public class mmaamka
-extends mmajmmk {
+extends MeshObject {
     float kKaMAJA;
     mmaakka[] KkAmaJA;
     public final static int kkAmaJA = 0;
@@ -22,16 +22,16 @@ extends mmajmmk {
     }
 
     public void kaMAJAk(int n) {
-        this.JAkkaMA = new kmaamma[n];
+        this.JAkkaMA = new Triangle[n];
         this.KkAmaJA = new mmaakka[n];
         this.jAkkaMA = this.KkAmaJA;
-        this.JaKKaMA = new kmajkmk[3];
-        this.JaKKaMA[0] = new kmajkmk(0.0f, 0.0f);
-        this.JaKKaMA[1] = new kmajkmk(1.0f, 0.0f);
-        this.JaKKaMA[2] = new kmajkmk(0.0f, 1.0f);
-        kmajkmk kmajkmk2 = this.JaKKaMA[0];
-        kmajkmk kmajkmk3 = this.JaKKaMA[0];
-        kmajkmk kmajkmk4 = this.JaKKaMA[0];
+        this.JaKKaMA = new UvCoord[3];
+        this.JaKKaMA[0] = new UvCoord(0.0f, 0.0f);
+        this.JaKKaMA[1] = new UvCoord(1.0f, 0.0f);
+        this.JaKKaMA[2] = new UvCoord(0.0f, 1.0f);
+        UvCoord kmajkmk2 = this.JaKKaMA[0];
+        UvCoord kmajkmk3 = this.JaKKaMA[0];
+        UvCoord kmajkmk4 = this.JaKKaMA[0];
         float f = 20.0f;
         int n2 = 0;
         while (n2 < n) {
@@ -43,7 +43,7 @@ extends mmajmmk {
             f3 = (float)((Math.random() - 0.5) * (double)f);
             f4 = (float)((Math.random() - 0.5) * (double)f);
             this.KkAmaJA[n2] = mmaakka2 = new mmaakka(f2, f3, f4);
-            this.JAkkaMA[n2] = new kmaamma(mmaakka2, mmaakka2, mmaakka2, kmajkmk2, kmajkmk3, kmajkmk4);
+            this.JAkkaMA[n2] = new Triangle(mmaakka2, mmaakka2, mmaakka2, kmajkmk2, kmajkmk3, kmajkmk4);
             this.JAkkaMA[n2].mAjAkka = 1024;
             ++n2;
         }
@@ -79,11 +79,11 @@ extends mmajmmk {
         }
     }
 
-    public void kkaMAJa(kaajmmk kaajmmk2, int n) {
+    public void kkaMAJa(Camera kaajmmk2, int n) {
         this.jaKkAma = kaajmmk2;
         switch (this.kKAmaJA) {
             case 1: {
-                this.kAmaJAk(new mmajmma(0.0f, 0.0f, 1.0f), new mmajmma(0.0f, 0.0f, 1.0f), 0.1f, 0.5f);
+                this.kAmaJAk(new Vec3f(0.0f, 0.0f, 1.0f), new Vec3f(0.0f, 0.0f, 1.0f), 0.1f, 0.5f);
                 break;
             }
         }
@@ -100,13 +100,13 @@ extends mmajmmk {
         int n3 = 0;
         while (n3 < n2) {
             mmaakka mmaakka2 = this.KkAmaJA[n3];
-            if (mmaakka2.AmAjAkk > this.kkamaJA && mmaakka2.AmAjAkk < this.jAKKAma) {
-                float f = mmaakka2.amAjAkk;
-                float f2 = mmaakka2.AMAjAkk;
-                float f3 = this.kKaMAJA / mmaakka2.AmAjAkk;
+            if (mmaakka2.init > this.kkamaJA && mmaakka2.init < this.jAKKAma) {
+                float f = mmaakka2.scriptName;
+                float f2 = mmaakka2.onShow;
+                float f3 = this.kKaMAJA / mmaakka2.init;
                 this.KkAmaJA[n++].AmajAkk = f3;
-                kmaamma kmaamma2 = this.JAkkaMA[n3];
-                kmaamma2.majAkKa = -mmaakka2.AmAjAkk * 3.0f;
+                Triangle kmaamma2 = this.JAkkaMA[n3];
+                kmaamma2.majAkKa = -mmaakka2.init * 3.0f;
                 kmjamma.majaKKa[kmjamma.MAjaKKa++] = kmaamma2;
             } else {
                 ++n;
@@ -115,9 +115,9 @@ extends mmajmmk {
         }
     }
 
-    public void kAmaJAk(mmajmma mmajmma2, mmajmma mmajmma3, float f, float f2) {
+    public void kAmaJAk(Vec3f mmajmma2, Vec3f mmajmma3, float f, float f2) {
         float f3;
-        mmajmma mmajmma4 = new mmajmma(0.0f, 0.0f, -0.05f);
+        Vec3f mmajmma4 = new Vec3f(0.0f, 0.0f, -0.05f);
         int n = this.KkAmaJA.length;
         mmaakka[] mmaakkaArray = this.KkAmaJA;
         int n2 = 0;
@@ -145,8 +145,8 @@ extends mmajmmk {
         this.kKamaJA += 0.05f;
     }
 
-    void KAmaJAk(mmajmma mmajmma2, float f, float f2, float f3) {
-        mmajmma mmajmma3 = new mmajmma();
+    void KAmaJAk(Vec3f mmajmma2, float f, float f2, float f3) {
+        Vec3f mmajmma3 = new Vec3f();
         mmaakka mmaakka2 = this.KkAmaJA[this.KKamaJA++];
         mmaakka2.mAjakKA(mmajmma2);
         mmajmma3.MaJaKka(0.0f, 0.0f, f3);

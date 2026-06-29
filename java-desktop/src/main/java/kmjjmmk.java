@@ -3,9 +3,9 @@
  */
 public class kmjjmmk {
     public int[] JAkkAMA = new int[1000];
-    public int[] jAkkAMA = new int[forward.kAmajAk];
+    public int[] jAkkAMA = new int[ForwardDemoApp.kAmajAk];
 
-    public void KkaMAja(mmaamma var1_1, int var2_2) {
+    public void KkaMAja(RgbSurface var1_1, int var2_2) {
         int n = var2_2;
         if ((var2_2 = Math.abs(var2_2)) > var1_1.AMAjakK) {
             var2_2 = var1_1.AMAjakK - 1;
@@ -43,7 +43,7 @@ public class kmjjmmk {
             n6 = (int)(Math.random() * (double)n);
             n5 = (int)(Math.random() * (double)n2);
             n4 = (int)(Math.random() * (double)n3);
-            this.JAkkAMA[n7] = mmaamma.aMAJAKK(n6, n5, n4);
+            this.JAkkAMA[n7] = RgbSurface.aMAJAKK(n6, n5, n4);
             ++n7;
         }
         n6 = 0;

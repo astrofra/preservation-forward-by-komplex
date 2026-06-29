@@ -22,14 +22,14 @@ public class maaakmk {
         this.jakKamA = (float)d4;
     }
 
-    public maaakmk(mmajmma mmajmma2, float f) {
+    public maaakmk(Vec3f mmajmma2, float f) {
         this.JAKKamA = mmajmma2.maJakKA;
         this.jAKKamA = mmajmma2.MAJakKA;
         this.JakKamA = mmajmma2.mAJakKA;
         this.jakKamA = f;
     }
 
-    public maaakmk(mmajmma mmajmma2) {
+    public maaakmk(Vec3f mmajmma2) {
         this.JAKKamA = mmajmma2.maJakKA;
         this.jAKKamA = mmajmma2.MAJakKA;
         this.JakKamA = mmajmma2.mAJakKA;
@@ -53,7 +53,7 @@ public class maaakmk {
         this.jakKamA = maaakmk2.jakKamA;
     }
 
-    public void kkAMAJA(float f, float f2, float f3, float f4) {
+    public void frameTimer(float f, float f2, float f3, float f4) {
         this.JAKKamA = f;
         this.jAKKamA = f2;
         this.JakKamA = f3;
@@ -97,7 +97,7 @@ public class maaakmk {
         return f;
     }
 
-    public void KkAMAJA(maaakmk maaakmk2) {
+    public void renderFrame(maaakmk maaakmk2) {
         float f = this.jakKamA * maaakmk2.jakKamA - this.JAKKamA * maaakmk2.JAKKamA - this.jAKKamA * maaakmk2.jAKKamA - this.JakKamA * maaakmk2.JakKamA;
         float f2 = this.jakKamA * maaakmk2.JAKKamA + this.JAKKamA * maaakmk2.jakKamA + this.jAKKamA * maaakmk2.JakKamA - this.JakKamA * maaakmk2.jAKKamA;
         float f3 = this.jakKamA * maaakmk2.jAKKamA + this.jAKKamA * maaakmk2.jakKamA + this.JakKamA * maaakmk2.JAKKamA - this.JAKKamA * maaakmk2.JakKamA;
@@ -134,7 +134,7 @@ public class maaakmk {
         this.JakKamA *= f;
     }
 
-    public void kKAMAJA() {
+    public void sceneTimeSeconds() {
         float f = (float)Math.sqrt(this.JAKKamA * this.JAKKamA + this.jAKKamA * this.jAKKamA + this.JakKamA * this.JakKamA);
         f = this.jakKamA != 0.0f ? (float)Math.atan(f / this.jakKamA) : 1.5707964f;
         this.jakKamA = 0.0f;
@@ -147,7 +147,7 @@ public class maaakmk {
         maaakmk maaakmk3 = new maaakmk(this);
         maaakmk3.kkAMaJA();
         maaakmk maaakmk4 = new maaakmk(maaakmk3);
-        maaakmk4.KkAMAJA(maaakmk2);
+        maaakmk4.renderFrame(maaakmk2);
         double d = Math.sqrt(maaakmk4.JAKKamA * maaakmk4.JAKKamA + maaakmk4.jAKKamA * maaakmk4.jAKKamA + maaakmk4.JakKamA * maaakmk4.JakKamA);
         float f = this.JAKKamA * maaakmk2.JAKKamA + this.jAKKamA * maaakmk2.jAKKamA + this.JakKamA * maaakmk2.JakKamA + this.jakKamA * maaakmk2.jakKamA;
         float f2 = f != 0.0f ? (float)Math.atan(d / (double)f) : 1.5707964f;
@@ -160,7 +160,7 @@ public class maaakmk {
         this.JakKamA = maaakmk4.JakKamA * f2;
     }
 
-    public void kKamaJA(maajkka maajkka2) {
+    public void kKamaJA(Mat3f maajkka2) {
         float f = this.JAKKamA * this.JAKKamA + this.jAKKamA * this.jAKKamA + this.JakKamA * this.JakKamA + this.jakKamA * this.jakKamA;
         float f2 = f == 0.0f ? 1.0f : 2.0f / f;
         float f3 = this.JAKKamA * f2;
@@ -186,7 +186,7 @@ public class maaakmk {
         maajkka2.AMajAKK = 1.0f - (f9 + f12);
     }
 
-    public void kKAMaJA(maajkka maajkka2) {
+    public void kKAMaJA(Mat3f maajkka2) {
         float f = this.JAKKamA * this.JAKKamA + this.jAKKamA * this.jAKKamA + this.JakKamA * this.JakKamA + this.jakKamA * this.jakKamA;
         float f2 = f == 0.0f ? 1.0f : 2.0f / f;
         float f3 = this.JAKKamA * f2;
@@ -220,7 +220,7 @@ public class maaakmk {
         this.jakKamA = (float)Math.cos(f4 / 2.0f);
     }
 
-    public void KKAMAJA(mmajmma mmajmma2, float f) {
+    public void deltaSeconds(Vec3f mmajmma2, float f) {
         float f2 = (float)Math.sin(f / 2.0f);
         this.JAKKamA = mmajmma2.maJakKA * f2;
         this.jAKKamA = mmajmma2.MAJakKA * f2;
@@ -228,7 +228,7 @@ public class maaakmk {
         this.jakKamA = (float)Math.cos(f / 2.0f);
     }
 
-    public void KKaMAJA() {
+    public void showDebugTimecode() {
         float f = (float)Math.sin(this.jakKamA / 2.0f);
         this.JAKKamA *= f;
         this.jAKKamA *= f;
@@ -236,7 +236,7 @@ public class maaakmk {
         this.jakKamA = (float)Math.cos(this.jakKamA / 2.0f);
     }
 
-    public float kkaMaJA(mmajmma mmajmma2) {
+    public float kkaMaJA(Vec3f mmajmma2) {
         maaakmk maaakmk2 = new maaakmk(this);
         maaakmk2.KkaMAJA();
         double d = Math.acos(maaakmk2.jakKamA);
@@ -247,7 +247,7 @@ public class maaakmk {
         return 2.0f * (float)d;
     }
 
-    public void KKAMaJA(maajkka maajkka2) {
+    public void KKAMaJA(Mat3f maajkka2) {
         float f = maajkka2.AMaJakK + maajkka2.AMAjAKK + maajkka2.AMajAKK;
         if (f > 0.0f) {
             float f2 = (float)Math.sqrt((double)f + 1.0);

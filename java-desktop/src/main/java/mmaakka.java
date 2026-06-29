@@ -2,8 +2,8 @@
  * Decompiled with CFR 0.152.
  */
 class mmaakka
-extends mmjakka {
-    mmajmma AmAJAKk = new mmajmma();
+extends Vertex {
+    Vec3f AmAJAKk = new Vec3f();
 
     mmaakka() {
     }

@@ -46,7 +46,7 @@ extends Thread {
     }
 
     public void start() {
-        new maaakma(this.JaKkaMA).MaJakkA(this.jAkKAMA);
+        new DepthSorter(this.JaKkaMA).MaJakkA(this.jAkKAMA);
         this.jAKkaMA = 0;
         super.start();
     }

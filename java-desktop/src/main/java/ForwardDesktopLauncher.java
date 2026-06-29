@@ -18,7 +18,7 @@ public final class ForwardDesktopLauncher {
         Path path = ForwardDesktopLauncher.resolveAssetRoot();
         if (path == null) {
             System.err.println("forward packaging warning: unable to locate bundled assets, using current working directory");
-            forward.main(stringArray);
+            ForwardDemoApp.main(stringArray);
             return;
         }
         if (System.getProperty("forward.repoRoot") == null) {
@@ -27,7 +27,7 @@ public final class ForwardDesktopLauncher {
                 System.setProperty("forward.repoRoot", path2.toString());
             }
         }
-        forward.main(ForwardDesktopLauncher.injectBaseDir(stringArray, path));
+        ForwardDemoApp.main(ForwardDesktopLauncher.injectBaseDir(stringArray, path));
     }
 
     static Path resolveAssetRoot() {

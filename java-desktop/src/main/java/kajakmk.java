@@ -30,7 +30,7 @@ public class kajakmk {
 
     public kajakmk(kmjjmma[] kmjjmmaArray, int n, int n2) {
         this.akKamAj = kmjjmmaArray;
-        this.AkkamAj = this.akKamAj[this.akKamAj.length - 1].maJakkA;
+        this.AkkamAj = this.akKamAj[this.akKamAj.length - 1].render;
         this.aKKAMAj = n2;
         switch (this.aKKAMAj) {
             case 0: {
@@ -94,10 +94,10 @@ public class kajakmk {
         kmjjmma kmjjmma3 = this.KkamAJA(n);
         kmjjmma kmjjmma4 = this.KkamAJA(n + 1);
         kmjjmma kmjjmma5 = this.KkamAJA(n + 2);
-        this.akKAmAj = 0.5f * (1.0f - kmjjmma3.MAJakkA) * (1.0f + kmjjmma3.mAJakkA) * (1.0f + kmjjmma3.MajakkA);
-        this.AKKAmAj = 0.5f * (1.0f - kmjjmma3.MAJakkA) * (1.0f - kmjjmma3.mAJakkA) * (1.0f - kmjjmma3.MajakkA);
-        this.aKKAmAj = 0.5f * (1.0f - kmjjmma4.MAJakkA) * (1.0f + kmjjmma4.mAJakkA) * (1.0f - kmjjmma4.MajakkA);
-        this.AkkAmAj = 0.5f * (1.0f - kmjjmma4.MAJakkA) * (1.0f - kmjjmma4.mAJakkA) * (1.0f + kmjjmma4.MajakkA);
+        this.akKAmAj = 0.5f * (1.0f - kmjjmma3.handleMessage) * (1.0f + kmjjmma3.dispose) * (1.0f + kmjjmma3.init);
+        this.AKKAmAj = 0.5f * (1.0f - kmjjmma3.handleMessage) * (1.0f - kmjjmma3.dispose) * (1.0f - kmjjmma3.init);
+        this.aKKAmAj = 0.5f * (1.0f - kmjjmma4.handleMessage) * (1.0f + kmjjmma4.dispose) * (1.0f - kmjjmma4.init);
+        this.AkkAmAj = 0.5f * (1.0f - kmjjmma4.handleMessage) * (1.0f - kmjjmma4.dispose) * (1.0f + kmjjmma4.init);
         switch (this.aKKAMAj) {
             case 0: {
                 float[] fArray = kmjjmma2.mAjakkA;
@@ -163,7 +163,7 @@ public class kajakmk {
         maaakmk maaakmk5 = new maaakmk();
         maaakmk maaakmk6 = new maaakmk(kmjjmma3.maJAkkA[n]);
         maaakmk maaakmk7 = new maaakmk(kmjjmma3.maJAkkA[n]);
-        maaakmk7.KKaMAJA();
+        maaakmk7.showDebugTimecode();
         maaakmk maaakmk8 = null;
         maaakmk maaakmk9 = null;
         maaakmk maaakmk10 = null;
@@ -171,11 +171,11 @@ public class kajakmk {
         if (kmjjmma2 != null) {
             maaakmk8 = new maaakmk(kmjjmma2.maJAkkA[n]);
             maaakmk9 = new maaakmk(kmjjmma2.maJAkkA[n]);
-            maaakmk9.KKaMAJA();
+            maaakmk9.showDebugTimecode();
             if ((double)Math.abs(maaakmk6.jakKamA - maaakmk8.jakKamA) > 6.283175307179587) {
                 maaakmk3 = new maaakmk(maaakmk6);
                 maaakmk3.jakKamA = 0.0f;
-                maaakmk3.kKAMAJA();
+                maaakmk3.sceneTimeSeconds();
             } else {
                 maaakmk maaakmk12 = new maaakmk(maaakmk9);
                 if (maaakmk12.KkAMaJA(maaakmk7) < 0.0f) {
@@ -188,11 +188,11 @@ public class kajakmk {
         if (kmjjmma4 != null) {
             maaakmk10 = new maaakmk(kmjjmma4.maJAkkA[n]);
             maaakmk11 = new maaakmk(kmjjmma4.maJAkkA[n]);
-            maaakmk11.KKaMAJA();
+            maaakmk11.showDebugTimecode();
             if ((double)Math.abs(maaakmk10.jakKamA - maaakmk6.jakKamA) > 6.283175307179587) {
                 maaakmk2 = new maaakmk(maaakmk10);
                 maaakmk2.jakKamA = 0.0f;
-                maaakmk2.kKAMAJA();
+                maaakmk2.sceneTimeSeconds();
             } else {
                 maaakmk maaakmk13 = new maaakmk(maaakmk11);
                 if (maaakmk13.KkAMaJA(maaakmk7) < 0.0f) {
@@ -210,18 +210,18 @@ public class kajakmk {
         }
         float f = 1.0f;
         float f2 = 1.0f;
-        float f3 = 1.0f - kmjjmma3.MajakkA;
+        float f3 = 1.0f - kmjjmma3.init;
         if (kmjjmma2 != null && kmjjmma4 != null) {
-            float f4 = 0.5f * (kmjjmma4.maJakkA - kmjjmma2.maJakkA);
-            f2 = (kmjjmma3.maJakkA - kmjjmma2.maJakkA) / f4;
-            f = (kmjjmma4.maJakkA - kmjjmma3.maJakkA) / f4;
-            float f5 = Math.abs(kmjjmma3.MajakkA);
+            float f4 = 0.5f * (kmjjmma4.render - kmjjmma2.render);
+            f2 = (kmjjmma3.render - kmjjmma2.render) / f4;
+            f = (kmjjmma4.render - kmjjmma3.render) / f4;
+            float f5 = Math.abs(kmjjmma3.init);
             f2 = f2 + f5 - f5 * f2;
             f = f + f5 - f5 * f;
         }
-        float f6 = 0.5f * (1.0f - kmjjmma3.MAJakkA);
+        float f6 = 0.5f * (1.0f - kmjjmma3.handleMessage);
         float f7 = 2.0f - f3;
-        float f8 = 1.0f - kmjjmma3.mAJakkA;
+        float f8 = 1.0f - kmjjmma3.dispose;
         float f9 = 2.0f - f8;
         float f10 = f6 * f3;
         float f11 = f6 * f7;
@@ -244,9 +244,9 @@ public class kajakmk {
         maaakmk maaakmk16 = kmjjmma3.MAJAkkA[n];
         maaakmk maaakmk17 = kmjjmma3.mAJAkkA[n];
         maaakmk16.kKAmaJA(maaakmk7);
-        maaakmk16.KkAMAJA(maaakmk14);
+        maaakmk16.renderFrame(maaakmk14);
         maaakmk17.kKAmaJA(maaakmk7);
-        maaakmk17.KkAMAJA(maaakmk15);
+        maaakmk17.renderFrame(maaakmk15);
     }
 
     public void KKAmAJA(float f) {
@@ -263,18 +263,18 @@ public class kajakmk {
         kmjjmma kmjjmma2 = this.KkamAJA(this.aKkAMAj);
         kmjjmma kmjjmma3 = this.KkamAJA(this.aKkAMAj + 1);
         int n = this.aKkAMAj;
-        while (f < kmjjmma2.maJakkA && n > 0) {
+        while (f < kmjjmma2.render && n > 0) {
             kmjjmma2 = this.KkamAJA(--n);
             kmjjmma3 = this.KkamAJA(n + 1);
         }
-        while (f >= kmjjmma3.maJakkA && n < this.akKamAj.length - 2) {
+        while (f >= kmjjmma3.render && n < this.akKamAj.length - 2) {
             kmjjmma2 = this.KkamAJA(++n);
             kmjjmma3 = this.KkamAJA(n + 1);
         }
         if (n != this.aKkAMAj) {
             this.kKAmAJA(n);
         }
-        float f2 = (f - kmjjmma2.maJakkA) / (kmjjmma3.maJakkA - kmjjmma2.maJakkA);
+        float f2 = (f - kmjjmma2.render) / (kmjjmma3.render - kmjjmma2.render);
         float f3 = f2 * f2;
         float f4 = f3 * f2;
         float f5 = 2.0f * f4 - 3.0f * f3 + 1.0f;
@@ -303,9 +303,9 @@ public class kajakmk {
                     maaakmk maaakmk2;
                     maaakmk maaakmk3;
                     maaakmk maaakmk4 = new maaakmk(kmjjmma2.maJAkkA[n4]);
-                    maaakmk4.KKaMAJA();
+                    maaakmk4.showDebugTimecode();
                     maaakmk maaakmk5 = new maaakmk(kmjjmma3.maJAkkA[n4]);
-                    maaakmk5.KKaMAJA();
+                    maaakmk5.showDebugTimecode();
                     float f10 = kmjjmma3.maJAkkA[n4].jakKamA - kmjjmma2.maJAkkA[n4].jakKamA;
                     float f11 = f10 > 0.0f ? (float)Math.floor((double)f10 / (Math.PI * 2)) : (float)Math.ceil((double)f10 / (Math.PI * 2));
                     f10 -= (float)Math.PI * 2 * f11;

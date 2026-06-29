@@ -4,14 +4,14 @@
 import java.net.URL;
 
 public class kaaakma
-extends mmajmmk {
+extends MeshObject {
     float MaJakkA = 10000.0f;
 
     private static final String SAARI_BACKDROP_UV_MODE_PROPERTY = "forward.saariBackdropUvMode";
 
-    public kaaakma(mmjamma mmjamma2, URL uRL, boolean bl) {
+    public kaaakma(DesktopAppletBase mmjamma2, URL uRL, boolean bl) {
         boolean bl2 = true;
-        mmajmmk mmajmmk2 = bl ? kajamka.kAMaJAk(mmjamma2.amAjAkK("meshes/octa8.igu")) : kajamka.kAMaJAk(mmjamma2.amAjAkK("meshes/half8.igu"));
+        MeshObject mmajmmk2 = bl ? IguMeshLoader.kAMaJAk(mmjamma2.amAjAkK("meshes/octa8.igu")) : IguMeshLoader.kAMaJAk(mmjamma2.amAjAkK("meshes/half8.igu"));
         this.jAkkaMA = mmajmmk2.jAkkaMA;
         this.JaKKaMA = mmajmmk2.JaKKaMA;
         this.JAkkaMA = mmajmmk2.JAkkaMA;
@@ -19,30 +19,30 @@ extends mmajmmk {
         this.kkAMAJa();
         this.kKAmaja();
         if (bl2) {
-            mmaamma mmaamma2;
-            mmaamma mmaamma3;
+            RgbSurface mmaamma2;
+            RgbSurface mmaamma3;
             if (bl) {
-                mmaamma3 = (mmaamma)mmaakma.majaKkA(uRL);
-                mmaamma2 = new mmaamma(256, 256, 1, false);
+                mmaamma3 = (RgbSurface)mmaakma.majaKkA(uRL);
+                mmaamma2 = new RgbSurface(256, 256, 1, false);
                 mmaamma2.aMAJakK(mmaamma3, 0, 0);
-                mmaamma mmaamma4 = new mmaamma(256, 256, 1, false);
+                RgbSurface mmaamma4 = new RgbSurface(256, 256, 1, false);
                 mmaamma4.aMAjakK(mmaamma3, 0, 0, 256, 0, 256, 256);
                 this.KKAmaJa(mmaamma2, mmaamma4);
             } else {
-                mmaamma3 = (mmaamma)mmaakma.majaKkA(uRL);
-                mmaamma2 = new mmaamma(256, 256, 1, false);
+                mmaamma3 = (RgbSurface)mmaakma.majaKkA(uRL);
+                mmaamma2 = new RgbSurface(256, 256, 1, false);
                 mmaamma2.aMAJakK(mmaamma3, 0, 0);
                 this.kAmAjAK(mmaamma2, mmaamma2, false);
             }
         } else {
-            mmaamma mmaamma5 = (mmaamma)mmaakma.majaKkA(mmjamma2.amAjAkK("images/verax/test.jpg"));
+            RgbSurface mmaamma5 = (RgbSurface)mmaakma.majaKkA(mmjamma2.amAjAkK("images/verax/test.jpg"));
             this.KkaMaja(mmaamma5);
             this.KkAMaja();
         }
         this.jakKaMA = Float.POSITIVE_INFINITY;
     }
 
-    private void kAmAjAK(mmaamma mmaamma2, mmaamma mmaamma3, boolean bl) {
+    private void kAmAjAK(RgbSurface mmaamma2, RgbSurface mmaamma3, boolean bl) {
         String string = bl ? "procedural" : System.getProperty(SAARI_BACKDROP_UV_MODE_PROPERTY, "procedural");
         if ("mesh".equalsIgnoreCase(string)) {
             this.kaMAJAk(mmaamma2, mmaamma3);
@@ -55,7 +55,7 @@ extends mmajmmk {
         this.kAMAjAK();
     }
 
-    private void kaMAJAk(mmaamma mmaamma2, mmaamma mmaamma3) {
+    private void kaMAJAk(RgbSurface mmaamma2, RgbSurface mmaamma3) {
         int n = 0;
         while (n < this.JAkkaMA.length) {
             kmjamma kmjamma2 = this.JAkkaMA[n];
@@ -72,7 +72,7 @@ extends mmajmmk {
         }
     }
 
-    public void kkaMAJa(kaajmmk kaajmmk2, int n) {
+    public void kkaMAJa(Camera kaajmmk2, int n) {
         float f = this.jaKKaMA.maJakKA;
         float f2 = this.jaKKaMA.MAJakKA;
         float f3 = this.jaKKaMA.mAJakKA;

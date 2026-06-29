@@ -4,12 +4,12 @@
 public abstract class kmjamma
 extends maaamma {
     public int mAjAkka = 1;
-    public kmajkka MaJaKKa;
-    public mmaamma maJaKKa;
+    public IndexedSurface MaJaKKa;
+    public RgbSurface maJaKKa;
     public float MAJaKKa;
     public float mAJaKKa;
     public float MajaKKa;
-    public static kmaamma[] majaKKa;
+    public static Triangle[] majaKKa;
     public static int MAjaKKa;
 
     abstract void aMaJAkK();
