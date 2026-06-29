@@ -16,8 +16,11 @@ This script:
 2. builds `forward-desktop.jar`
 3. stages the original runtime asset directories from `original/forward`:
    `asses`, `images`, `meshes`, `mods`
-4. runs `jpackage` to create a self-contained Windows app image
-5. optionally builds a Windows installer `exe`
+4. converts `java-desktop/app-icon.png` into a standard Windows `.ico`
+5. copies `original/forward/README.TXT` and `original/forward/version.txt` next to the packaged launcher
+6. copies `forward-launcher.ini` next to the packaged launcher when that file exists at the repository root
+7. runs `jpackage` to create a self-contained Windows app image
+8. optionally builds a Windows installer `exe`
 
 ## Why a Dedicated Launcher Exists
 
@@ -37,7 +40,7 @@ That launcher:
 - locates the bundled asset root at runtime
 - injects `basedir <absolute-path>` before calling `forward.main(...)`
 - sets `forward.repoRoot` when possible so relative capture output still works
-- exposes the same startup GUI as the source launcher for `windowed` / `fullscreen` and `x1` / `x2` display size selection
+- exposes the same startup GUI as the source launcher for `windowed` / `fullscreen` and the editable resolution list from `forward-launcher.ini`
 
 This keeps the source-faithful asset loading model intact while removing the dependency on a developer checkout layout.
 
@@ -51,14 +54,17 @@ package_forward_desktop.bat
 
 Default output:
 
-- `java-desktop/dist/jpackage/app-image/Forward/Forward.exe`
+- `java-desktop/dist/jpackage/app-image/forward-komplex/forward-komplex.exe`
 
 This `app-image` already contains the Java runtime. It can be copied to another Windows machine without installing a separate JDK.
+The packaged executable icon is generated automatically from `java-desktop/app-icon.png`.
+The packaged app folder also includes `README.TXT` and `version.txt` from `original/forward`.
+If `forward-launcher.ini` exists at the repository root when packaging runs, it is copied next to `forward-komplex.exe` and remains editable after distribution.
 
 The packaged launcher shows the same startup GUI as `run_forward_desktop.bat` unless you force parameters such as:
 
 ```bat
-Forward.exe launcher 0 displaymode fullscreen displayscale 1
+forward-komplex.exe launcher 0 displaymode fullscreen displayscale 1
 ```
 
 To build an installer executable as well:
@@ -88,7 +94,7 @@ If WiX is missing:
 
 The recommended smoke test after packaging is:
 
-1. launch the packaged `Forward.exe`
+1. launch the packaged `forward-komplex.exe`
 2. confirm the window opens and assets load
 3. run a short capture session with `capture ... capturelimit ... captureexit 1`
 4. compare the captured PNGs with the normal desktop build if needed

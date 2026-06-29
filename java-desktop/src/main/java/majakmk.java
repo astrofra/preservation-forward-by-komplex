@@ -35,14 +35,14 @@ implements Runnable {
     int AkkaMAj = 256;
     int akkaMAj = 128;
     int AKkaMAj = 21;
-    final int displayScaleX;
-    final int displayScaleY;
+    final double displayScaleX;
+    final double displayScaleY;
 
-    public majakmk(boolean bl, boolean bl2, int n, int n2) {
+    public majakmk(boolean bl, boolean bl2, double d, double d2) {
         this.akKAmaj = bl;
         this.AKKAmaj = bl2;
-        this.displayScaleX = Math.max(1, n);
-        this.displayScaleY = Math.max(1, n2);
+        this.displayScaleX = Math.max(1.0, d);
+        this.displayScaleY = Math.max(1.0, d2);
         this.setBackground(new Color(0, 60, 0));
     }
 
@@ -89,8 +89,8 @@ implements Runnable {
 
     public void paint(Graphics graphics) {
         Graphics graphics2 = this.prepareDisplayGraphics(graphics);
-        int n = Math.max(1, this.bounds().width / this.displayScaleX);
-        int n2 = Math.max(1, this.bounds().height / this.displayScaleY);
+        int n = Math.max(1, (int)Math.round((double)this.bounds().width / this.displayScaleX));
+        int n2 = Math.max(1, (int)Math.round((double)this.bounds().height / this.displayScaleY));
         try {
             graphics2.setColor(Color.yellow);
             graphics2.drawRect(0, 0, n - 1, n2 - 1);

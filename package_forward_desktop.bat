@@ -4,6 +4,9 @@ setlocal EnableExtensions EnableDelayedExpansion
 set "ROOT=%~dp0"
 if "%ROOT:~-1%"=="\" set "ROOT=%ROOT:~0,-1%"
 
+set "APP_NAME=forward-komplex"
+set "APP_VERSION=1.0.2"
+
 set "JAVA_PROJECT=%ROOT%\java-desktop"
 set "SRC_DIR=%JAVA_PROJECT%\src\main\java"
 set "BUILD_ROOT=%JAVA_PROJECT%\build"
@@ -17,9 +20,13 @@ set "INSTALLER_OUT=%DIST_ROOT%\installer"
 set "TEMP_ROOT=%DIST_ROOT%\temp"
 set "JAR_FILE=%INPUT_DIR%\forward-desktop.jar"
 set "ASSETS_DIR=%INPUT_DIR%\forward-assets"
-
-set "APP_NAME=Forward"
-set "APP_VERSION=1.0.2"
+set "ICON_PNG=%JAVA_PROJECT%\app-icon.png"
+set "ICON_ICO=%INPUT_DIR%\%APP_NAME%.ico"
+set "LAUNCHER_INI_SOURCE=%ROOT%\forward-launcher.ini"
+set "FORWARD_ROOT=%ROOT%\original\forward"
+set "FORWARD_README_SOURCE=%FORWARD_ROOT%\README.TXT"
+set "FORWARD_VERSION_SOURCE=%FORWARD_ROOT%\version.txt"
+set "APP_IMAGE_DIR=%APP_IMAGE_OUT%\%APP_NAME%"
 set "PACKAGE_MODE=%~1"
 if "%PACKAGE_MODE%"=="" set "PACKAGE_MODE=app-image"
 
@@ -59,12 +66,21 @@ mkdir "%TEMP_ROOT%"
 jar --create --file "%JAR_FILE%" --main-class ForwardDesktopLauncher -C "%BUILD_DIR%" .
 if errorlevel 1 exit /b %errorlevel%
 
+call :build_icon
+if errorlevel 1 exit /b %errorlevel%
+
 for %%D in (asses images meshes mods) do (
     robocopy "%ROOT%\original\forward\%%D" "%ASSETS_DIR%\%%D" /E /NFL /NDL /NJH /NJS /NC /NS >nul
     if errorlevel 8 exit /b !errorlevel!
 )
 
 call :build_app_image
+if errorlevel 1 exit /b %errorlevel%
+
+call :stage_release_notes
+if errorlevel 1 exit /b %errorlevel%
+
+call :stage_launcher_ini
 if errorlevel 1 exit /b %errorlevel%
 
 if /I "%PACKAGE_MODE%"=="app-image" goto :success
@@ -96,9 +112,10 @@ jpackage ^
   --type app-image ^
   --name "%APP_NAME%" ^
   --app-version "%APP_VERSION%" ^
-  --vendor "Preservation Forward by Komplex" ^
-  --copyright "Komplex, reconstructed desktop build" ^
-  --description "Forward Java desktop reconstruction" ^
+  --vendor "Komplex.org" ^
+  --copyright "Komplex, desktop build" ^
+  --description "Forward demo by Komplex, reactivated Java desktop version." ^
+  --icon "%ICON_ICO%" ^
   --input "%INPUT_DIR%" ^
   --main-jar "forward-desktop.jar" ^
   --main-class "ForwardDesktopLauncher" ^
@@ -113,9 +130,10 @@ jpackage ^
   --type exe ^
   --name "%APP_NAME%" ^
   --app-version "%APP_VERSION%" ^
-  --vendor "Preservation Forward by Komplex" ^
-  --copyright "Komplex, reconstructed desktop build" ^
-  --description "Forward Java desktop reconstruction" ^
+  --vendor "Komplex.org" ^
+  --copyright "Komplex, desktop build" ^
+  --description "Forward demo by Komplex, reactivated Java desktop version." ^
+  --icon "%ICON_ICO%" ^
   --dest "%INSTALLER_OUT%" ^
   --temp "%TEMP_ROOT%\installer" ^
   --app-image "%APP_IMAGE_OUT%\%APP_NAME%" ^
@@ -131,3 +149,29 @@ where wix >nul 2>nul && exit /b 0
 echo WiX Toolset was not found in PATH. App image was built, but installer generation was skipped.
 echo Install WiX and re-run %~nx0 exe if you want a Windows installer package.
 exit /b 1
+
+:build_icon
+if not exist "%ICON_PNG%" (
+    echo Icon source was not found: %ICON_PNG%
+    exit /b 1
+)
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; Add-Type -AssemblyName System.Drawing; $srcPath='%ICON_PNG%'; $dstPath='%ICON_ICO%'; $size=256; $src=[System.Drawing.Image]::FromFile($srcPath); try { $bmp=New-Object System.Drawing.Bitmap($size, $size, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb); try { $g=[System.Drawing.Graphics]::FromImage($bmp); try { $g.Clear([System.Drawing.Color]::Transparent); $g.InterpolationMode=[System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic; $g.PixelOffsetMode=[System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality; $g.SmoothingMode=[System.Drawing.Drawing2D.SmoothingMode]::HighQuality; $scale=[Math]::Min($size / [double]$src.Width, $size / [double]$src.Height); $w=[int][Math]::Round($src.Width * $scale); $h=[int][Math]::Round($src.Height * $scale); $x=[int](($size - $w) / 2); $y=[int](($size - $h) / 2); $g.DrawImage($src, $x, $y, $w, $h); $ms=New-Object System.IO.MemoryStream; try { $bmp.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png); $pngBytes=$ms.ToArray(); $fs=[System.IO.File]::Open($dstPath, [System.IO.FileMode]::Create, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None); try { $bw=New-Object System.IO.BinaryWriter($fs); try { $bw.Write([UInt16]0); $bw.Write([UInt16]1); $bw.Write([UInt16]1); $bw.Write([byte]0); $bw.Write([byte]0); $bw.Write([byte]0); $bw.Write([byte]0); $bw.Write([UInt16]1); $bw.Write([UInt16]32); $bw.Write([UInt32]$pngBytes.Length); $bw.Write([UInt32]22); $bw.Write($pngBytes); } finally { $bw.Dispose() } } finally { $fs.Dispose() } } finally { $ms.Dispose() } } finally { $g.Dispose() } } finally { $bmp.Dispose() } } finally { $src.Dispose() }"
+exit /b %errorlevel%
+
+:stage_launcher_ini
+if not exist "%LAUNCHER_INI_SOURCE%" exit /b 0
+if not exist "%APP_IMAGE_DIR%" exit /b 0
+copy /y "%LAUNCHER_INI_SOURCE%" "%APP_IMAGE_DIR%\forward-launcher.ini" >nul
+exit /b %errorlevel%
+
+:stage_release_notes
+if not exist "%APP_IMAGE_DIR%" exit /b 0
+if exist "%FORWARD_README_SOURCE%" (
+    copy /y "%FORWARD_README_SOURCE%" "%APP_IMAGE_DIR%\README.TXT" >nul
+    if errorlevel 1 exit /b %errorlevel%
+)
+if exist "%FORWARD_VERSION_SOURCE%" (
+    copy /y "%FORWARD_VERSION_SOURCE%" "%APP_IMAGE_DIR%\version.txt" >nul
+    if errorlevel 1 exit /b %errorlevel%
+)
+exit /b 0

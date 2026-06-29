@@ -98,7 +98,7 @@ Relevant file:
 
 Documentation updated:
 
-- `java-desktop/README.md`
+- `README.md`
 - `documentation/forward-java-desktop-reconstruction-process.md`
 
 ### 4. That `3` / `259` cleanup was probably not the main cause of the sky itself
@@ -351,7 +351,7 @@ Related files:
 - `documentation/forward-java-desktop-reconstruction-process.md`
 - `documentation/forward-saari-probe-workflow.md`
 - `documentation/forward-reference-capture-workflow.md`
-- `java-desktop/README.md`
+- `README.md`
 
 This file should be updated whenever:
 
