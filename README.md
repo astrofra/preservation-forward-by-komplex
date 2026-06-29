@@ -1,6 +1,14 @@
-# Forward by Komplex (Java desktop version)
+# forward by Komplex (preservation)
+Forward Java demo, rebuilt from the bytecode, adapted to a more recent JDK and packaged as a standalone binary. Part of my PhD project about demoscene preservation.
 
-Desktop Java reconstruction base for `forward`, derived from the decompiled sources in `reverse/cfr_single`.
+## Original authors:
+
+- saviour, jmagic, anis - _code_
+- carebear, jugi - _music_
+- jugi - _graphics_
+- reward - _komplex 3D klunssi_
+
+![preview](img/shot_007.png)
 
 ## What Has Been Modernized
 
