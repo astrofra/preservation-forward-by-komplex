@@ -210,7 +210,7 @@ bool ForwardApp::write_log(std::string* error_message) const {
         stream << "intro_frames_per_row=" << config_.intro_frames_per_row << '\n';
         stream << "intro_rows_per_order=" << config_.intro_rows_per_order << '\n';
         stream << "scene=saari\n";
-        stream << "note=first saari slice with direct original-asset loading and script-row shock messages; terrain/reflection renderer still pending\n";
+        stream << "note=first autonomous saari 3D pass with direct original-asset loading, ASE camera/object parsing, terrain/reflection rendering, and script-row shock messages; camera/raster parity is still pending\n";
     } else {
         stream << "scene=" << scene_.script_name() << '\n';
         stream << "note=placeholder scene plus silent wav until the real Java systems are ported\n";

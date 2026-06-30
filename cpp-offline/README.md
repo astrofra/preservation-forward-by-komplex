@@ -6,7 +6,7 @@ This directory contains the first usable milestone of the `documentation/forward
 - headless CLI exporter
 - deterministic `50 fps` / `22050 Hz` offline timeline
 - Java-style intro script player for `mute95 -> domina -> filmbox`
-- isolated `saari` scene slice with script-row shock events
+- first autonomous `saari` 3D pass with script-row shock events
 - direct loading of original assets from `original/forward`
 - native `512x256` uncompressed `TGA` frames
 - one stereo `16-bit PCM` `WAV`
@@ -17,7 +17,7 @@ The default export path now runs the intro sequence through a synthetic song-pos
 
 - `--sequence intro` is the default
 - `--intro-frames-per-row 6` approximates the classic `6 ticks per row` pace at `50 fps`
-- `--sequence saari` exports the current direct-asset `saari` slice with row-driven `suh0` / `suh` shock events
+- `--sequence saari` exports the current direct-asset `saari` 3D pass with row-driven `suh0` / `suh` shock events
 - `--sequence bootstrap` keeps the older placeholder scene available for quick pipeline checks
 
 Current limitation:
@@ -28,7 +28,8 @@ Current limitation:
 - the intro zoom-noise path may still be slightly oversaturated; we do not currently have a reliable capture of the original Java runtime to confirm whether that saturation is correct
 - `domina` now loads `images/phorward.gif` directly as an indexed GIF and follows the Java `512x3840 -> 512x256` frame-strip scroll path
 - `domina` late-frame comparisons are still influenced by the synthetic song-position transport, so the remaining drift there is not yet a pure scene-renderer verdict
-- `saari` is now wired as a direct-asset scene slice (`tai1sp.jpg`, `saari.gif`, `envi_klu.gif`, `saarih15.gif`) with deterministic `suh0` / `suh` shock handling, but it is not yet the final terrain/camera/reflection port described in the roadmap
+- `saari` now loads `tai1sp.jpg`, `saari.gif`, `envi_klu.gif`, `saarih15.gif`, and `asses/alku6.ase` directly in C++ for a first terrain/object/reflection pass with deterministic `suh0` / `suh` shock handling
+- that `saari` renderer is now genuinely 3D (heightmap terrain, reflective water background, ASE camera/object parsing), but it is still not the final source-faithful camera/raster parity pass from the roadmap
 - Java-based normalization helpers may still exist for validation, but they are not part of the exporter runtime path
 
 ## Build
@@ -52,7 +53,7 @@ Longer intro validation run:
 cpp-offline/build/forward-export --output cpp-offline/output-intro --frames 1065 --intro-frames-per-row 1
 ```
 
-Saari slice run:
+Saari 3D pass run:
 
 ```powershell
 cpp-offline/build/forward-export --sequence saari --output cpp-offline/output-saari --frames 1600 --intro-frames-per-row 1
@@ -95,7 +96,7 @@ That wrapper:
 ## Immediate Next Porting Steps
 
 1. Finish the source-faithful `mute95` validation against Java captures.
-2. Replace the temporary `saari` slice with the real terrain/camera/reflection renderer from the roadmap.
+2. Tighten `saari` camera timing, orientation, and raster parity against the Java captures.
 3. Reuse the new direct indexed GIF path for `uppol` and the remaining palette-driven routines.
 4. Replace the synthetic song-position transport with the real XM sequencer.
 5. Replace silent WAV generation with the native XM replay path.
