@@ -10,12 +10,17 @@ add_executable(forward-export
     src/main.cpp
     src/app/export_config.cpp
     src/app/forward_app.cpp
+    src/app/intro_script.cpp
     src/app/manifest_writer.cpp
+    src/app/song_position_transport.cpp
     src/audio/wav_writer.cpp
     src/core/offline_timeline.cpp
     src/platform/file_utils.cpp
+    src/render/indexed_surface.cpp
     src/render/rgb_surface.cpp
     src/render/tga_writer.cpp
+    src/scenes/domina_routine.cpp
+    src/scenes/mute95_scene.cpp
     src/scenes/placeholder_scene.cpp
 )
 

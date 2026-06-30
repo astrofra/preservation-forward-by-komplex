@@ -46,7 +46,10 @@ ExportConfig::ExportConfig()
       fps(50),
       sample_rate(22050),
       frame_count(250),
-      write_log(true) {
+      intro_frames_per_row(6),
+      intro_rows_per_order(64),
+      write_log(true),
+      sequence_name("intro") {
 }
 
 ParseStatus parse_export_config(int argc, char** argv, ExportConfig& config, std::ostream& stream) {
@@ -102,6 +105,20 @@ ParseStatus parse_export_config(int argc, char** argv, ExportConfig& config, std
                 return ParseStatus::error;
             }
             config.sample_rate = parsed;
+        } else if (arg == "--sequence") {
+            config.sequence_name = value;
+        } else if (arg == "--intro-frames-per-row") {
+            if (!parse_positive_int(value, &parsed)) {
+                stream << "invalid intro frames per row: " << value << '\n';
+                return ParseStatus::error;
+            }
+            config.intro_frames_per_row = parsed;
+        } else if (arg == "--intro-rows-per-order") {
+            if (!parse_positive_int(value, &parsed)) {
+                stream << "invalid intro rows per order: " << value << '\n';
+                return ParseStatus::error;
+            }
+            config.intro_rows_per_order = parsed;
         } else {
             stream << "unknown option: " << arg << '\n';
             print_usage(stream);
@@ -127,6 +144,11 @@ void print_usage(std::ostream& stream) {
         << "  --height <pixels>     Frame height (default: 256)\n"
         << "  --fps <rate>          Video frame rate (default: 50)\n"
         << "  --sample-rate <hz>    Audio sample rate (default: 22050)\n"
+        << "  --sequence <name>     Export sequence: intro|bootstrap (default: intro)\n"
+        << "  --intro-frames-per-row <n>\n"
+        << "                        Synthetic XM transport pacing (default: 6)\n"
+        << "  --intro-rows-per-order <n>\n"
+        << "                        Synthetic XM order length (default: 64)\n"
         << "  --no-log              Skip output/log.txt\n"
         << "  --help                Show this message\n";
 }

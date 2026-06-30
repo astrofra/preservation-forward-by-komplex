@@ -15,7 +15,10 @@ struct ExportConfig {
     int fps;
     int sample_rate;
     int frame_count;
+    int intro_frames_per_row;
+    int intro_rows_per_order;
     bool write_log;
+    std::string sequence_name;
 };
 
 enum class ParseStatus {

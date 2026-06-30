@@ -1,0 +1,133 @@
+#include "app/intro_script.h"
+
+#include <cctype>
+#include <cstdlib>
+#include <sstream>
+#include <string>
+#include <vector>
+
+namespace forward_offline {
+
+namespace {
+
+const char* const kIntroScriptLines[] = {
+    "init mute95",
+    "init domina",
+    "loaded",
+    "mod 1",
+    "_000",
+    "show mute95",
+    "go 13",
+    "_300 msg mute95 saviour",
+    "_500 msg mute95 jmagic",
+    "_700 msg mute95 jugi",
+    "_900 msg mute95 anis",
+    "_b00 msg mute95 carebear",
+    "_d00 shutdown",
+    "show domina",
+    "go 16",
+    "_f00 msg domina fade2black",
+    "_1024",
+    "clear24 0",
+    "mod 2",
+    "killmod 1",
+    "__0 filmbox",
+    "kill domina",
+    "kill mute95"
+};
+
+std::string trim(const std::string& value) {
+    std::size_t start = 0;
+    while (start < value.size() &&
+           std::isspace(static_cast<unsigned char>(value[start])) != 0) {
+        ++start;
+    }
+
+    std::size_t end = value.size();
+    while (end > start &&
+           std::isspace(static_cast<unsigned char>(value[end - 1])) != 0) {
+        --end;
+    }
+
+    return value.substr(start, end - start);
+}
+
+ScriptCommand make_command(unsigned int song_position_hex, const std::string& raw_command) {
+    ScriptCommand command;
+    command.song_position_hex = song_position_hex;
+
+    std::istringstream stream(raw_command);
+    stream >> command.verb;
+    if (stream >> command.target) {
+        std::string remainder;
+        std::getline(stream, remainder);
+        command.argument = trim(remainder);
+    }
+
+    return command;
+}
+
+unsigned int parse_song_position_hex(const std::string& token) {
+    return static_cast<unsigned int>(std::strtoul(token.c_str(), NULL, 16));
+}
+
+}  // namespace
+
+IntroScript::IntroScript() : commands_(build_commands()) {
+}
+
+const std::vector<ScriptCommand>& IntroScript::commands() const {
+    return commands_;
+}
+
+std::string IntroScript::next_position_hex(std::size_t next_index) const {
+    if (next_index >= commands_.size()) {
+        return std::string();
+    }
+
+    std::ostringstream builder;
+    builder << "0x" << std::hex << commands_[next_index].song_position_hex;
+    return builder.str();
+}
+
+std::vector<ScriptCommand> IntroScript::build_commands() {
+    std::vector<ScriptCommand> commands;
+    unsigned int current_song_position = 0;
+
+    const std::size_t count = sizeof(kIntroScriptLines) / sizeof(kIntroScriptLines[0]);
+    for (std::size_t index = 0; index < count; ++index) {
+        const std::string line = trim(kIntroScriptLines[index]);
+        if (line.empty() || line[0] == '#') {
+            continue;
+        }
+
+        if (line[0] == '_') {
+            std::size_t prefix_length = 1;
+            bool relative = false;
+            if (line.size() > 1 && line[1] == '_') {
+                prefix_length = 2;
+                relative = true;
+            }
+
+            const std::size_t separator = line.find(' ');
+            const std::string position_token = separator == std::string::npos
+                                                   ? line.substr(prefix_length)
+                                                   : line.substr(prefix_length, separator - prefix_length);
+            const unsigned int parsed_position = parse_song_position_hex(position_token);
+            current_song_position = relative ? current_song_position + parsed_position : parsed_position;
+
+            if (separator != std::string::npos) {
+                commands.push_back(make_command(
+                    current_song_position,
+                    trim(line.substr(separator + 1))));
+            }
+            continue;
+        }
+
+        commands.push_back(make_command(current_song_position, line));
+    }
+
+    return commands;
+}
+
+}  // namespace forward_offline
