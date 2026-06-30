@@ -152,7 +152,7 @@ extends Scene {
     }
 
     MeshObject kamAjAK() {
-        this.KaMAJak = kajjmka.kamAJAK();
+        this.KaMAJak = KlunssiMeshFactory.kamAJAK();
         this.KaMAJak.jaKKaMA.maJAkKA(0.0, 1.9, 0.0);
         this.KaMAJak.JAKKaMA.MajaKka(0.9);
         this.KaMAJak.JAkKaMA = true;

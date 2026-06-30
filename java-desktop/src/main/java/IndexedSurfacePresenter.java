@@ -8,7 +8,7 @@ import java.awt.Image;
 public class IndexedSurfacePresenter
 extends SurfacePresenter {
     public IndexedSurface kAmaJAk;
-    public majjkmk KaMAJAk;
+    public IndexedTriangleSink KaMAJAk;
     Image kaMAJAk;
     Graphics KAMAJAk;
     int kAMAJAk = 0;
@@ -40,7 +40,7 @@ extends SurfacePresenter {
 
     public void kKamAjA(DesktopAppletBase mmjamma2) {
         this.kAmaJAk = new IndexedSurface(this.AKkamaJ, this.aKkamaJ, 2, true);
-        this.KaMAJAk = new majjkmk(this.kAmaJAk);
+        this.KaMAJAk = new IndexedTriangleSink(this.kAmaJAk);
         if (this.AkkAmaJ && SurfacePresenter.akkAmaJ) {
             this.kaMAJAk = mmjamma2.createImage(this.AKkamaJ, this.aKkamaJ);
             this.KAMAJAk = this.kaMAJAk.getGraphics();

@@ -1,7 +1,7 @@
 /*
  * Decompiled with CFR 0.152.
  */
-final class maajkmk {
+final class ModHeaderOffsets {
     final static int aKKAMAJ = 0;
     final static int AkkAMAJ = 20;
     final static int akkAMAJ = 950;
@@ -10,6 +10,6 @@ final class maajkmk {
     final static int AkKamAJ = 1080;
     final static int akKamAJ = 1084;
 
-    maajkmk() {
+    ModHeaderOffsets() {
     }
 }

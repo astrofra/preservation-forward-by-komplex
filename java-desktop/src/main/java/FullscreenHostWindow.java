@@ -9,7 +9,7 @@ import java.awt.Frame;
 import java.awt.Panel;
 import java.awt.Window;
 
-public final class mmjjmka
+public final class FullscreenHostWindow
 extends Window {
     static public final int AmAJaKk = 0;
     static public final int amAJaKk = 36;
@@ -19,7 +19,7 @@ extends Window {
     public Dimension amaJaKk = new Dimension(640, 480);
     public Dimension AMaJaKk = this.getToolkit().getScreenSize();
 
-    public mmjjmka(String string) {
+    public FullscreenHostWindow(String string) {
         super(new Frame());
         ((Component)this).setBackground(Color.black);
         this.setLayout(null);

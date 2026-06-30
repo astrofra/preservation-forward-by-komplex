@@ -3,7 +3,7 @@
  */
 import java.io.IOException;
 
-public interface kaaamma {
+public interface ArchiveDecoder {
     public void aMAjaKK(byte[] var1);
 
     public void AmAjaKK() throws IOException;

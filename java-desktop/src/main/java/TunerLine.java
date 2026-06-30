@@ -5,14 +5,14 @@ import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics;
 
-class kmaakka {
+class TunerLine {
     String amAJAKk;
     int AMAJAKk;
     int aMAJAKk;
     Color AmaJAKk;
     Font amaJAKk;
 
-    kmaakka(String string, int n, int n2, Color color, Font font) {
+    TunerLine(String string, int n, int n2, Color color, Font font) {
         this.amAJAKk = string;
         this.AMAJAKk = n;
         this.aMAJAKk = n2;
@@ -20,13 +20,13 @@ class kmaakka {
         this.amaJAKk = font;
     }
 
-    kmaakka(String string, int n, int n2) {
+    TunerLine(String string, int n, int n2) {
         this.amAJAKk = string;
         this.AMAJAKk = n;
         this.aMAJAKk = n2;
     }
 
-    kmaakka(Color color, Font font) {
+    TunerLine(Color color, Font font) {
         this.AmaJAKk = color;
         this.amaJAKk = font;
     }

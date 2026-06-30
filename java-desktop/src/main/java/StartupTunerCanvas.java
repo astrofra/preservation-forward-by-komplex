@@ -17,7 +17,7 @@ import java.util.Enumeration;
 import java.util.Vector;
 import muhmu.hifi.device.MAD;
 
-public class majakmk
+public class StartupTunerCanvas
 extends Canvas
 implements Runnable {
     Vector AkKAmaj = new Vector(20);
@@ -38,7 +38,7 @@ implements Runnable {
     final double displayScaleX;
     final double displayScaleY;
 
-    public majakmk(boolean bl, boolean bl2, double d, double d2) {
+    public StartupTunerCanvas(boolean bl, boolean bl2, double d, double d2) {
         this.akKAmaj = bl;
         this.AKKAmaj = bl2;
         this.displayScaleX = Math.max(1.0, d);
@@ -99,7 +99,7 @@ implements Runnable {
             Enumeration enumeration = this.AkKAmaj.elements();
             if (enumeration != null) {
                 while (enumeration.hasMoreElements()) {
-                    kmaakka kmaakka2 = (kmaakka)enumeration.nextElement();
+                    TunerLine kmaakka2 = (TunerLine)enumeration.nextElement();
                     kmaakka2.KamAjaK(graphics2);
                 }
             }
@@ -115,17 +115,17 @@ implements Runnable {
     public synchronized void run() {
         try {
             String string;
-            this.AkKAmaj.addElement(new kmaakka("muhmu tuner (c) saviour", 10, this.AkKaMAj += 15));
-            this.AkKAmaj.addElement(new kmaakka("measuring optimal parameters for this setup", 10, this.AkKaMAj += 15));
+            this.AkKAmaj.addElement(new TunerLine("muhmu tuner (c) saviour", 10, this.AkKaMAj += 15));
+            this.AkKAmaj.addElement(new TunerLine("measuring optimal parameters for this setup", 10, this.AkKaMAj += 15));
             this.paint(this.getGraphics());
             if (this.akKAmaj) {
                 this.kkaMajA(1000L);
                 this.AKKaMAj = this.KkAmAJA();
-                this.AkKAmaj.addElement(new kmaakka("kunigas zoom blit " + this.AKKaMAj + "ms", 10, this.AkKaMAj += 15));
+                this.AkKAmaj.addElement(new TunerLine("kunigas zoom blit " + this.AKKaMAj + "ms", 10, this.AkKaMAj += 15));
                 ((Component)this).update(this.getGraphics());
                 this.kkaMajA(1000L);
                 this.aKKaMAj = this.kKaMajA();
-                this.AkKAmaj.addElement(new kmaakka("normal zoom blit " + this.aKKaMAj + "ms", 10, this.AkKaMAj += 15));
+                this.AkKAmaj.addElement(new TunerLine("normal zoom blit " + this.aKKaMAj + "ms", 10, this.AkKaMAj += 15));
                 ((Component)this).update(this.getGraphics());
                 this.kkaMajA(500L);
                 if (this.AKKaMAj < this.aKKaMAj) {
@@ -135,14 +135,14 @@ implements Runnable {
                     string = "normal";
                     SurfacePresenter.akkAmaJ = false;
                 }
-                this.AkKAmaj.addElement(new kmaakka("choosing " + string + " mode", 10, this.AkKaMAj += 15));
+                this.AkKAmaj.addElement(new TunerLine("choosing " + string + " mode", 10, this.AkKaMAj += 15));
                 this.paint(this.getGraphics());
                 System.out.println("kunigas=" + SurfacePresenter.akkAmaJ);
             }
             this.kkaMajA(1000L);
             if (!this.AKKAmaj) {
                 MAD mAD = MAD.getDevice_IE4();
-                this.AkKAmaj.addElement(new kmaakka("java sound " + (mAD == null ? "not " : "") + "found", 10, this.AkKaMAj += 15));
+                this.AkKAmaj.addElement(new TunerLine("java sound " + (mAD == null ? "not " : "") + "found", 10, this.AkKaMAj += 15));
                 this.paint(this.getGraphics());
                 if (mAD != null) {
                     this.akKaMAj = mAD;
@@ -156,9 +156,9 @@ implements Runnable {
                 string = "no audio";
             }
             this.kkaMajA(500L);
-            this.AkKAmaj.addElement(new kmaakka("choosing " + string, 10, this.AkKaMAj += 15));
+            this.AkKAmaj.addElement(new TunerLine("choosing " + string, 10, this.AkKaMAj += 15));
             this.paint(this.getGraphics());
-            this.AkKAmaj.addElement(new kmaakka("OK. ready to rab!", 10, 190));
+            this.AkKAmaj.addElement(new TunerLine("OK. ready to rab!", 10, 190));
             this.paint(this.getGraphics());
             this.kkaMajA(1500L);
         }

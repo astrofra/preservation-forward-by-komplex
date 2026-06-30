@@ -24,7 +24,7 @@ implements Runnable {
     final static int kamajAk = 256;
     static public int KAmajAk;
     static public int kAmajAk;
-    majakmk KaMAjAk;
+    StartupTunerCanvas KaMAjAk;
     Image kaMAjAk;
     static public int KAMAjAk;
     static public int kAMAjAk;
@@ -34,7 +34,7 @@ implements Runnable {
     static public boolean kAmAjAk;
     boolean KkAmAjA;
     boolean kkAmAjA;
-    mmjjmka KKAmAjA;
+    FullscreenHostWindow KKAmAjA;
     MAD kKAmAjA;
     MixerBus KkamAjA;
     ModuleSong kkamAjA;
@@ -170,7 +170,7 @@ implements Runnable {
 
     void KAMAjak() {
         MAD.component = this;
-        this.KaMAjAk = new majakmk(this.KkAmAjA, this.kkAmAjA, (double)this.displayWidth / 512.0, (double)this.displayHeight / 256.0);
+        this.KaMAjAk = new StartupTunerCanvas(this.KkAmAjA, this.kkAmAjA, (double)this.displayWidth / 512.0, (double)this.displayHeight / 256.0);
         this.KaMAjAk.reshape(0, 0, this.displayWidth, this.displayHeight);
         this.KaMAjAk.show();
         this.KaMAjAk.requestFocus();

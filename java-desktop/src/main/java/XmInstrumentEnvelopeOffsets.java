@@ -1,7 +1,7 @@
 /*
  * Decompiled with CFR 0.152.
  */
-final class majakka {
+final class XmInstrumentEnvelopeOffsets {
     final static int amajAkk = 1;
     final static int AMajAkk = 2;
     final static int aMajAkk = 4;
@@ -27,6 +27,6 @@ final class majakka {
     final static int aMAJakk = 212;
     final static int AmaJakk = 214;
 
-    majakka() {
+    XmInstrumentEnvelopeOffsets() {
     }
 }

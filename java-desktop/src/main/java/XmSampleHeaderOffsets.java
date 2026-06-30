@@ -1,7 +1,7 @@
 /*
  * Decompiled with CFR 0.152.
  */
-final class kajjmma {
+final class XmSampleHeaderOffsets {
     final static int MAJaKKA = 0;
     final static int mAJaKKA = 4;
     final static int MajaKKA = 8;
@@ -14,6 +14,6 @@ final class kajjmma {
     final static int mAJAKKA = 18;
     final static int MajAKKA = 40;
 
-    kajjmma() {
+    XmSampleHeaderOffsets() {
     }
 }

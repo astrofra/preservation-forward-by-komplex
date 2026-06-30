@@ -1,10 +1,10 @@
 /*
  * Decompiled with CFR 0.152.
  */
-public class mmaamka
+public class ParticleCloudMesh
 extends MeshObject {
     float kKaMAJA;
-    mmaakka[] KkAmaJA;
+    ParticleVertex[] KkAmaJA;
     public final static int kkAmaJA = 0;
     public final static int KKAmaJA = 1;
     int kKAmaJA;
@@ -13,7 +13,7 @@ extends MeshObject {
     int KKamaJA;
     float kKamaJA;
 
-    public mmaamka(int n, float f) {
+    public ParticleCloudMesh(int n, float f) {
         this.kKaMAJA = f;
         this.kaMAJAk(n);
         this.kkAMAJa();
@@ -23,7 +23,7 @@ extends MeshObject {
 
     public void kaMAJAk(int n) {
         this.JAkkaMA = new Triangle[n];
-        this.KkAmaJA = new mmaakka[n];
+        this.KkAmaJA = new ParticleVertex[n];
         this.jAkkaMA = this.KkAmaJA;
         this.JaKKaMA = new UvCoord[3];
         this.JaKKaMA[0] = new UvCoord(0.0f, 0.0f);
@@ -35,14 +35,14 @@ extends MeshObject {
         float f = 20.0f;
         int n2 = 0;
         while (n2 < n) {
-            mmaakka mmaakka2;
+            ParticleVertex mmaakka2;
             float f2 = 0.0f;
             float f3 = 0.0f;
             float f4 = 0.0f;
             f2 = (float)((Math.random() - 0.5) * (double)f);
             f3 = (float)((Math.random() - 0.5) * (double)f);
             f4 = (float)((Math.random() - 0.5) * (double)f);
-            this.KkAmaJA[n2] = mmaakka2 = new mmaakka(f2, f3, f4);
+            this.KkAmaJA[n2] = mmaakka2 = new ParticleVertex(f2, f3, f4);
             this.JAkkaMA[n2] = new Triangle(mmaakka2, mmaakka2, mmaakka2, kmajkmk2, kmajkmk3, kmajkmk4);
             this.JAkkaMA[n2].mAjAkka = 1024;
             ++n2;
@@ -99,7 +99,7 @@ extends MeshObject {
         int n2 = this.KkAmaJA.length;
         int n3 = 0;
         while (n3 < n2) {
-            mmaakka mmaakka2 = this.KkAmaJA[n3];
+            ParticleVertex mmaakka2 = this.KkAmaJA[n3];
             if (mmaakka2.init > this.kkamaJA && mmaakka2.init < this.jAKKAma) {
                 float f = mmaakka2.scriptName;
                 float f2 = mmaakka2.onShow;
@@ -119,10 +119,10 @@ extends MeshObject {
         float f3;
         Vec3f mmajmma4 = new Vec3f(0.0f, 0.0f, -0.05f);
         int n = this.KkAmaJA.length;
-        mmaakka[] mmaakkaArray = this.KkAmaJA;
+        ParticleVertex[] mmaakkaArray = this.KkAmaJA;
         int n2 = 0;
         while (n2 < n) {
-            mmaakka mmaakka2 = mmaakkaArray[n2];
+            ParticleVertex mmaakka2 = mmaakkaArray[n2];
             mmaakka2.AmAJAKk.majAkKA(mmajmma4);
             mmaakka2.majAkKA(mmaakka2.AmAJAKk);
             f3 = 0.7f;
@@ -147,7 +147,7 @@ extends MeshObject {
 
     void KAmaJAk(Vec3f mmajmma2, float f, float f2, float f3) {
         Vec3f mmajmma3 = new Vec3f();
-        mmaakka mmaakka2 = this.KkAmaJA[this.KKamaJA++];
+        ParticleVertex mmaakka2 = this.KkAmaJA[this.KKamaJA++];
         mmaakka2.mAjakKA(mmajmma2);
         mmajmma3.MaJaKka(0.0f, 0.0f, f3);
         mmajmma3.maJaKka(f2);

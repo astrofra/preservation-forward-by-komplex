@@ -6,7 +6,7 @@ extends Scene {
     Camera KkAMaJA;
     SceneRenderer kkAMaJA;
     MeshObject KKAMaJA;
-    mmaamka kKAMaJA;
+    ParticleCloudMesh kKAMaJA;
     IndexedSurface KkaMaJA;
     DesktopAppletBase kkaMaJA;
     float KKaMaJA;
@@ -32,7 +32,7 @@ extends Scene {
         this.KkaMaJA = ForwardDemoApp.kKAMAjA.kAmaJAk;
         this.KkAMaJA.JAKkaMa.MaJaKka(0.0f, -2.0f, 1.0f);
         this.KkAMaJA.AkKAMaJ(this.KKAMaJA.jaKKaMA);
-        this.kKAMaJA = new mmaamka(300, 20.0f);
+        this.kKAMaJA = new ParticleCloudMesh(300, 20.0f);
         this.kKAMaJA.jaKKaMA.mAjakKA(new Vec3f(0.0f, 0.0f, 0.0f));
         this.kKAMaJA.KamaJAk(0);
         RgbSurface mmaamma2 = (RgbSurface)ImageSupport.majaKkA(this.kkaMaJA.amAjAkK("images/flare1.jpg"));
