@@ -26,6 +26,7 @@ add_executable(forward-export
     src/scenes/domina_routine.cpp
     src/scenes/mute95_scene.cpp
     src/scenes/placeholder_scene.cpp
+    src/scenes/saari_scene.cpp
 )
 
 target_include_directories(forward-export PRIVATE src third_party)

@@ -18,6 +18,16 @@ This is the same delivery target as the `C99` study, but with a different implem
 
 For this study, a vendored third-party single-file source dependency embedded directly in the repository is considered acceptable. The constraint is interpreted as "no external shared-library, package-manager, or separately installed runtime dependency".
 
+Runtime requirement clarification:
+
+- the native exporter must load the original repository assets directly
+- Java-assisted preprocessing or Java-generated intermediate assets may be used for validation during development, but not as a required runtime step for the C++ exporter
+
+Current implementation direction:
+
+- vendorizing `stb_image.h` is the intended runtime path for direct source-asset loading in the exporter
+- Java-side helpers may still be kept in the repository for reference capture, decode validation, or regression comparison, but not as a mandatory preprocessing stage
+
 ## Executive Summary
 
 This port is feasible, and under the current constraints a restricted `C++11` codebase is a better fit than pure `C99`.
@@ -275,6 +285,8 @@ Use:
 - vendored `stb_image.h` for JPEG and GIF decoding
 
 This keeps the final executable self-contained while avoiding unnecessary decoder work.
+
+For the current `cpp-offline` track, this is not only an allowed option but the preferred runtime architecture: original repository assets are to be decoded natively by the exporter itself.
 
 ### Why `stb_image.h` still fits
 

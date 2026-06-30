@@ -11,6 +11,7 @@
 #include "scenes/domina_routine.h"
 #include "scenes/mute95_scene.h"
 #include "scenes/placeholder_scene.h"
+#include "scenes/saari_scene.h"
 
 namespace forward_offline {
 
@@ -30,8 +31,10 @@ private:
     bool prepare_output(std::string* error_message) const;
     bool write_log(std::string* error_message) const;
     bool is_intro_sequence() const;
+    bool is_saari_sequence() const;
     bool initialize_sequence(std::string* error_message);
     void process_intro_script(unsigned int frame_index);
+    void process_saari_script(unsigned int frame_index);
     void execute_script_command(const ScriptCommand& command, double demo_time_seconds);
     void show_scene(const std::string& scene_name, double demo_time_seconds);
     void show_routine(const std::string& routine_name, double demo_time_seconds);
@@ -46,6 +49,7 @@ private:
     RgbSurface frame_buffer_;
     Mute95Scene mute95_scene_;
     DominaRoutine domina_routine_;
+    SaariScene saari_scene_;
     PlaceholderScene scene_;
     ActiveRenderable active_renderable_;
     std::string active_name_;

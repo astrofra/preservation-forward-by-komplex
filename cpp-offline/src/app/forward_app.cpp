@@ -13,6 +13,38 @@
 
 namespace forward_offline {
 
+namespace {
+
+struct SaariScriptEvent {
+    unsigned int song_position_hex;
+    const char* message_name;
+};
+
+const SaariScriptEvent kSaariScriptEvents[] = {
+    {0x0000U, "suh0"},
+    {0x0100U, "suh"},
+    {0x0600U, "suh"},
+    {0x0608U, "suh"},
+    {0x0610U, "suh"},
+    {0x0618U, "suh"},
+    {0x0620U, "suh"},
+    {0x0628U, "suh"},
+    {0x0630U, "suh"},
+    {0x0700U, ""}
+};
+
+std::string saari_next_position_hex(std::size_t index) {
+    if (index >= sizeof(kSaariScriptEvents) / sizeof(kSaariScriptEvents[0])) {
+        return std::string();
+    }
+
+    std::ostringstream builder;
+    builder << "0x" << std::hex << kSaariScriptEvents[index].song_position_hex;
+    return builder.str();
+}
+
+}  // namespace
+
 ForwardApp::ForwardApp(const ExportConfig& config)
     : config_(config),
       timeline_(config.fps, config.sample_rate),
@@ -21,6 +53,7 @@ ForwardApp::ForwardApp(const ExportConfig& config)
       frame_buffer_(config.width, config.height),
       mute95_scene_(),
       domina_routine_(),
+      saari_scene_(),
       scene_(),
       active_renderable_(ActiveRenderable::none),
       active_name_(),
@@ -33,7 +66,7 @@ int ForwardApp::run() {
         std::cerr << "timeline configuration error: " << timeline_.error_message() << '\n';
         return 1;
     }
-    if (is_intro_sequence() && !intro_transport_.is_valid()) {
+    if ((is_intro_sequence() || is_saari_sequence()) && !intro_transport_.is_valid()) {
         std::cerr << "intro transport error: " << intro_transport_.error_message() << '\n';
         return 1;
     }
@@ -70,7 +103,11 @@ int ForwardApp::run() {
     for (unsigned int frame_index = 0; frame_index < static_cast<unsigned int>(config_.frame_count); ++frame_index) {
         const double demo_time_seconds = timeline_.frame_time_seconds(frame_index);
         const float delta_seconds = static_cast<float>(timeline_.frame_duration_seconds());
-        process_intro_script(frame_index);
+        if (is_intro_sequence()) {
+            process_intro_script(frame_index);
+        } else if (is_saari_sequence()) {
+            process_saari_script(frame_index);
+        }
 
         frame_buffer_.clear(0);
         if (is_intro_sequence()) {
@@ -80,6 +117,8 @@ int ForwardApp::run() {
             } else if (active_renderable_ == ActiveRenderable::routine) {
                 domina_routine_.render(frame_buffer_, local_time_seconds, delta_seconds);
             }
+        } else if (is_saari_sequence()) {
+            saari_scene_.render(frame_buffer_, static_cast<float>(demo_time_seconds), delta_seconds);
         } else {
             const float scene_time_seconds = static_cast<float>(demo_time_seconds);
             scene_.render(frame_buffer_, scene_time_seconds, delta_seconds);
@@ -108,6 +147,8 @@ int ForwardApp::run() {
     if (is_intro_sequence()) {
         mute95_scene_.dispose();
         domina_routine_.dispose();
+    } else if (is_saari_sequence()) {
+        saari_scene_.dispose();
     } else {
         scene_.dispose();
     }
@@ -165,6 +206,11 @@ bool ForwardApp::write_log(std::string* error_message) const {
         stream << "intro_frames_per_row=" << config_.intro_frames_per_row << '\n';
         stream << "intro_rows_per_order=" << config_.intro_rows_per_order << '\n';
         stream << "note=intro script player with direct original-asset loading for mute95 and domina; audio/timeline transport remains synthetic\n";
+    } else if (is_saari_sequence()) {
+        stream << "intro_frames_per_row=" << config_.intro_frames_per_row << '\n';
+        stream << "intro_rows_per_order=" << config_.intro_rows_per_order << '\n';
+        stream << "scene=saari\n";
+        stream << "note=first saari slice with direct original-asset loading and script-row shock messages; terrain/reflection renderer still pending\n";
     } else {
         stream << "scene=" << scene_.script_name() << '\n';
         stream << "note=placeholder scene plus silent wav until the real Java systems are ported\n";
@@ -180,6 +226,10 @@ std::string ForwardApp::frame_file_name(unsigned int frame_index) const {
 
 bool ForwardApp::is_intro_sequence() const {
     return config_.sequence_name == "intro";
+}
+
+bool ForwardApp::is_saari_sequence() const {
+    return config_.sequence_name == "saari";
 }
 
 bool ForwardApp::initialize_sequence(std::string* error_message) {
@@ -212,6 +262,27 @@ bool ForwardApp::initialize_sequence(std::string* error_message) {
         return true;
     }
 
+    if (is_saari_sequence()) {
+        if (config_.width != 512 || config_.height != 256) {
+            if (error_message != NULL) {
+                *error_message = "saari sequence currently requires native 512x256 output";
+            }
+            return false;
+        }
+        saari_scene_.init();
+        if (!saari_scene_.is_ready()) {
+            if (error_message != NULL) {
+                *error_message = saari_scene_.error_message();
+            }
+            return false;
+        }
+        saari_scene_.on_show();
+        active_renderable_ = ActiveRenderable::scene;
+        active_name_ = saari_scene_.script_name();
+        active_start_seconds_ = 0.0;
+        return true;
+    }
+
     if (config_.sequence_name == "bootstrap") {
         scene_.init();
         scene_.on_show();
@@ -238,6 +309,25 @@ void ForwardApp::process_intro_script(unsigned int frame_index) {
     while (next_script_index_ < commands.size() &&
            commands[next_script_index_].song_position_hex <= current_song_position) {
         execute_script_command(commands[next_script_index_], demo_time_seconds);
+        ++next_script_index_;
+    }
+}
+
+void ForwardApp::process_saari_script(unsigned int frame_index) {
+    if (!is_saari_sequence()) {
+        return;
+    }
+
+    const unsigned int current_song_position = intro_transport_.song_position_for_frame(frame_index);
+    const double demo_time_seconds = timeline_.frame_time_seconds(frame_index);
+    const std::size_t event_count = sizeof(kSaariScriptEvents) / sizeof(kSaariScriptEvents[0]);
+
+    while (next_script_index_ < event_count &&
+           kSaariScriptEvents[next_script_index_].song_position_hex <= current_song_position) {
+        if (kSaariScriptEvents[next_script_index_].message_name[0] != '\0') {
+            saari_scene_.handle_message(kSaariScriptEvents[next_script_index_].message_name,
+                                        static_cast<float>(demo_time_seconds));
+        }
         ++next_script_index_;
     }
 }
@@ -324,6 +414,14 @@ void ForwardApp::kill_renderable(const std::string& name) {
 }
 
 std::string ForwardApp::next_script_time_hex(unsigned int frame_index) const {
+    if (is_saari_sequence()) {
+        const std::size_t event_count = sizeof(kSaariScriptEvents) / sizeof(kSaariScriptEvents[0]);
+        if (next_script_index_ >= event_count) {
+            return std::string();
+        }
+        return saari_next_position_hex(next_script_index_);
+    }
+
     if (!is_intro_sequence()) {
         return "0x0";
     }
