@@ -22,6 +22,8 @@ const float kSceneTimeScale = 1.16f;
 const float kCameraFieldOfView = 1.4f;
 const float kTrackTickScale = 1000.0f;
 const float kNearPlane = 1.0f;
+const float kDepthRampNear = 15.0f;
+const float kDepthRampFar = 250.0f;
 const float kTerrainHeightScale = 0.16f;
 
 struct CameraState {
@@ -43,6 +45,13 @@ struct ScreenVertex {
     float u;
     float v;
     float shade;
+};
+
+enum DepthFadeMode {
+    kDepthFadeNone = 0,
+    kDepthFadeFogBlue = 1,
+    kDepthFadeToWhite = 2,
+    kDepthFadeToBlack = 3
 };
 
 bool starts_with(const std::string& text, const std::string& prefix) {
@@ -558,11 +567,12 @@ CameraState make_camera_state(const SaariVec3& position,
                               const SaariVec3& target) {
     const SaariVec3 forward = normalize(subtract(target, position));
     const SaariVec3 world_up = make_vec3(0.0f, 0.0f, 1.0f);
-    SaariVec3 right = normalize(cross(forward, world_up));
+    // Match the Java camera basis: right = worldUp x forward, up = forward x right.
+    SaariVec3 right = normalize(cross(world_up, forward));
     if (length_sq(right) <= 1.0e-6f) {
         right = make_vec3(1.0f, 0.0f, 0.0f);
     }
-    const SaariVec3 up = normalize(cross(right, forward));
+    const SaariVec3 up = normalize(cross(forward, right));
     CameraState camera;
     camera.position = position;
     camera.target = target;
@@ -658,6 +668,7 @@ void rasterize_textured_triangle(RgbSurface& surface,
                                  const IndexedAsset& texture,
                                  float alpha,
                                  bool write_depth,
+                                 DepthFadeMode depth_fade_mode,
                                  bool reflection_tint) {
     const float min_x = std::floor(std::min(a.x, std::min(b.x, c.x)));
     const float max_x = std::ceil(std::max(a.x, std::max(b.x, c.x)));
@@ -708,12 +719,20 @@ void rasterize_textured_triangle(RgbSurface& surface,
             std::uint32_t color = sample_indexed_asset(texture, u, v);
             color = multiply_rgb(color, shade);
 
-            const float fog_amount = clamp_unit((depth - 180.0f) / 380.0f);
-            color = blend_rgb(color,
-                              pack_rgb(static_cast<int>(fog_rgb.x),
-                                       static_cast<int>(fog_rgb.y),
-                                       static_cast<int>(fog_rgb.z)),
-                              fog_amount);
+            if (depth_fade_mode != kDepthFadeNone) {
+                const float fade_amount = clamp_unit((depth - kDepthRampNear) / (kDepthRampFar - kDepthRampNear));
+                if (depth_fade_mode == kDepthFadeFogBlue) {
+                    color = blend_rgb(color,
+                                      pack_rgb(static_cast<int>(fog_rgb.x),
+                                               static_cast<int>(fog_rgb.y),
+                                               static_cast<int>(fog_rgb.z)),
+                                      fade_amount);
+                } else if (depth_fade_mode == kDepthFadeToWhite) {
+                    color = blend_rgb(color, pack_rgb(255, 255, 255), fade_amount);
+                } else if (depth_fade_mode == kDepthFadeToBlack) {
+                    color = blend_rgb(color, pack_rgb(0, 0, 0), fade_amount);
+                }
+            }
             if (reflection_tint) {
                 color = tint_rgb(color, 0.42f, 0.55f, 0.92f);
             }
@@ -745,10 +764,8 @@ void render_terrain(RgbSurface& surface,
     const int terrain_width = height_asset.width;
     const int terrain_height = height_asset.height;
     const float cell_size = 200.0f / static_cast<float>(terrain_width);
-    const SaariVec3 light_direction = normalize(make_vec3(0.32f, -0.18f, 0.93f));
 
     std::vector<SaariVec3> world_vertices(static_cast<std::size_t>(terrain_width * terrain_height));
-    std::vector<SaariVec3> world_normals(static_cast<std::size_t>(terrain_width * terrain_height));
     std::vector<float> screen_x(static_cast<std::size_t>(terrain_width * terrain_height), 0.0f);
     std::vector<float> screen_y(static_cast<std::size_t>(terrain_width * terrain_height), 0.0f);
     std::vector<float> screen_depth(static_cast<std::size_t>(terrain_width * terrain_height), 0.0f);
@@ -768,33 +785,6 @@ void render_terrain(RgbSurface& surface,
             const SaariVec3 position = world_vertices[index];
             visible[index] = project_point(camera, position, &screen_x[index], &screen_y[index], &screen_depth[index]);
 
-            const SaariVec3 dx = subtract(
-                make_vec3((static_cast<float>(clamp_int(column + 1, 0, terrain_width - 1)) -
-                           static_cast<float>(terrain_width - 1) * 0.5f) * cell_size,
-                          y,
-                          (reflection_pass ? -sample_height_value(height_asset, column + 1, row) :
-                                             sample_height_value(height_asset, column + 1, row)) * kTerrainHeightScale),
-                make_vec3((static_cast<float>(clamp_int(column - 1, 0, terrain_width - 1)) -
-                           static_cast<float>(terrain_width - 1) * 0.5f) * cell_size,
-                          y,
-                          (reflection_pass ? -sample_height_value(height_asset, column - 1, row) :
-                                             sample_height_value(height_asset, column - 1, row)) * kTerrainHeightScale));
-            const SaariVec3 dy = subtract(
-                make_vec3(x,
-                          (static_cast<float>(terrain_height - 1 - clamp_int(row - 1, 0, terrain_height - 1)) -
-                           static_cast<float>(terrain_height - 1) * 0.5f) * cell_size,
-                          (reflection_pass ? -sample_height_value(height_asset, column, row - 1) :
-                                             sample_height_value(height_asset, column, row - 1)) * kTerrainHeightScale),
-                make_vec3(x,
-                          (static_cast<float>(terrain_height - 1 - clamp_int(row + 1, 0, terrain_height - 1)) -
-                           static_cast<float>(terrain_height - 1) * 0.5f) * cell_size,
-                          (reflection_pass ? -sample_height_value(height_asset, column, row + 1) :
-                                             sample_height_value(height_asset, column, row + 1)) * kTerrainHeightScale));
-            SaariVec3 normal = normalize(cross(dx, dy));
-            if (reflection_pass) {
-                normal.z = -normal.z;
-            }
-            world_normals[index] = normal;
         }
     }
 
@@ -843,8 +833,7 @@ void render_terrain(RgbSurface& surface,
                         static_cast<float>(grid_x) / static_cast<float>(terrain_width - 1);
                     vertices[vertex_index].v =
                         static_cast<float>(grid_y) / static_cast<float>(terrain_height - 1);
-                    const float diffuse = clamp_unit(dot(world_normals[static_cast<std::size_t>(grid_index)], light_direction));
-                    vertices[vertex_index].shade = 0.32f + diffuse * (reflection_pass ? 0.28f : 0.88f);
+                    vertices[vertex_index].shade = 1.0f;
                 }
 
                 rasterize_textured_triangle(surface,
@@ -855,6 +844,7 @@ void render_terrain(RgbSurface& surface,
                                             terrain_asset,
                                             reflection_pass ? reflection_alpha : 1.0f,
                                             !reflection_pass,
+                                            reflection_pass ? kDepthFadeToBlack : kDepthFadeNone,
                                             reflection_pass);
             }
         }
@@ -876,7 +866,6 @@ void render_env_mesh(RgbSurface& surface,
         return;
     }
 
-    const SaariVec3 light_direction = normalize(make_vec3(-0.35f, -0.20f, 0.91f));
     std::vector<SaariVec3> world_vertices(mesh.vertices.size());
     std::vector<SaariVec3> world_normals(mesh.normals.size());
     std::vector<float> screen_x(mesh.vertices.size(), 0.0f);
@@ -921,14 +910,9 @@ void render_env_mesh(RgbSurface& surface,
         const int indices[3] = {triangle.a, triangle.b, triangle.c};
         for (int vertex_index = 0; vertex_index < 3; ++vertex_index) {
             const int mesh_index = indices[vertex_index];
-            const SaariVec3& world_position = world_vertices[static_cast<std::size_t>(mesh_index)];
             const SaariVec3& world_normal = world_normals[static_cast<std::size_t>(mesh_index)];
-            const SaariVec3 view_direction = normalize(subtract(camera.position, world_position));
-            const SaariVec3 reflection_vector = normalize(reflect(scale(view_direction, -1.0f), world_normal));
-            const float env_u = 0.5f + dot(reflection_vector, camera.right) * 0.5f;
-            const float env_v = 0.5f - dot(reflection_vector, camera.up) * 0.5f;
-            const float fresnel = 0.42f + std::pow(1.0f - clamp_unit(dot(world_normal, view_direction)), 1.35f) * 0.58f;
-            const float diffuse = 0.55f + clamp_unit(dot(world_normal, light_direction)) * 0.30f;
+            const float env_u = 0.5f + dot(world_normal, camera.right) * 0.5f;
+            const float env_v = 0.5f + dot(world_normal, camera.up) * 0.5f;
 
             vertices[vertex_index].x = screen_x[static_cast<std::size_t>(mesh_index)];
             vertices[vertex_index].y = screen_y[static_cast<std::size_t>(mesh_index)];
@@ -936,7 +920,7 @@ void render_env_mesh(RgbSurface& surface,
             vertices[vertex_index].inv_depth = 1.0f / vertices[vertex_index].depth;
             vertices[vertex_index].u = env_u;
             vertices[vertex_index].v = env_v;
-            vertices[vertex_index].shade = (reflection_pass ? 0.30f : 0.72f) + fresnel * diffuse * (reflection_pass ? 0.18f : 0.48f);
+            vertices[vertex_index].shade = 1.0f;
         }
 
         rasterize_textured_triangle(surface,
@@ -947,6 +931,7 @@ void render_env_mesh(RgbSurface& surface,
                                     env_asset,
                                     alpha,
                                     !reflection_pass,
+                                    reflection_pass ? kDepthFadeToBlack : kDepthFadeNone,
                                     reflection_pass);
     }
 }
