@@ -23,6 +23,7 @@ Current limitation:
 - `mute95` and `domina` are now structured as real C++ scene/routine ports with the Java message names and timing flow
 - `mute95` now loads the original JPEG/GIF assets directly at runtime through vendored `stb_image` plus native GIF palette handling
 - the current `mute95` render is already very close to the Java reference capture, with remaining drift concentrated around the central blue halo / horizontal band during the title phase
+- the intro zoom-noise path may still be slightly oversaturated; we do not currently have a reliable capture of the original Java runtime to confirm whether that saturation is correct
 - `domina` still needs direct indexed GIF loading for the full source-faithful path
 - Java-based normalization helpers may still exist for validation, but they are not part of the exporter runtime path
 

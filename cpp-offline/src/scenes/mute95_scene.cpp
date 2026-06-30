@@ -178,6 +178,10 @@ void Mute95Scene::apply_warp(float scale) {
 }
 
 void Mute95Scene::apply_noise(float scene_time_seconds, float delta_seconds) {
+    // This zoom-noise accumulation may still oversaturate the intro compared
+    // with the original Java release. We do not currently have a reliable
+    // reference capture of that original runtime, so keep this path under
+    // review instead of treating the current saturation as final.
     const int max_value =
         static_cast<int>(std::min(scene_time_seconds * 1.8f + 22.0f, 255.0f));
     const int pixel_count = kWidth * kHeight;
