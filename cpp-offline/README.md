@@ -24,7 +24,8 @@ Current limitation:
 - `mute95` now loads the original JPEG/GIF assets directly at runtime through vendored `stb_image` plus native GIF palette handling
 - the current `mute95` render is already very close to the Java reference capture, with remaining drift concentrated around the central blue halo / horizontal band during the title phase
 - the intro zoom-noise path may still be slightly oversaturated; we do not currently have a reliable capture of the original Java runtime to confirm whether that saturation is correct
-- `domina` still needs direct indexed GIF loading for the full source-faithful path
+- `domina` now loads `images/phorward.gif` directly as an indexed GIF and follows the Java `512x3840 -> 512x256` frame-strip scroll path
+- `domina` late-frame comparisons are still influenced by the synthetic song-position transport, so the remaining drift there is not yet a pure scene-renderer verdict
 - Java-based normalization helpers may still exist for validation, but they are not part of the exporter runtime path
 
 ## Build
@@ -85,6 +86,6 @@ That wrapper:
 ## Immediate Next Porting Steps
 
 1. Finish the source-faithful `mute95` validation against Java captures.
-2. Add direct indexed GIF loading for `phorward.gif` and move `domina` off its stand-in renderer.
+2. Reuse the new direct indexed GIF path for `uppol` and the remaining palette-driven routines.
 3. Replace the synthetic song-position transport with the real XM sequencer.
 4. Replace silent WAV generation with the native XM replay path.

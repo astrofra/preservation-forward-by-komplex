@@ -19,6 +19,10 @@ bool load_original_gif_palette(const std::string& path,
                                std::vector<std::uint8_t>* palette_blue,
                                std::string* error_message);
 
+bool load_original_gif_indexed(const std::string& path,
+                               IndexedAsset* asset,
+                               std::string* error_message);
+
 }  // namespace forward_offline
 
 #endif  // FORWARD_OFFLINE_ASSETS_ORIGINAL_ASSET_LOADER_H

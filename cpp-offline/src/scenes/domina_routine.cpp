@@ -1,15 +1,17 @@
 #include "scenes/domina_routine.h"
 
 #include <algorithm>
-#include <cmath>
+#include <cstring>
 
 namespace forward_offline {
 
 DominaRoutine::DominaRoutine()
-    : source_(512, 512),
+    : source_asset_(),
       frame_(512, 256),
       fade_to_black_(false),
-      fade_start_seconds_(0.0f) {
+      fade_start_seconds_(0.0f),
+      ready_(false),
+      error_message_() {
 }
 
 const char* DominaRoutine::script_name() const {
@@ -17,9 +19,9 @@ const char* DominaRoutine::script_name() const {
 }
 
 void DominaRoutine::init() {
-    build_source();
     fade_to_black_ = false;
     fade_start_seconds_ = 0.0f;
+    ready_ = load_assets();
 }
 
 void DominaRoutine::on_show() {
@@ -29,9 +31,13 @@ void DominaRoutine::on_show() {
 
 void DominaRoutine::render(RgbSurface& surface, float scene_time_seconds, float delta_seconds) {
     (void)delta_seconds;
+    surface.clear(0);
+    if (!ready_) {
+        return;
+    }
 
-    const int scroll = static_cast<int>(std::max(0.0f, scene_time_seconds) * 50.0f);
-    frame_.blit_wrapped_y(source_, -scroll);
+    const int frame_index = static_cast<int>(std::max(0.0f, scene_time_seconds) * 50.0f);
+    populate_frame(frame_index);
     build_palette(scene_time_seconds);
     frame_.render_to_rgb(surface);
 }
@@ -43,32 +49,44 @@ void DominaRoutine::handle_message(const std::string& message, float scene_time_
     }
 }
 
-void DominaRoutine::build_source() {
-    for (int index = 0; index < 256; ++index) {
-        const int red = 50 + (index * 3) / 4;
-        const int green = 20 + index / 2;
-        const int blue = 70 + index / 3;
-        source_.set_palette_entry(index,
-                                  static_cast<std::uint8_t>(red),
-                                  static_cast<std::uint8_t>(green),
-                                  static_cast<std::uint8_t>(blue));
-        frame_.set_palette_entry(index,
-                                 static_cast<std::uint8_t>(red),
-                                 static_cast<std::uint8_t>(green),
-                                 static_cast<std::uint8_t>(blue));
+bool DominaRoutine::is_ready() const {
+    return ready_;
+}
+
+const std::string& DominaRoutine::error_message() const {
+    return error_message_;
+}
+
+bool DominaRoutine::load_assets() {
+    error_message_.clear();
+    if (!load_original_gif_indexed(gif_asset_path("phorward.gif"), &source_asset_, &error_message_)) {
+        return false;
     }
 
-    for (int y = 0; y < source_.height(); ++y) {
-        for (int x = 0; x < source_.width(); ++x) {
-            const float fx = static_cast<float>(x) * 0.014f;
-            const float fy = static_cast<float>(y) * 0.023f;
-            const float bands = 0.5f + 0.5f * std::sin(fy * 4.0f);
-            const float wave = 0.5f + 0.5f * std::sin(fx + fy);
-            const int value = std::max(0, std::min(255,
-                                                   32 + static_cast<int>(bands * 120.0f) +
-                                                       static_cast<int>(wave * 100.0f)));
-            source_.set_pixel(x, y, static_cast<std::uint8_t>(value));
-        }
+    if (source_asset_.width != 512 || source_asset_.height < 256) {
+        error_message_ = "unexpected domina gif dimensions: " + gif_asset_path("phorward.gif");
+        return false;
+    }
+
+    return true;
+}
+
+void DominaRoutine::populate_frame(int frame_index) {
+    std::vector<std::uint8_t>& frame_pixels = frame_.pixels();
+    const std::vector<std::uint8_t>& source_pixels = source_asset_.pixels;
+    const int source_width = source_asset_.width;
+    const int source_height = source_asset_.height;
+    const int frame_height = frame_.height();
+    const int source_y = (frame_index * frame_height) % source_height;
+
+    for (int row = 0; row < frame_height; ++row) {
+        const std::size_t src_offset =
+            static_cast<std::size_t>(source_y + row) * static_cast<std::size_t>(source_width);
+        const std::size_t dst_offset =
+            static_cast<std::size_t>(row) * static_cast<std::size_t>(frame_.width());
+        std::memcpy(&frame_pixels[dst_offset],
+                    &source_pixels[src_offset],
+                    static_cast<std::size_t>(frame_.width()));
     }
 }
 
@@ -85,10 +103,9 @@ void DominaRoutine::build_palette(float scene_time_seconds) {
     }
 
     for (int index = 0; index < 256; ++index) {
-        const std::uint32_t base = source_.palette_rgb(index);
-        const int base_red = static_cast<int>((base >> 16) & 0xff);
-        const int base_green = static_cast<int>((base >> 8) & 0xff);
-        const int base_blue = static_cast<int>(base & 0xff);
+        const int base_red = static_cast<int>(source_asset_.palette_red[static_cast<std::size_t>(index)]);
+        const int base_green = static_cast<int>(source_asset_.palette_green[static_cast<std::size_t>(index)]);
+        const int base_blue = static_cast<int>(source_asset_.palette_blue[static_cast<std::size_t>(index)]);
 
         const int target_red = fade_to_black_ ? 0 : 255;
         const int target_green = fade_to_black_ ? 0 : 255;
@@ -108,11 +125,8 @@ void DominaRoutine::build_palette(float scene_time_seconds) {
     }
 }
 
-std::uint32_t DominaRoutine::pack_rgb(int red, int green, int blue) {
-    const int r = std::max(0, std::min(255, red));
-    const int g = std::max(0, std::min(255, green));
-    const int b = std::max(0, std::min(255, blue));
-    return static_cast<std::uint32_t>((r << 16) | (g << 8) | b);
+std::string DominaRoutine::gif_asset_path(const std::string& file_name) const {
+    return std::string("original/forward/images/") + file_name;
 }
 
 }  // namespace forward_offline

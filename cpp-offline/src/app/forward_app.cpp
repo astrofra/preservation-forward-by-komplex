@@ -164,7 +164,7 @@ bool ForwardApp::write_log(std::string* error_message) const {
     if (is_intro_sequence()) {
         stream << "intro_frames_per_row=" << config_.intro_frames_per_row << '\n';
         stream << "intro_rows_per_order=" << config_.intro_rows_per_order << '\n';
-        stream << "note=intro script player with direct original-asset loading for mute95; domina remains a partial stand-in\n";
+        stream << "note=intro script player with direct original-asset loading for mute95 and domina; audio/timeline transport remains synthetic\n";
     } else {
         stream << "scene=" << scene_.script_name() << '\n';
         stream << "note=placeholder scene plus silent wav until the real Java systems are ported\n";
@@ -203,6 +203,12 @@ bool ForwardApp::initialize_sequence(std::string* error_message) {
             return false;
         }
         domina_routine_.init();
+        if (!domina_routine_.is_ready()) {
+            if (error_message != NULL) {
+                *error_message = domina_routine_.error_message();
+            }
+            return false;
+        }
         return true;
     }
 

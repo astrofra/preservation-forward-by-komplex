@@ -1,6 +1,9 @@
 #ifndef FORWARD_OFFLINE_SCENES_DOMINA_ROUTINE_H
 #define FORWARD_OFFLINE_SCENES_DOMINA_ROUTINE_H
 
+#include <string>
+
+#include "assets/original_asset_loader.h"
 #include "render/indexed_surface.h"
 #include "scenes/routine.h"
 
@@ -15,16 +18,21 @@ public:
     virtual void on_show();
     virtual void render(RgbSurface& surface, float scene_time_seconds, float delta_seconds);
     virtual void handle_message(const std::string& message, float scene_time_seconds);
+    bool is_ready() const;
+    const std::string& error_message() const;
 
 private:
-    void build_source();
+    bool load_assets();
+    void populate_frame(int frame_index);
     void build_palette(float scene_time_seconds);
-    static std::uint32_t pack_rgb(int red, int green, int blue);
+    std::string gif_asset_path(const std::string& file_name) const;
 
-    IndexedSurface source_;
+    IndexedAsset source_asset_;
     IndexedSurface frame_;
     bool fade_to_black_;
     float fade_start_seconds_;
+    bool ready_;
+    std::string error_message_;
 };
 
 }  // namespace forward_offline
