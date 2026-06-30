@@ -93,6 +93,126 @@ function Write-SilentWav {
     }
 }
 
+function Write-WavBytes {
+    param(
+        [string]$Path,
+        [int]$SampleRateValue,
+        [int]$Channels,
+        [int]$BitsPerSample,
+        [byte[]]$Data
+    )
+
+    $dataSize = if ($null -eq $Data) { 0L } else { [long]$Data.Length }
+    $bytesPerSampleFrame = $Channels * ($BitsPerSample / 8)
+    $riffSize = 36 + $dataSize
+    $byteRate = $SampleRateValue * $bytesPerSampleFrame
+    $blockAlign = $bytesPerSampleFrame
+
+    $fileStream = [System.IO.File]::Create($Path)
+    try {
+        $writer = New-Object System.IO.BinaryWriter($fileStream)
+        try {
+            $writer.Write([System.Text.Encoding]::ASCII.GetBytes("RIFF"))
+            $writer.Write([int]$riffSize)
+            $writer.Write([System.Text.Encoding]::ASCII.GetBytes("WAVE"))
+            $writer.Write([System.Text.Encoding]::ASCII.GetBytes("fmt "))
+            $writer.Write([int]16)
+            $writer.Write([int16]1)
+            $writer.Write([int16]$Channels)
+            $writer.Write([int]$SampleRateValue)
+            $writer.Write([int]$byteRate)
+            $writer.Write([int16]$blockAlign)
+            $writer.Write([int16]$BitsPerSample)
+            $writer.Write([System.Text.Encoding]::ASCII.GetBytes("data"))
+            $writer.Write([int]$dataSize)
+            if ($dataSize -gt 0) {
+                $writer.Write($Data)
+            }
+        } finally {
+            $writer.Dispose()
+        }
+    } finally {
+        $fileStream.Dispose()
+    }
+}
+
+function Read-WavPcm {
+    param([string]$Path)
+
+    if (-not (Test-Path -LiteralPath $Path)) {
+        return $null
+    }
+
+    $fileStream = [System.IO.File]::OpenRead($Path)
+    try {
+        $reader = New-Object System.IO.BinaryReader($fileStream)
+        try {
+            $riff = [System.Text.Encoding]::ASCII.GetString($reader.ReadBytes(4))
+            if ($riff -ne "RIFF") {
+                return $null
+            }
+            [void]$reader.ReadUInt32()
+            $wave = [System.Text.Encoding]::ASCII.GetString($reader.ReadBytes(4))
+            if ($wave -ne "WAVE") {
+                return $null
+            }
+
+            $sampleRateValue = 0
+            $channels = 0
+            $bitsPerSample = 0
+            $data = $null
+
+            while ($fileStream.Position -lt $fileStream.Length) {
+                $chunkIdBytes = $reader.ReadBytes(4)
+                if ($chunkIdBytes.Length -lt 4) {
+                    break
+                }
+
+                $chunkId = [System.Text.Encoding]::ASCII.GetString($chunkIdBytes)
+                $chunkSize = [int]$reader.ReadUInt32()
+
+                if ($chunkId -eq "fmt ") {
+                    $audioFormat = [int]$reader.ReadUInt16()
+                    $channels = [int]$reader.ReadUInt16()
+                    $sampleRateValue = [int]$reader.ReadUInt32()
+                    [void]$reader.ReadUInt32()
+                    [void]$reader.ReadUInt16()
+                    $bitsPerSample = [int]$reader.ReadUInt16()
+                    if ($audioFormat -ne 1) {
+                        return $null
+                    }
+                    if ($chunkSize -gt 16) {
+                        [void]$fileStream.Seek($chunkSize - 16, [System.IO.SeekOrigin]::Current)
+                    }
+                } elseif ($chunkId -eq "data") {
+                    $data = $reader.ReadBytes($chunkSize)
+                    if (($chunkSize % 2) -eq 1) {
+                        [void]$fileStream.Seek(1, [System.IO.SeekOrigin]::Current)
+                    }
+                    break
+                } else {
+                    [void]$fileStream.Seek($chunkSize + ($chunkSize % 2), [System.IO.SeekOrigin]::Current)
+                }
+            }
+
+            if ($null -eq $data -or $sampleRateValue -le 0 -or $channels -le 0 -or $bitsPerSample -le 0) {
+                return $null
+            }
+
+            return [PSCustomObject]@{
+                SampleRate = $sampleRateValue
+                Channels = $channels
+                BitsPerSample = $bitsPerSample
+                Data = $data
+            }
+        } finally {
+            $reader.Dispose()
+        }
+    } finally {
+        $fileStream.Dispose()
+    }
+}
+
 Ensure-Directory -Path $OutputDir
 $framesDir = Join-Path $OutputDir "frames"
 $audioDir = Join-Path $OutputDir "audio"
@@ -174,9 +294,30 @@ try {
 }
 
 $samplesPerFrame = [int]($SampleRate / $Fps)
-$totalSamples = [long]$frameIndex * [long]$samplesPerFrame
 $wavPath = Join-Path $audioDir "forward.wav"
-Write-SilentWav -Path $wavPath -SampleRateValue $SampleRate -Channels 2 -BitsPerSample 16 -TotalSamples $totalSamples
+$introWavPath = Join-Path (Join-Path $IntroDir "audio") "forward.wav"
+$saariWavPath = Join-Path (Join-Path $SaariDir "audio") "forward.wav"
+$introAudio = Read-WavPcm -Path $introWavPath
+$saariAudio = Read-WavPcm -Path $saariWavPath
+
+if ($null -ne $introAudio -and
+    $null -ne $saariAudio -and
+    $introAudio.SampleRate -eq $saariAudio.SampleRate -and
+    $introAudio.Channels -eq $saariAudio.Channels -and
+    $introAudio.BitsPerSample -eq $saariAudio.BitsPerSample) {
+    $mergedLength = $introAudio.Data.Length + $saariAudio.Data.Length
+    $mergedAudio = New-Object byte[] $mergedLength
+    [System.Buffer]::BlockCopy($introAudio.Data, 0, $mergedAudio, 0, $introAudio.Data.Length)
+    [System.Buffer]::BlockCopy($saariAudio.Data, 0, $mergedAudio, $introAudio.Data.Length, $saariAudio.Data.Length)
+    Write-WavBytes -Path $wavPath `
+        -SampleRateValue $introAudio.SampleRate `
+        -Channels $introAudio.Channels `
+        -BitsPerSample $introAudio.BitsPerSample `
+        -Data $mergedAudio
+} else {
+    $totalSamples = [long]$frameIndex * [long]$samplesPerFrame
+    Write-SilentWav -Path $wavPath -SampleRateValue $SampleRate -Channels 2 -BitsPerSample 16 -TotalSamples $totalSamples
+}
 
 $logPath = Join-Path $OutputDir "log.txt"
 $logLines = @(

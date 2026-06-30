@@ -43,6 +43,32 @@ std::string saari_next_position_hex(std::size_t index) {
     return builder.str();
 }
 
+unsigned int progress_percent_for_frame(unsigned int completed_frames, unsigned int total_frames) {
+    if (total_frames == 0U) {
+        return 100U;
+    }
+    return static_cast<unsigned int>(
+        (static_cast<unsigned long long>(completed_frames) * 100ULL) /
+        static_cast<unsigned long long>(total_frames));
+}
+
+void print_export_progress(unsigned int completed_frames, unsigned int total_frames) {
+    const unsigned int percent = progress_percent_for_frame(completed_frames, total_frames);
+    const int bar_width = 24;
+    const int filled = total_frames == 0U
+        ? bar_width
+        : static_cast<int>(
+              (static_cast<unsigned long long>(completed_frames) * static_cast<unsigned long long>(bar_width)) /
+              static_cast<unsigned long long>(total_frames));
+
+    std::cout << '\r' << '[';
+    for (int index = 0; index < bar_width; ++index) {
+        std::cout << (index < filled ? '=' : ' ');
+    }
+    std::cout << "] " << std::setw(3) << percent << "% (" << completed_frames << "/" << total_frames << ')'
+              << std::flush;
+}
+
 }  // namespace
 
 ForwardApp::ForwardApp(const ExportConfig& config)
@@ -100,7 +126,14 @@ int ForwardApp::run() {
         return 1;
     }
 
-    for (unsigned int frame_index = 0; frame_index < static_cast<unsigned int>(config_.frame_count); ++frame_index) {
+    const unsigned int total_frames = static_cast<unsigned int>(config_.frame_count);
+    int last_progress_percent = -1;
+    if (total_frames > 0U) {
+        print_export_progress(0U, total_frames);
+        last_progress_percent = 0;
+    }
+
+    for (unsigned int frame_index = 0; frame_index < total_frames; ++frame_index) {
         const double demo_time_seconds = timeline_.frame_time_seconds(frame_index);
         const float delta_seconds = static_cast<float>(timeline_.frame_duration_seconds());
         if (is_intro_sequence()) {
@@ -142,6 +175,17 @@ int ForwardApp::run() {
                                     active_name_,
                                     next_script_time_hex(frame_index),
                                     std::string("frames/") + file_name);
+
+        const unsigned int completed_frames = frame_index + 1U;
+        const int progress_percent = static_cast<int>(progress_percent_for_frame(completed_frames, total_frames));
+        if (progress_percent != last_progress_percent) {
+            print_export_progress(completed_frames, total_frames);
+            last_progress_percent = progress_percent;
+        }
+    }
+
+    if (total_frames > 0U) {
+        std::cout << '\n';
     }
 
     if (is_intro_sequence()) {
@@ -167,6 +211,7 @@ int ForwardApp::run() {
 
     manifest_writer.close();
 
+    std::cout << "note: forward.wav is currently synthetic silence until the original audio engine is ported\n";
     std::cout << "wrote " << config_.frame_count << " frames and one wav under "
               << config_.output_dir << '\n';
     return 0;

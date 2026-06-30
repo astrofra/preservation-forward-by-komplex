@@ -56,7 +56,7 @@ cpp-offline/build/forward-export --output cpp-offline/output-intro --frames 1065
 Saari 3D pass run:
 
 ```powershell
-cpp-offline/build/forward-export --sequence saari --output cpp-offline/output-saari --frames 1600 --intro-frames-per-row 1
+cpp-offline/build/forward-export --sequence saari --output cpp-offline/output-saari --frames 3136 --intro-frames-per-row 7
 ```
 
 Generated output:
@@ -65,6 +65,10 @@ Generated output:
 - `cpp-offline/output/audio/forward.wav`
 - `cpp-offline/output/manifest.csv`
 - `cpp-offline/output/log.txt`
+
+Current audio status:
+
+- `forward.wav` is still synthetic silence until the original audio engine is ported.
 
 ## Mux with FFmpeg
 
@@ -80,7 +84,7 @@ Distribution copy:
 cpp-offline/scripts/mux_h264.bat cpp-offline/output
 ```
 
-Full intro convenience wrapper:
+Full current convenience wrapper:
 
 ```powershell
 cpp-offline/scripts/export_intro_full.bat
@@ -89,9 +93,9 @@ cpp-offline/scripts/export_intro_full.bat
 That wrapper:
 
 - configures and builds `forward-export`
-- exports the complete current intro window through `0x1024` plus a short post-roll
-- writes outputs under `cpp-offline/output-intro-full`
-- muxes `forward_intro_master.mkv` and `forward_intro_h264.mp4` when `ffmpeg` is available
+- exports the complete current intro window through `0x1024` plus a short post-roll, then the current `saari` window through `0x0700`
+- writes outputs under `cpp-offline/output-full-current`
+- muxes `forward_full_current_master.mkv` and `forward_full_current_h264.mp4` when `ffmpeg` is available
 
 ## Immediate Next Porting Steps
 
