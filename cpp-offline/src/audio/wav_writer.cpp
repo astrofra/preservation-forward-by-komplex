@@ -43,6 +43,45 @@ bool WavWriter::open(const std::string& path,
     return write_header_placeholder(error_message);
 }
 
+bool WavWriter::write_pcm_s16(const std::vector<std::int16_t>& interleaved_samples,
+                              std::string* error_message) {
+    if (!is_open_) {
+        if (error_message != NULL) {
+            *error_message = "wav writer is not open";
+        }
+        return false;
+    }
+    if (bits_per_sample_ != 16) {
+        if (error_message != NULL) {
+            *error_message = "write_pcm_s16 requires a 16-bit wav output";
+        }
+        return false;
+    }
+
+    if (interleaved_samples.empty()) {
+        return true;
+    }
+
+    std::vector<char> bytes(interleaved_samples.size() * 2U, 0);
+    for (std::size_t index = 0; index < interleaved_samples.size(); ++index) {
+        const std::uint16_t sample_bits =
+            static_cast<std::uint16_t>(interleaved_samples[index]);
+        bytes[index * 2U] = static_cast<char>(sample_bits & 0xffU);
+        bytes[index * 2U + 1U] = static_cast<char>((sample_bits >> 8) & 0xffU);
+    }
+
+    stream_.write(&bytes[0], static_cast<std::streamsize>(bytes.size()));
+    if (!stream_) {
+        if (error_message != NULL) {
+            *error_message = "unable to write wav pcm data";
+        }
+        return false;
+    }
+
+    data_bytes_ += static_cast<std::uint64_t>(bytes.size());
+    return true;
+}
+
 bool WavWriter::write_silence(std::size_t sample_frames, std::string* error_message) {
     if (!is_open_) {
         if (error_message != NULL) {

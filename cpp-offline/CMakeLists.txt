@@ -16,6 +16,7 @@ add_executable(forward-export
     src/assets/normalized_asset_loader.cpp
     src/assets/original_asset_loader.cpp
     src/assets/stb_image_impl.cpp
+    src/audio/module_player.cpp
     src/audio/wav_writer.cpp
     src/core/java_random.cpp
     src/core/offline_timeline.cpp

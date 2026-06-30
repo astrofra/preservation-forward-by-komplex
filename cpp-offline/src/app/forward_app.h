@@ -30,6 +30,7 @@ private:
 
     bool prepare_output(std::string* error_message) const;
     bool write_log(std::string* error_message) const;
+    bool write_sequence_audio(class WavWriter* wav_writer, std::string* error_message) const;
     bool is_intro_sequence() const;
     bool is_saari_sequence() const;
     bool initialize_sequence(std::string* error_message);

@@ -5,8 +5,10 @@
 #include <iostream>
 #include <ostream>
 #include <sstream>
+#include <vector>
 
 #include "app/manifest_writer.h"
+#include "audio/module_player.h"
 #include "audio/wav_writer.h"
 #include "platform/file_utils.h"
 #include "render/tga_writer.h"
@@ -197,9 +199,7 @@ int ForwardApp::run() {
         scene_.dispose();
     }
 
-    if (!wav_writer.write_silence(
-            static_cast<std::size_t>(timeline_.total_samples_for_frames(config_.frame_count)),
-            &error_message)) {
+    if (!write_sequence_audio(&wav_writer, &error_message)) {
         std::cerr << error_message << '\n';
         return 1;
     }
@@ -211,7 +211,6 @@ int ForwardApp::run() {
 
     manifest_writer.close();
 
-    std::cout << "note: forward.wav is currently synthetic silence until the original audio engine is ported\n";
     std::cout << "wrote " << config_.frame_count << " frames and one wav under "
               << config_.output_dir << '\n';
     return 0;
@@ -250,17 +249,37 @@ bool ForwardApp::write_log(std::string* error_message) const {
     if (is_intro_sequence()) {
         stream << "intro_frames_per_row=" << config_.intro_frames_per_row << '\n';
         stream << "intro_rows_per_order=" << config_.intro_rows_per_order << '\n';
-        stream << "note=intro script player with direct original-asset loading for mute95 and domina; audio/timeline transport remains synthetic\n";
+        stream << "note=intro script player with direct original-asset loading for mute95 and domina plus native kuninga.xm replay; song-position transport remains synthetic\n";
     } else if (is_saari_sequence()) {
         stream << "intro_frames_per_row=" << config_.intro_frames_per_row << '\n';
         stream << "intro_rows_per_order=" << config_.intro_rows_per_order << '\n';
         stream << "scene=saari\n";
-        stream << "note=first autonomous saari 3D pass with direct original-asset loading, ASE camera/object parsing, terrain/reflection rendering, and script-row shock messages; camera/raster parity is still pending\n";
+        stream << "note=first autonomous saari 3D pass with direct original-asset loading, ASE camera/object parsing, terrain/reflection rendering, native jarnomix.xm replay, and script-row shock messages; camera/raster parity is still pending\n";
     } else {
         stream << "scene=" << scene_.script_name() << '\n';
         stream << "note=placeholder scene plus silent wav until the real Java systems are ported\n";
     }
     return true;
+}
+
+bool ForwardApp::write_sequence_audio(WavWriter* wav_writer, std::string* error_message) const {
+    const std::size_t total_sample_frames =
+        static_cast<std::size_t>(timeline_.total_samples_for_frames(config_.frame_count));
+
+    if (!is_intro_sequence() && !is_saari_sequence()) {
+        return wav_writer->write_silence(total_sample_frames, error_message);
+    }
+
+    std::vector<std::int16_t> interleaved_samples;
+    if (!render_sequence_module_audio(config_.sequence_name,
+                                      config_.sample_rate,
+                                      total_sample_frames,
+                                      &interleaved_samples,
+                                      error_message)) {
+        return false;
+    }
+
+    return wav_writer->write_pcm_s16(interleaved_samples, error_message);
 }
 
 std::string ForwardApp::frame_file_name(unsigned int frame_index) const {

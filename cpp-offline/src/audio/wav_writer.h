@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <fstream>
 #include <string>
+#include <vector>
 
 namespace forward_offline {
 
@@ -18,6 +19,8 @@ public:
               int channel_count,
               int bits_per_sample,
               std::string* error_message);
+    bool write_pcm_s16(const std::vector<std::int16_t>& interleaved_samples,
+                       std::string* error_message);
     bool write_silence(std::size_t sample_frames, std::string* error_message);
     bool finalize(std::string* error_message);
 
