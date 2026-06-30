@@ -1069,7 +1069,13 @@ struct ModuleSong {
         return &JaKkAMa[static_cast<std::size_t>(n)];
     }
 
-    void process_tick() {
+    void process_tick(bool* emitted_song_position, unsigned int* song_position_hex) {
+        if (emitted_song_position != NULL) {
+            *emitted_song_position = false;
+        }
+        if (song_position_hex != NULL) {
+            *song_position_hex = 0U;
+        }
         if (jaKKAMa.empty()) {
             return;
         }
@@ -1077,6 +1083,15 @@ struct ModuleSong {
         if (JaKKAMa-- == 0) {
             for (std::size_t index = 0; index < jaKKAMa.size(); ++index) {
                 jaKKAMa[index].kAmAJAk(true);
+            }
+            const unsigned int current_song_position =
+                (static_cast<unsigned int>(jakKama.jAKKama) << 8) |
+                static_cast<unsigned int>(jakKama.JakKama);
+            if (emitted_song_position != NULL) {
+                *emitted_song_position = true;
+            }
+            if (song_position_hex != NULL) {
+                *song_position_hex = current_song_position;
             }
             const std::uint8_t* by_array = jakKama.kkAMaJa();
             AkkaMaJ(by_array);
@@ -1745,7 +1760,8 @@ bool render_module_song(const ModuleSong& song_template,
                         int sample_rate,
                         int boost,
                         std::size_t sample_frames,
-                        std::vector<std::int16_t>* interleaved_samples) {
+                        std::vector<std::int16_t>* interleaved_samples,
+                        std::vector<SongPositionEvent>* song_positions) {
     ModuleSong song(song_template);
     song.akKaMaJ();
 
@@ -1757,6 +1773,9 @@ bool render_module_song(const ModuleSong& song_template,
     std::vector<std::uint32_t> packed_frames(sample_frames, 0U);
     double next_tick_sample = 0.0;
     std::size_t cursor = 0U;
+    if (song_positions != NULL) {
+        song_positions->clear();
+    }
 
     while (cursor < sample_frames) {
         const std::size_t boundary = static_cast<std::size_t>(next_tick_sample);
@@ -1772,7 +1791,15 @@ bool render_module_song(const ModuleSong& song_template,
             }
         }
 
-        song.process_tick();
+        bool emitted_song_position = false;
+        unsigned int song_position_hex = 0U;
+        song.process_tick(&emitted_song_position, &song_position_hex);
+        if (emitted_song_position && song_positions != NULL) {
+            SongPositionEvent event;
+            event.sample_index = static_cast<std::uint64_t>(cursor);
+            event.song_position_hex = song_position_hex;
+            song_positions->push_back(event);
+        }
         next_tick_sample += song.tick_duration_seconds() * static_cast<double>(sample_rate);
         if (boundary <= cursor && static_cast<std::size_t>(next_tick_sample) == cursor) {
             next_tick_sample += song.tick_duration_seconds() * static_cast<double>(sample_rate);
@@ -1796,16 +1823,17 @@ bool render_module_song(const ModuleSong& song_template,
 bool render_sequence_module_audio(const std::string& sequence_name,
                                   int sample_rate,
                                   std::size_t sample_frames,
-                                  std::vector<std::int16_t>* interleaved_samples,
+                                  SequenceAudioRender* render,
                                   std::string* error_message) {
-    if (interleaved_samples == NULL) {
+    if (render == NULL) {
         if (error_message != NULL) {
-            *error_message = "audio output buffer is null";
+            *error_message = "audio output container is null";
         }
         return false;
     }
 
-    interleaved_samples->clear();
+    render->interleaved_samples.clear();
+    render->song_positions.clear();
     if (sample_frames == 0U) {
         return true;
     }
@@ -1838,7 +1866,8 @@ bool render_sequence_module_audio(const std::string& sequence_name,
                               sample_rate,
                               config.boost,
                               sample_frames,
-                              interleaved_samples);
+                              &render->interleaved_samples,
+                              &render->song_positions);
 }
 
 }  // namespace forward_offline

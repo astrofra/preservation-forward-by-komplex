@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "app/manifest_writer.h"
-#include "audio/module_player.h"
 #include "audio/wav_writer.h"
 #include "platform/file_utils.h"
 #include "render/tga_writer.h"
@@ -76,8 +75,8 @@ void print_export_progress(unsigned int completed_frames, unsigned int total_fra
 ForwardApp::ForwardApp(const ExportConfig& config)
     : config_(config),
       timeline_(config.fps, config.sample_rate),
-      intro_transport_(config.intro_frames_per_row, config.intro_rows_per_order),
       intro_script_(),
+      sequence_audio_render_(),
       frame_buffer_(config.width, config.height),
       mute95_scene_(),
       domina_routine_(),
@@ -86,16 +85,14 @@ ForwardApp::ForwardApp(const ExportConfig& config)
       active_renderable_(ActiveRenderable::none),
       active_name_(),
       active_start_seconds_(0.0),
-      next_script_index_(0) {
+      next_script_index_(0),
+      next_song_position_event_index_(0),
+      current_song_position_(0U) {
 }
 
 int ForwardApp::run() {
     if (!timeline_.is_valid()) {
         std::cerr << "timeline configuration error: " << timeline_.error_message() << '\n';
-        return 1;
-    }
-    if ((is_intro_sequence() || is_saari_sequence()) && !intro_transport_.is_valid()) {
-        std::cerr << "intro transport error: " << intro_transport_.error_message() << '\n';
         return 1;
     }
 
@@ -127,6 +124,10 @@ int ForwardApp::run() {
         std::cerr << error_message << '\n';
         return 1;
     }
+    if (!prepare_sequence_audio(&error_message)) {
+        std::cerr << error_message << '\n';
+        return 1;
+    }
 
     const unsigned int total_frames = static_cast<unsigned int>(config_.frame_count);
     int last_progress_percent = -1;
@@ -136,12 +137,13 @@ int ForwardApp::run() {
     }
 
     for (unsigned int frame_index = 0; frame_index < total_frames; ++frame_index) {
+        const std::uint64_t frame_sample_index = timeline_.sample_index_for_frame(frame_index);
         const double demo_time_seconds = timeline_.frame_time_seconds(frame_index);
         const float delta_seconds = static_cast<float>(timeline_.frame_duration_seconds());
         if (is_intro_sequence()) {
-            process_intro_script(frame_index);
+            process_intro_script(frame_sample_index);
         } else if (is_saari_sequence()) {
-            process_saari_script(frame_index);
+            process_saari_script(frame_sample_index);
         }
 
         frame_buffer_.clear(0);
@@ -229,6 +231,24 @@ bool ForwardApp::prepare_output(std::string* error_message) const {
     return true;
 }
 
+bool ForwardApp::prepare_sequence_audio(std::string* error_message) {
+    sequence_audio_render_.interleaved_samples.clear();
+    sequence_audio_render_.song_positions.clear();
+    next_song_position_event_index_ = 0U;
+    current_song_position_ = 0U;
+
+    if (!is_intro_sequence() && !is_saari_sequence()) {
+        return true;
+    }
+
+    return render_sequence_module_audio(
+        config_.sequence_name,
+        config_.sample_rate,
+        static_cast<std::size_t>(timeline_.total_samples_for_frames(config_.frame_count)),
+        &sequence_audio_render_,
+        error_message);
+}
+
 bool ForwardApp::write_log(std::string* error_message) const {
     const std::string path = join_path(config_.output_dir, "log.txt");
     std::ofstream stream(path.c_str(), std::ios::out | std::ios::trunc);
@@ -249,12 +269,12 @@ bool ForwardApp::write_log(std::string* error_message) const {
     if (is_intro_sequence()) {
         stream << "intro_frames_per_row=" << config_.intro_frames_per_row << '\n';
         stream << "intro_rows_per_order=" << config_.intro_rows_per_order << '\n';
-        stream << "note=intro script player with direct original-asset loading for mute95 and domina plus native kuninga.xm replay; song-position transport remains synthetic\n";
+        stream << "note=intro script player with direct original-asset loading for mute95 and domina plus native kuninga.xm replay; demo clock now follows audio sample position\n";
     } else if (is_saari_sequence()) {
         stream << "intro_frames_per_row=" << config_.intro_frames_per_row << '\n';
         stream << "intro_rows_per_order=" << config_.intro_rows_per_order << '\n';
         stream << "scene=saari\n";
-        stream << "note=first autonomous saari 3D pass with direct original-asset loading, ASE camera/object parsing, terrain/reflection rendering, native jarnomix.xm replay, and script-row shock messages; camera/raster parity is still pending\n";
+        stream << "note=first autonomous saari 3D pass with direct original-asset loading, ASE camera/object parsing, terrain/reflection rendering, native jarnomix.xm replay, and audio-clocked shock messages; camera/raster parity is still pending\n";
     } else {
         stream << "scene=" << scene_.script_name() << '\n';
         stream << "note=placeholder scene plus silent wav until the real Java systems are ported\n";
@@ -270,16 +290,14 @@ bool ForwardApp::write_sequence_audio(WavWriter* wav_writer, std::string* error_
         return wav_writer->write_silence(total_sample_frames, error_message);
     }
 
-    std::vector<std::int16_t> interleaved_samples;
-    if (!render_sequence_module_audio(config_.sequence_name,
-                                      config_.sample_rate,
-                                      total_sample_frames,
-                                      &interleaved_samples,
-                                      error_message)) {
+    if (sequence_audio_render_.interleaved_samples.empty() && total_sample_frames > 0U) {
+        if (error_message != NULL) {
+            *error_message = "sequence audio was not prepared before wav write";
+        }
         return false;
     }
 
-    return wav_writer->write_pcm_s16(interleaved_samples, error_message);
+    return wav_writer->write_pcm_s16(sequence_audio_render_.interleaved_samples, error_message);
 }
 
 std::string ForwardApp::frame_file_name(unsigned int frame_index) const {
@@ -301,6 +319,8 @@ bool ForwardApp::initialize_sequence(std::string* error_message) {
     active_name_.clear();
     active_start_seconds_ = 0.0;
     next_script_index_ = 0;
+    next_song_position_event_index_ = 0U;
+    current_song_position_ = 0U;
 
     if (is_intro_sequence()) {
         if (config_.width != 512 || config_.height != 256) {
@@ -361,38 +381,53 @@ bool ForwardApp::initialize_sequence(std::string* error_message) {
     return false;
 }
 
-void ForwardApp::process_intro_script(unsigned int frame_index) {
+void ForwardApp::process_intro_script(std::uint64_t sample_index) {
     if (!is_intro_sequence()) {
         return;
     }
 
-    const unsigned int current_song_position = intro_transport_.song_position_for_frame(frame_index);
-    const double demo_time_seconds = timeline_.frame_time_seconds(frame_index);
-    const std::vector<ScriptCommand>& commands = intro_script_.commands();
+    while (next_song_position_event_index_ < sequence_audio_render_.song_positions.size() &&
+           sequence_audio_render_.song_positions[next_song_position_event_index_].sample_index <= sample_index) {
+        const SongPositionEvent& event =
+            sequence_audio_render_.song_positions[next_song_position_event_index_];
+        current_song_position_ = event.song_position_hex;
+        const double demo_time_seconds =
+            static_cast<double>(event.sample_index) / static_cast<double>(config_.sample_rate);
+        const std::vector<ScriptCommand>& commands = intro_script_.commands();
 
-    while (next_script_index_ < commands.size() &&
-           commands[next_script_index_].song_position_hex <= current_song_position) {
-        execute_script_command(commands[next_script_index_], demo_time_seconds);
-        ++next_script_index_;
+        while (next_script_index_ < commands.size() &&
+               commands[next_script_index_].song_position_hex <= current_song_position_) {
+            execute_script_command(commands[next_script_index_], demo_time_seconds);
+            ++next_script_index_;
+        }
+        ++next_song_position_event_index_;
     }
 }
 
-void ForwardApp::process_saari_script(unsigned int frame_index) {
+void ForwardApp::process_saari_script(std::uint64_t sample_index) {
     if (!is_saari_sequence()) {
         return;
     }
 
-    const unsigned int current_song_position = intro_transport_.song_position_for_frame(frame_index);
-    const double demo_time_seconds = timeline_.frame_time_seconds(frame_index);
     const std::size_t event_count = sizeof(kSaariScriptEvents) / sizeof(kSaariScriptEvents[0]);
 
-    while (next_script_index_ < event_count &&
-           kSaariScriptEvents[next_script_index_].song_position_hex <= current_song_position) {
-        if (kSaariScriptEvents[next_script_index_].message_name[0] != '\0') {
-            saari_scene_.handle_message(kSaariScriptEvents[next_script_index_].message_name,
-                                        static_cast<float>(demo_time_seconds));
+    while (next_song_position_event_index_ < sequence_audio_render_.song_positions.size() &&
+           sequence_audio_render_.song_positions[next_song_position_event_index_].sample_index <= sample_index) {
+        const SongPositionEvent& event =
+            sequence_audio_render_.song_positions[next_song_position_event_index_];
+        current_song_position_ = event.song_position_hex;
+        const double demo_time_seconds =
+            static_cast<double>(event.sample_index) / static_cast<double>(config_.sample_rate);
+
+        while (next_script_index_ < event_count &&
+               kSaariScriptEvents[next_script_index_].song_position_hex <= current_song_position_) {
+            if (kSaariScriptEvents[next_script_index_].message_name[0] != '\0') {
+                saari_scene_.handle_message(kSaariScriptEvents[next_script_index_].message_name,
+                                            static_cast<float>(demo_time_seconds));
+            }
+            ++next_script_index_;
         }
-        ++next_script_index_;
+        ++next_song_position_event_index_;
     }
 }
 
@@ -478,6 +513,7 @@ void ForwardApp::kill_renderable(const std::string& name) {
 }
 
 std::string ForwardApp::next_script_time_hex(unsigned int frame_index) const {
+    (void)frame_index;
     if (is_saari_sequence()) {
         const std::size_t event_count = sizeof(kSaariScriptEvents) / sizeof(kSaariScriptEvents[0]);
         if (next_script_index_ >= event_count) {
@@ -495,13 +531,19 @@ std::string ForwardApp::next_script_time_hex(unsigned int frame_index) const {
         return std::string();
     }
 
-    const unsigned int current_song_position = intro_transport_.song_position_for_frame(frame_index);
+    const unsigned int current_song_position = current_song_position_;
     const unsigned int next_song_position = commands[next_script_index_].song_position_hex;
     if (next_song_position < current_song_position) {
-        return intro_transport_.song_position_string(current_song_position);
+        return song_position_string(current_song_position);
     }
 
     return intro_script_.next_position_hex(next_script_index_);
+}
+
+std::string ForwardApp::song_position_string(unsigned int song_position) const {
+    std::ostringstream builder;
+    builder << "0x" << std::hex << song_position;
+    return builder.str();
 }
 
 }  // namespace forward_offline

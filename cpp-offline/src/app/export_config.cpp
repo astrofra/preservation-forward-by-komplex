@@ -146,9 +146,9 @@ void print_usage(std::ostream& stream) {
         << "  --sample-rate <hz>    Audio sample rate (default: 22050)\n"
         << "  --sequence <name>     Export sequence: intro|saari|bootstrap (default: intro)\n"
         << "  --intro-frames-per-row <n>\n"
-        << "                        Synthetic XM transport pacing (default: 6)\n"
+        << "                        Legacy wrapper pacing hint kept for compatibility (default: 6)\n"
         << "  --intro-rows-per-order <n>\n"
-        << "                        Synthetic XM order length (default: 64)\n"
+        << "                        Legacy wrapper order length hint (default: 64)\n"
         << "  --no-log              Skip output/log.txt\n"
         << "  --help                Show this message\n";
 }

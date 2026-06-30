@@ -13,10 +13,10 @@ This directory contains the first usable milestone of the `documentation/forward
 - `manifest.csv` kept close to the Java capture format
 - `ffmpeg` wrappers for muxing
 
-The default export path now runs the intro sequence through a synthetic song-position transport:
+The default export path now runs on an audio-sample master clock:
 
 - `--sequence intro` is the default
-- `--intro-frames-per-row 6` approximates the classic `6 ticks per row` pace at `50 fps`
+- `--intro-frames-per-row` and `--intro-rows-per-order` remain available as legacy wrapper hints, but they no longer drive scene/script timing
 - `--sequence saari` exports the current direct-asset `saari` 3D pass with row-driven `suh0` / `suh` shock events
 - `--sequence bootstrap` keeps the older placeholder scene available for quick pipeline checks
 
@@ -71,7 +71,7 @@ Current audio status:
 
 - `intro` and `saari` now write native stereo `16-bit PCM` module audio directly from `mods/kuninga.xm` and `mods/jarnomix.xm`.
 - `bootstrap` still falls back to silence because it remains a placeholder scene outside the current preservation path.
-- visual scripting still uses the synthetic row transport for now; the audio replay is autonomous, but it is not yet the master sync source.
+- intro/saari visual scripting now advances from the native XM song-position timeline derived from audio sample position.
 
 ## Mux with FFmpeg
 
@@ -105,5 +105,5 @@ That wrapper:
 1. Finish the source-faithful `mute95` validation against Java captures.
 2. Tighten `saari` camera timing, orientation, and raster parity against the Java captures.
 3. Reuse the new direct indexed GIF path for `uppol` and the remaining palette-driven routines.
-4. Replace the synthetic song-position transport with the native XM sequencer / sample timeline.
+4. Use the native XM sequencer / sample timeline to drive the remaining scene windows beyond the current `intro` / `saari` scope.
 5. Extend the native audio path from the current `intro` / `saari` scope to the remaining real sequences as they land.
