@@ -1,133 +1,27 @@
 #include "scenes/mute95_scene.h"
 
 #include <algorithm>
-#include <cctype>
-#include <cmath>
 
 namespace forward_offline {
 
 namespace {
 
-struct Glyph {
-    char character;
-    const char* rows[7];
-};
+const int kWidth = 512;
+const int kHeight = 256;
+const int kBlockWidth = 8;
+const int kBlockHeight = 8;
+const int kCreditWidth = 256;
+const int kCreditHeight = 50;
+const int kCreditSourceX = 8;
+const int kCreditSourceY = 40;
+const int kCreditDestX = (kWidth - kCreditWidth) / 2;
+const int kCreditDestY = (kHeight - kCreditHeight) / 2;
+const float kDesktopFrameDrivenHz = 50.0f;
+const int kDesktopNoiseWriteDelta = 70;
+const std::uint32_t kColorMask = 0x0F83E0F8U;
+const std::uint32_t kCarryMask = 0x10040100U;
 
-const Glyph kGlyphs[] = {
-    {'A', {"01110", "10001", "10001", "11111", "10001", "10001", "10001"}},
-    {'B', {"11110", "10001", "10001", "11110", "10001", "10001", "11110"}},
-    {'C', {"01110", "10001", "10000", "10000", "10000", "10001", "01110"}},
-    {'D', {"11110", "10001", "10001", "10001", "10001", "10001", "11110"}},
-    {'E', {"11111", "10000", "10000", "11110", "10000", "10000", "11111"}},
-    {'F', {"11111", "10000", "10000", "11110", "10000", "10000", "10000"}},
-    {'G', {"01110", "10001", "10000", "10111", "10001", "10001", "01110"}},
-    {'I', {"11111", "00100", "00100", "00100", "00100", "00100", "11111"}},
-    {'J', {"00111", "00010", "00010", "00010", "10010", "10010", "01100"}},
-    {'K', {"10001", "10010", "10100", "11000", "10100", "10010", "10001"}},
-    {'M', {"10001", "11011", "10101", "10101", "10001", "10001", "10001"}},
-    {'N', {"10001", "11001", "10101", "10011", "10001", "10001", "10001"}},
-    {'O', {"01110", "10001", "10001", "10001", "10001", "10001", "01110"}},
-    {'R', {"11110", "10001", "10001", "11110", "10100", "10010", "10001"}},
-    {'S', {"01111", "10000", "10000", "01110", "00001", "00001", "11110"}},
-    {'T', {"11111", "00100", "00100", "00100", "00100", "00100", "00100"}},
-    {'U', {"10001", "10001", "10001", "10001", "10001", "10001", "01110"}},
-    {'V', {"10001", "10001", "10001", "10001", "10001", "01010", "00100"}},
-    {'Y', {"10001", "10001", "01010", "00100", "00100", "00100", "00100"}}
-};
-
-const Glyph* find_glyph(char character) {
-    for (std::size_t index = 0; index < sizeof(kGlyphs) / sizeof(kGlyphs[0]); ++index) {
-        if (kGlyphs[index].character == character) {
-            return &kGlyphs[index];
-        }
-    }
-    return NULL;
-}
-
-}  // namespace
-
-Mute95Scene::CreditPair::CreditPair(const std::string& label_value,
-                                    std::uint32_t primary_a,
-                                    std::uint32_t secondary_a,
-                                    std::uint32_t primary_b,
-                                    std::uint32_t secondary_b)
-    : label(label_value),
-      card_a(256, 50),
-      card_b(256, 50) {
-    draw_card(card_a, label, primary_a, secondary_a);
-    draw_card(card_b, label, primary_b, secondary_b);
-}
-
-Mute95Scene::Mute95Scene()
-    : background_(512, 256),
-      credits_(),
-      active_credit_(-1),
-      message_start_seconds_(-1.0f),
-      phase_ticks_(0.0f) {
-}
-
-const char* Mute95Scene::script_name() const {
-    return "mute95";
-}
-
-void Mute95Scene::init() {
-    credits_.clear();
-    credits_.push_back(CreditPair("SAVIOUR",
-                                  pack_rgb(224, 124, 72),
-                                  pack_rgb(54, 18, 12),
-                                  pack_rgb(255, 202, 124),
-                                  pack_rgb(76, 22, 12)));
-    credits_.push_back(CreditPair("JMAGIC",
-                                  pack_rgb(82, 182, 230),
-                                  pack_rgb(12, 22, 42),
-                                  pack_rgb(156, 228, 255),
-                                  pack_rgb(22, 38, 58)));
-    credits_.push_back(CreditPair("JUGI",
-                                  pack_rgb(80, 220, 162),
-                                  pack_rgb(12, 44, 28),
-                                  pack_rgb(164, 255, 212),
-                                  pack_rgb(20, 58, 36)));
-    credits_.push_back(CreditPair("ANIS",
-                                  pack_rgb(210, 92, 196),
-                                  pack_rgb(54, 12, 48),
-                                  pack_rgb(255, 168, 238),
-                                  pack_rgb(72, 18, 62)));
-    credits_.push_back(CreditPair("CAREBEAR",
-                                  pack_rgb(236, 176, 70),
-                                  pack_rgb(56, 34, 10),
-                                  pack_rgb(255, 230, 148),
-                                  pack_rgb(82, 52, 16)));
-    build_palette();
-    active_credit_ = -1;
-    message_start_seconds_ = -1.0f;
-    phase_ticks_ = 0.0f;
-}
-
-void Mute95Scene::on_show() {
-    active_credit_ = -1;
-    message_start_seconds_ = -1.0f;
-    phase_ticks_ = 0.0f;
-}
-
-void Mute95Scene::render(RgbSurface& surface, float scene_time_seconds, float delta_seconds) {
-    phase_ticks_ += delta_seconds * 50.0f;
-    build_background(scene_time_seconds);
-    background_.render_to_rgb(surface);
-    render_credit_overlay(surface, scene_time_seconds);
-}
-
-void Mute95Scene::handle_message(const std::string& message, float scene_time_seconds) {
-    select_credit(message, scene_time_seconds);
-}
-
-std::uint32_t Mute95Scene::pack_rgb(int red, int green, int blue) {
-    const int r = std::max(0, std::min(255, red));
-    const int g = std::max(0, std::min(255, green));
-    const int b = std::max(0, std::min(255, blue));
-    return static_cast<std::uint32_t>((r << 16) | (g << 8) | b);
-}
-
-float Mute95Scene::clamp_unit(float value) {
+float clamp_unit(float value) {
     if (value < 0.0f) {
         return 0.0f;
     }
@@ -137,155 +31,187 @@ float Mute95Scene::clamp_unit(float value) {
     return value;
 }
 
-void Mute95Scene::blend_card(const RgbSurface& source,
-                             RgbSurface& destination,
-                             int dst_x,
-                             int dst_y,
-                             float amount) {
-    if (amount <= 0.0f) {
+}  // namespace
+
+Mute95Scene::Mute95Scene()
+    : palette_red_(256, 0),
+      palette_green_(256, 0),
+      palette_blue_(256, 0),
+      active_pixels_(static_cast<std::size_t>(kWidth) * static_cast<std::size_t>(kHeight), 0),
+      passive_pixels_(static_cast<std::size_t>(kWidth) * static_cast<std::size_t>(kHeight), 0),
+      credits_(),
+      random_(999U),
+      active_credit_(-1),
+      message_start_seconds_(-1.0f),
+      phase_ticks_(0),
+      desktop_phase_ticks_(0.0),
+      desktop_noise_writes_(0.0),
+      horizontal_offsets_(static_cast<std::size_t>(kHeight / kBlockHeight),
+                          std::vector<float>(static_cast<std::size_t>(kWidth / kBlockWidth), 0.0f)),
+      vertical_offsets_(static_cast<std::size_t>(kHeight / kBlockHeight),
+                        std::vector<float>(static_cast<std::size_t>(kWidth / kBlockWidth), 0.0f)),
+      ready_(false),
+      error_message_() {
+}
+
+const char* Mute95Scene::script_name() const {
+    return "mute95";
+}
+
+void Mute95Scene::init() {
+    std::fill(active_pixels_.begin(), active_pixels_.end(), static_cast<std::uint8_t>(0));
+    std::fill(passive_pixels_.begin(), passive_pixels_.end(), static_cast<std::uint8_t>(0));
+    for (std::size_t y = 0; y < horizontal_offsets_.size(); ++y) {
+        std::fill(horizontal_offsets_[y].begin(), horizontal_offsets_[y].end(), 0.0f);
+        std::fill(vertical_offsets_[y].begin(), vertical_offsets_[y].end(), 0.0f);
+    }
+    credits_.clear();
+    random_ = JavaRandom(999U);
+    desktop_phase_ticks_ = 0.0;
+    desktop_noise_writes_ = 0.0;
+    phase_ticks_ = 0;
+    active_credit_ = -1;
+    message_start_seconds_ = -1.0f;
+    ready_ = load_assets();
+}
+
+void Mute95Scene::on_show() {
+    active_credit_ = -1;
+    message_start_seconds_ = -1.0f;
+}
+
+void Mute95Scene::render(RgbSurface& surface, float scene_time_seconds, float delta_seconds) {
+    surface.clear(0);
+    if (!ready_) {
         return;
     }
 
-    const std::vector<std::uint32_t>& src_pixels = source.pixels();
-    std::vector<std::uint32_t>& dst_pixels = destination.pixels();
-    const int dst_width = destination.width();
-    const int dst_height = destination.height();
+    float scale = delta_seconds * 10.0f;
+    if (scale < 0.05f) {
+        scale = 0.05f;
+    }
 
-    for (int y = 0; y < source.height(); ++y) {
-        const int out_y = dst_y + y;
-        if (out_y < 0 || out_y >= dst_height) {
-            continue;
-        }
-        for (int x = 0; x < source.width(); ++x) {
-            const int out_x = dst_x + x;
-            if (out_x < 0 || out_x >= dst_width) {
+    desktop_phase_ticks_ += static_cast<double>(delta_seconds * kDesktopFrameDrivenHz);
+    phase_ticks_ = static_cast<int>(desktop_phase_ticks_);
+    apply_warp(scale);
+    apply_noise(scene_time_seconds, delta_seconds);
+    blend_buffers();
+    swap_buffers();
+    render_indexed_to_rgb(surface);
+    render_credit_overlay(surface, scene_time_seconds);
+}
+
+void Mute95Scene::handle_message(const std::string& message, float scene_time_seconds) {
+    select_credit(message, scene_time_seconds);
+}
+
+bool Mute95Scene::is_ready() const {
+    return ready_;
+}
+
+const std::string& Mute95Scene::error_message() const {
+    return error_message_;
+}
+
+std::uint32_t Mute95Scene::pack_rgb(std::uint8_t red, std::uint8_t green, std::uint8_t blue) {
+    return static_cast<std::uint32_t>((static_cast<unsigned int>(red) << 16) |
+                                      (static_cast<unsigned int>(green) << 8) |
+                                      static_cast<unsigned int>(blue));
+}
+
+std::uint32_t Mute95Scene::packed_to_standard_rgb(std::uint32_t packed) {
+    return static_cast<std::uint32_t>(((packed >> 20) & 0xffU) << 16 |
+                                      ((packed >> 10) & 0xffU) << 8 |
+                                      (packed & 0xffU));
+}
+
+std::uint32_t Mute95Scene::standard_to_packed_rgb(std::uint32_t rgb) {
+    return static_cast<std::uint32_t>((((rgb >> 16) & 0xffU) << 20) |
+                                      (((rgb >> 8) & 0xffU) << 10) |
+                                      (rgb & 0xffU));
+}
+
+void Mute95Scene::apply_warp(float scale) {
+    const int grid_width = kWidth / kBlockWidth;
+    const int grid_height = kHeight / kBlockHeight;
+    const int center_x = grid_width / 2;
+    const int center_y = grid_height / 2;
+    const float phase_x = static_cast<float>(phase_ticks_ % 4) * 0.2f;
+    const float phase_y = static_cast<float>(phase_ticks_ % 5) * 0.2f;
+
+    for (int block_y = 0; block_y < grid_height; ++block_y) {
+        for (int block_x = 0; block_x < grid_width; ++block_x) {
+            const float delta_x = static_cast<float>(block_x - center_x) * scale + phase_x;
+            const float delta_y = static_cast<float>(block_y - center_y) * scale + phase_y;
+
+            const float previous_horizontal = horizontal_offsets_[static_cast<std::size_t>(block_y)][static_cast<std::size_t>(block_x)];
+            const float previous_vertical = vertical_offsets_[static_cast<std::size_t>(block_y)][static_cast<std::size_t>(block_x)];
+            const float next_horizontal = previous_horizontal + delta_x;
+            const float next_vertical = previous_vertical + delta_y;
+            horizontal_offsets_[static_cast<std::size_t>(block_y)][static_cast<std::size_t>(block_x)] = next_horizontal;
+            vertical_offsets_[static_cast<std::size_t>(block_y)][static_cast<std::size_t>(block_x)] = next_vertical;
+
+            const int shift_x = static_cast<int>(next_horizontal) - static_cast<int>(previous_horizontal);
+            const int shift_y = static_cast<int>(next_vertical) - static_cast<int>(previous_vertical);
+
+            const int dst_x = block_x * kBlockWidth;
+            const int dst_y = block_y * kBlockHeight;
+            const int src_x = dst_x - shift_x;
+            const int src_y = dst_y - shift_y;
+
+            if (src_x < 0 || src_y < 0 || src_x + kBlockWidth > kWidth || src_y + kBlockHeight > kHeight) {
                 continue;
             }
 
-            const std::uint32_t src = src_pixels[static_cast<std::size_t>(y) *
-                                                 static_cast<std::size_t>(source.width()) +
-                                                 static_cast<std::size_t>(x)];
-            const std::uint32_t dst = dst_pixels[static_cast<std::size_t>(out_y) *
-                                                 static_cast<std::size_t>(dst_width) +
-                                                 static_cast<std::size_t>(out_x)];
-
-            int red = static_cast<int>((dst >> 16) & 0xff) +
-                      static_cast<int>(static_cast<float>((src >> 16) & 0xff) * amount);
-            int green = static_cast<int>((dst >> 8) & 0xff) +
-                        static_cast<int>(static_cast<float>((src >> 8) & 0xff) * amount);
-            int blue = static_cast<int>(dst & 0xff) +
-                       static_cast<int>(static_cast<float>(src & 0xff) * amount);
-
-            dst_pixels[static_cast<std::size_t>(out_y) * static_cast<std::size_t>(dst_width) +
-                       static_cast<std::size_t>(out_x)] = pack_rgb(red, green, blue);
-        }
-    }
-}
-
-void Mute95Scene::draw_card(RgbSurface& surface,
-                            const std::string& label,
-                            std::uint32_t primary,
-                            std::uint32_t secondary) {
-    const int width = surface.width();
-    const int height = surface.height();
-    std::vector<std::uint32_t>& pixels = surface.pixels();
-
-    for (int y = 0; y < height; ++y) {
-        const float fy = static_cast<float>(y) / static_cast<float>(height > 1 ? height - 1 : 1);
-        for (int x = 0; x < width; ++x) {
-            const float fx = static_cast<float>(x) / static_cast<float>(width > 1 ? width - 1 : 1);
-            const int base_red = static_cast<int>(((primary >> 16) & 0xff) * (0.4f + 0.6f * fx));
-            const int base_green = static_cast<int>(((primary >> 8) & 0xff) * (0.45f + 0.55f * fy));
-            const int base_blue = static_cast<int>((primary & 0xff) * (0.35f + 0.65f * fx));
-            const int shade = ((x / 8) ^ (y / 8)) & 1;
-            pixels[static_cast<std::size_t>(y) * static_cast<std::size_t>(width) +
-                   static_cast<std::size_t>(x)] = pack_rgb(base_red + shade * 12,
-                                                           base_green + shade * 10,
-                                                           base_blue + shade * 8);
-        }
-    }
-
-    surface.fill_rect(0, 0, width, 4, secondary);
-    surface.fill_rect(0, height - 4, width, 4, secondary);
-    surface.fill_rect(0, 0, 4, height, secondary);
-    surface.fill_rect(width - 4, 0, 4, height, secondary);
-    surface.fill_rect(10, 10, width - 20, height - 20, pack_rgb(8, 8, 8));
-    draw_text(surface, 20, 16, "FORWARD", secondary);
-    draw_text(surface, 20, 30, label, primary);
-}
-
-void Mute95Scene::draw_text(RgbSurface& surface,
-                            int x,
-                            int y,
-                            const std::string& text,
-                            std::uint32_t color) {
-    int cursor_x = x;
-    for (std::size_t index = 0; index < text.size(); ++index) {
-        const char character = text[index];
-        if (character == ' ') {
-            cursor_x += 6;
-            continue;
-        }
-
-        const Glyph* glyph = find_glyph(character);
-        if (glyph == NULL) {
-            cursor_x += 6;
-            continue;
-        }
-
-        for (int row = 0; row < 7; ++row) {
-            for (int column = 0; column < 5; ++column) {
-                if (glyph->rows[row][column] == '1') {
-                    surface.fill_rect(cursor_x + column * 2,
-                                      y + row * 2,
-                                      2,
-                                      2,
-                                      color);
+            int src_index = src_y * kWidth + src_x;
+            int dst_index = dst_y * kWidth + dst_x;
+            for (int row = 0; row < kBlockHeight; ++row) {
+                for (int column = 0; column < kBlockWidth; ++column) {
+                    active_pixels_[static_cast<std::size_t>(dst_index + column)] =
+                        passive_pixels_[static_cast<std::size_t>(src_index + column)];
                 }
+                src_index += kWidth;
+                dst_index += kWidth;
             }
         }
-        cursor_x += 12;
     }
 }
 
-void Mute95Scene::build_palette() {
-    for (int index = 0; index < 256; ++index) {
-        const float t = static_cast<float>(index) / 255.0f;
-        const int red = static_cast<int>(16.0f + 220.0f * std::pow(t, 1.3f));
-        const int green = static_cast<int>(8.0f + 180.0f * t);
-        const int blue = static_cast<int>(32.0f + 100.0f * (1.0f - t));
-        background_.set_palette_entry(index,
-                                      static_cast<std::uint8_t>(red),
-                                      static_cast<std::uint8_t>(green),
-                                      static_cast<std::uint8_t>(blue));
+void Mute95Scene::apply_noise(float scene_time_seconds, float delta_seconds) {
+    const int max_value =
+        static_cast<int>(std::min(scene_time_seconds * 1.8f + 22.0f, 255.0f));
+    const int pixel_count = kWidth * kHeight;
+
+    desktop_noise_writes_ += static_cast<double>(220.0f * delta_seconds * kDesktopFrameDrivenHz);
+    int writes = static_cast<int>(desktop_noise_writes_);
+    desktop_noise_writes_ -= static_cast<double>(writes);
+
+    for (int index = 0; index < writes; ++index) {
+        const int pixel_index = static_cast<int>(random_.next_float() * static_cast<float>(pixel_count - 1));
+        const int value = static_cast<int>(active_pixels_[static_cast<std::size_t>(pixel_index)]) + kDesktopNoiseWriteDelta;
+        active_pixels_[static_cast<std::size_t>(pixel_index)] =
+            static_cast<std::uint8_t>(std::min(max_value, value));
     }
 }
 
-void Mute95Scene::build_background(float scene_time_seconds) {
-    for (int y = 0; y < background_.height(); ++y) {
-        for (int x = 0; x < background_.width(); ++x) {
-            const float fx = static_cast<float>(x) * 0.023f;
-            const float fy = static_cast<float>(y) * 0.037f;
-            const float wave = std::sin(fx + scene_time_seconds * 1.2f) +
-                               std::sin(fy - scene_time_seconds * 0.9f) +
-                               std::sin((fx + fy) * 0.6f + scene_time_seconds * 0.7f);
-            const float radial = std::sqrt((static_cast<float>(x - 256) * static_cast<float>(x - 256)) +
-                                           (static_cast<float>(y - 128) * static_cast<float>(y - 128)));
-            const float glow = 1.0f - std::min(1.0f, radial / 220.0f);
-            const int value = std::max(0, std::min(255,
-                                                   120 + static_cast<int>(wave * 28.0f) +
-                                                       static_cast<int>(glow * 90.0f)));
-            background_.set_pixel(x, y, static_cast<std::uint8_t>(value));
-        }
+void Mute95Scene::blend_buffers() {
+    for (std::size_t index = 0; index < active_pixels_.size(); ++index) {
+        active_pixels_[index] = static_cast<std::uint8_t>(
+            (static_cast<int>(passive_pixels_[index]) + static_cast<int>(active_pixels_[index])) >> 1);
     }
+}
 
-    const int noise_writes = static_cast<int>(220.0f);
-    for (int index = 0; index < noise_writes; ++index) {
-        const int x = static_cast<int>(std::fmod(phase_ticks_ * 19.0f + static_cast<float>(index * 17), 512.0f));
-        const int y = static_cast<int>(std::fmod(phase_ticks_ * 11.0f + static_cast<float>(index * 7), 256.0f));
-        const std::uint8_t current = background_.pixel_at(x, y);
-        const int next = std::min(255, static_cast<int>(current) + 70);
-        background_.set_pixel(x, y, static_cast<std::uint8_t>(next));
+void Mute95Scene::swap_buffers() {
+    active_pixels_.swap(passive_pixels_);
+}
+
+void Mute95Scene::render_indexed_to_rgb(RgbSurface& surface) const {
+    std::vector<std::uint32_t>& pixels = surface.pixels();
+    for (std::size_t index = 0; index < active_pixels_.size() && index < pixels.size(); ++index) {
+        const int palette_index = active_pixels_[index];
+        pixels[index] = pack_rgb(palette_red_[static_cast<std::size_t>(palette_index)],
+                                 palette_green_[static_cast<std::size_t>(palette_index)],
+                                 palette_blue_[static_cast<std::size_t>(palette_index)]);
     }
 }
 
@@ -296,41 +222,142 @@ void Mute95Scene::render_credit_overlay(RgbSurface& surface, float scene_time_se
     }
 
     const float elapsed = scene_time_seconds - message_start_seconds_;
-    if (elapsed < 0.0f || elapsed > 9.0f) {
+    if (elapsed < 0.0f) {
         return;
     }
 
-    float first_amount = 0.0f;
-    float second_amount = 0.0f;
+    float blend_first = 0.0f;
+    float blend_second = 0.0f;
     if (elapsed < 1.5f) {
-        first_amount = elapsed / 1.5f;
+        blend_first = elapsed / 1.5f;
     } else if (elapsed < 4.0f) {
-        first_amount = 1.0f;
-        second_amount = (elapsed - 1.5f) / 2.5f;
+        blend_first = 1.0f;
+        blend_second = (elapsed - 1.5f) / (4.0f - 1.5f);
     } else if (elapsed < 6.0f) {
-        first_amount = 1.0f - (elapsed - 4.0f) / 2.0f;
-        second_amount = 1.0f;
-    } else {
-        second_amount = 1.0f - (elapsed - 6.0f) / 3.0f;
+        blend_first = 1.0f - (elapsed - 4.0f) / (6.0f - 4.0f);
+        blend_second = 1.0f;
+    } else if (elapsed < 9.0f) {
+        blend_second = 1.0f - (elapsed - 6.0f) / (9.0f - 6.0f);
     }
 
-    const CreditPair& credit = credits_[static_cast<std::size_t>(active_credit_)];
-    blend_card(credit.card_a, surface, 128, 103, clamp_unit(first_amount));
-    blend_card(credit.card_b, surface, 128, 103, clamp_unit(second_amount));
+    const CreditPair& pair = credits_[static_cast<std::size_t>(active_credit_)];
+    blend_credit_region(surface, pair.first, pair.second, clamp_unit(blend_first), clamp_unit(blend_second));
+}
+
+void Mute95Scene::blend_credit_region(RgbSurface& surface,
+                                      const PackedRgbAsset& first,
+                                      const PackedRgbAsset& second,
+                                      float blend_first,
+                                      float blend_second) const {
+    if (blend_first <= 0.0f && blend_second <= 0.0f) {
+        return;
+    }
+
+    const int factor_first = static_cast<int>(blend_first * 32.9f);
+    const int factor_second = static_cast<int>(blend_second * 32.9f);
+    std::vector<std::uint32_t>& dst_pixels = surface.pixels();
+
+    for (int row = 0; row < kCreditHeight; ++row) {
+        for (int column = 0; column < kCreditWidth; ++column) {
+            const int src_x = kCreditSourceX + column;
+            const int src_y = kCreditSourceY + row;
+            const std::size_t src_index =
+                static_cast<std::size_t>(src_y) * static_cast<std::size_t>(first.width) +
+                static_cast<std::size_t>(src_x);
+            const std::size_t dst_index =
+                static_cast<std::size_t>(kCreditDestY + row) * static_cast<std::size_t>(surface.width()) +
+                static_cast<std::size_t>(kCreditDestX + column);
+
+            std::uint32_t source_first = first.packed_pixels[src_index] & kColorMask;
+            source_first = ((source_first >> 3) * static_cast<std::uint32_t>(factor_first)) >> 2;
+            source_first &= kColorMask;
+
+            std::uint32_t source_second = second.packed_pixels[src_index] & kColorMask;
+            source_second = ((source_second >> 3) * static_cast<std::uint32_t>(factor_second)) >> 2;
+            source_second &= kColorMask;
+
+            std::uint32_t blended = source_first + source_second;
+            std::uint32_t carry = blended & kCarryMask;
+            blended = blended - carry | carry - (carry >> 8);
+
+            std::uint32_t dst_packed = standard_to_packed_rgb(dst_pixels[dst_index]);
+            dst_packed += blended;
+            carry = dst_packed & kCarryMask;
+            dst_packed = dst_packed - carry | carry - (carry >> 8);
+            dst_pixels[dst_index] = packed_to_standard_rgb(dst_packed);
+        }
+    }
 }
 
 void Mute95Scene::select_credit(const std::string& message, float scene_time_seconds) {
     for (std::size_t index = 0; index < credits_.size(); ++index) {
-        std::string lowered = credits_[index].label;
-        for (std::size_t char_index = 0; char_index < lowered.size(); ++char_index) {
-            lowered[char_index] = static_cast<char>(std::tolower(static_cast<unsigned char>(lowered[char_index])));
-        }
-        if (lowered == message) {
+        if (credits_[index].message_name == message) {
             active_credit_ = static_cast<int>(index);
             message_start_seconds_ = scene_time_seconds;
             return;
         }
     }
+}
+
+bool Mute95Scene::load_assets() {
+    error_message_.clear();
+
+    if (!load_original_gif_palette(gif_asset_path("krad3.gif"),
+                                   &palette_red_,
+                                   &palette_green_,
+                                   &palette_blue_,
+                                   &error_message_)) {
+        return false;
+    }
+
+    CreditPair pair;
+    if (!load_credit_pair("sav", "saviour", &pair)) {
+        return false;
+    }
+    credits_.push_back(pair);
+    if (!load_credit_pair("jmag", "jmagic", &pair)) {
+        return false;
+    }
+    credits_.push_back(pair);
+    if (!load_credit_pair("jugi", "jugi", &pair)) {
+        return false;
+    }
+    credits_.push_back(pair);
+    if (!load_credit_pair("anis", "anis", &pair)) {
+        return false;
+    }
+    credits_.push_back(pair);
+    if (!load_credit_pair("car", "carebear", &pair)) {
+        return false;
+    }
+    credits_.push_back(pair);
+
+    return true;
+}
+
+bool Mute95Scene::load_credit_pair(const std::string& base_name,
+                                   const std::string& message_name,
+                                   CreditPair* pair) {
+    pair->message_name = message_name;
+    if (!load_original_jpeg_packed_rgb(jpeg_asset_path(base_name + "1.jpg"),
+                                       &pair->first,
+                                       &error_message_)) {
+        return false;
+    }
+    if (!load_original_jpeg_packed_rgb(jpeg_asset_path(base_name + "2.jpg"),
+                                       &pair->second,
+                                       &error_message_)) {
+        return false;
+    }
+    return true;
+}
+
+std::string Mute95Scene::jpeg_asset_path(const std::string& file_name) const {
+    return std::string("original/forward/images/kosmos/") + file_name;
+}
+
+std::string Mute95Scene::gif_asset_path(const std::string& file_name) const {
+    return std::string("original/forward/images/kosmos/") + file_name;
 }
 
 }  // namespace forward_offline

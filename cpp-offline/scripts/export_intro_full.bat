@@ -19,6 +19,7 @@ set /a "INTRO_TOTAL_ROWS=(INTRO_END_ORDER * INTRO_ROWS_PER_ORDER) + INTRO_END_RO
 set /a "INTRO_TOTAL_FRAMES=(INTRO_TOTAL_ROWS * INTRO_FRAMES_PER_ROW) + POST_ROLL_FRAMES"
 
 echo [1/4] Configure CMake
+echo [1/4] Configure CMake
 cmake -S cpp-offline -B "%BUILD_DIR%"
 if errorlevel 1 goto :fail
 

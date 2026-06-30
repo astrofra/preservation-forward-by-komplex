@@ -13,7 +13,11 @@ add_executable(forward-export
     src/app/intro_script.cpp
     src/app/manifest_writer.cpp
     src/app/song_position_transport.cpp
+    src/assets/normalized_asset_loader.cpp
+    src/assets/original_asset_loader.cpp
+    src/assets/stb_image_impl.cpp
     src/audio/wav_writer.cpp
+    src/core/java_random.cpp
     src/core/offline_timeline.cpp
     src/platform/file_utils.cpp
     src/render/indexed_surface.cpp
@@ -24,7 +28,7 @@ add_executable(forward-export
     src/scenes/placeholder_scene.cpp
 )
 
-target_include_directories(forward-export PRIVATE src)
+target_include_directories(forward-export PRIVATE src third_party)
 
 if(MSVC)
     target_compile_options(forward-export PRIVATE /W4 /EHsc)
