@@ -96,7 +96,7 @@ cpp-offline/scripts/export_intro_full.bat
 That wrapper:
 
 - configures and builds `forward-export`
-- exports the complete current intro window through `0x1024` plus a short post-roll, then the current `saari` window through `0x0700`
+- resolves segment lengths from native XM song positions, then exports the complete current intro window through `0x1024` plus a short post-roll, followed by the current `saari` window through `0x0700`
 - writes outputs under `cpp-offline/output-full-current`
 - muxes `forward_full_current_master.mkv` and `forward_full_current_h264.mp4` when `ffmpeg` is available
 

@@ -97,6 +97,10 @@ int ForwardApp::run() {
     }
 
     std::string error_message;
+    if (!resolve_export_span(&error_message)) {
+        std::cerr << error_message << '\n';
+        return 1;
+    }
     if (!prepare_output(&error_message)) {
         std::cerr << error_message << '\n';
         return 1;
@@ -218,6 +222,33 @@ int ForwardApp::run() {
     return 0;
 }
 
+bool ForwardApp::resolve_export_span(std::string* error_message) {
+    if (!config_.has_end_song_position) {
+        return true;
+    }
+    if (!is_intro_sequence() && !is_saari_sequence()) {
+        if (error_message != NULL) {
+            *error_message =
+                "--until-song-position is currently supported for intro and saari only";
+        }
+        return false;
+    }
+
+    int resolved_frame_count = 0;
+    if (!resolve_sequence_frame_count_for_song_position(config_.sequence_name,
+                                                        config_.fps,
+                                                        config_.sample_rate,
+                                                        config_.end_song_position_hex,
+                                                        config_.post_roll_frames,
+                                                        &resolved_frame_count,
+                                                        error_message)) {
+        return false;
+    }
+
+    config_.frame_count = resolved_frame_count;
+    return true;
+}
+
 bool ForwardApp::prepare_output(std::string* error_message) const {
     if (!create_directories(config_.output_dir, error_message)) {
         return false;
@@ -266,6 +297,10 @@ bool ForwardApp::write_log(std::string* error_message) const {
     stream << "sample_rate=" << config_.sample_rate << '\n';
     stream << "samples_per_frame=" << timeline_.samples_per_frame() << '\n';
     stream << "sequence=" << config_.sequence_name << '\n';
+    if (config_.has_end_song_position) {
+        stream << "until_song_position=" << song_position_string(config_.end_song_position_hex) << '\n';
+        stream << "post_roll_frames=" << config_.post_roll_frames << '\n';
+    }
     if (is_intro_sequence()) {
         stream << "intro_frames_per_row=" << config_.intro_frames_per_row << '\n';
         stream << "intro_rows_per_order=" << config_.intro_rows_per_order << '\n';

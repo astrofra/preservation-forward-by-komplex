@@ -27,6 +27,39 @@ bool parse_positive_int(const std::string& text, int* value) {
     return true;
 }
 
+bool parse_nonnegative_int(const std::string& text, int* value) {
+    if (text.empty()) {
+        return false;
+    }
+
+    char* end = NULL;
+    const long parsed = std::strtol(text.c_str(), &end, 10);
+    if (end == NULL || *end != '\0') {
+        return false;
+    }
+    if (parsed < 0 || parsed > std::numeric_limits<int>::max()) {
+        return false;
+    }
+
+    *value = static_cast<int>(parsed);
+    return true;
+}
+
+bool parse_hex_u32(const std::string& text, unsigned int* value) {
+    if (text.empty()) {
+        return false;
+    }
+
+    char* end = NULL;
+    const unsigned long parsed = std::strtoul(text.c_str(), &end, 0);
+    if (end == NULL || *end != '\0' || parsed > std::numeric_limits<unsigned int>::max()) {
+        return false;
+    }
+
+    *value = static_cast<unsigned int>(parsed);
+    return true;
+}
+
 bool require_value(int argc, int index, const std::string& option, std::ostream& stream) {
     if (index + 1 < argc) {
         return true;
@@ -48,6 +81,9 @@ ExportConfig::ExportConfig()
       frame_count(250),
       intro_frames_per_row(6),
       intro_rows_per_order(64),
+      has_end_song_position(false),
+      end_song_position_hex(0U),
+      post_roll_frames(0),
       write_log(true),
       sequence_name("intro") {
 }
@@ -107,6 +143,20 @@ ParseStatus parse_export_config(int argc, char** argv, ExportConfig& config, std
             config.sample_rate = parsed;
         } else if (arg == "--sequence") {
             config.sequence_name = value;
+        } else if (arg == "--until-song-position") {
+            unsigned int parsed_hex = 0U;
+            if (!parse_hex_u32(value, &parsed_hex)) {
+                stream << "invalid song position hex: " << value << '\n';
+                return ParseStatus::error;
+            }
+            config.has_end_song_position = true;
+            config.end_song_position_hex = parsed_hex;
+        } else if (arg == "--post-roll-frames") {
+            if (!parse_nonnegative_int(value, &parsed)) {
+                stream << "invalid post-roll frame count: " << value << '\n';
+                return ParseStatus::error;
+            }
+            config.post_roll_frames = parsed;
         } else if (arg == "--intro-frames-per-row") {
             if (!parse_positive_int(value, &parsed)) {
                 stream << "invalid intro frames per row: " << value << '\n';
@@ -145,6 +195,10 @@ void print_usage(std::ostream& stream) {
         << "  --fps <rate>          Video frame rate (default: 50)\n"
         << "  --sample-rate <hz>    Audio sample rate (default: 22050)\n"
         << "  --sequence <name>     Export sequence: intro|saari|bootstrap (default: intro)\n"
+        << "  --until-song-position <hex>\n"
+        << "                        Resolve frame count from the native XM timeline\n"
+        << "  --post-roll-frames <n>\n"
+        << "                        Extra frames after --until-song-position (default: 0)\n"
         << "  --intro-frames-per-row <n>\n"
         << "                        Legacy wrapper pacing hint kept for compatibility (default: 6)\n"
         << "  --intro-rows-per-order <n>\n"

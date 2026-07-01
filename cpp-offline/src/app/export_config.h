@@ -17,6 +17,9 @@ struct ExportConfig {
     int frame_count;
     int intro_frames_per_row;
     int intro_rows_per_order;
+    bool has_end_song_position;
+    unsigned int end_song_position_hex;
+    int post_roll_frames;
     bool write_log;
     std::string sequence_name;
 };

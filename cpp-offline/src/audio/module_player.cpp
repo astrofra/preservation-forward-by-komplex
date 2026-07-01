@@ -1756,6 +1756,32 @@ bool lookup_sequence_module_config(const std::string& sequence_name,
     return false;
 }
 
+bool load_sequence_module_song(const std::string& sequence_name,
+                               ModuleSong* song,
+                               int* boost,
+                               std::string* error_message) {
+    SequenceModuleConfig config;
+    if (!lookup_sequence_module_config(sequence_name, &config)) {
+        if (error_message != NULL) {
+            *error_message = "no native module mapping for sequence: " + sequence_name;
+        }
+        return false;
+    }
+
+    std::vector<std::uint8_t> module_bytes;
+    if (!read_file_bytes(config.module_path, &module_bytes, error_message)) {
+        return false;
+    }
+    if (!load_xm_song_from_bytes(module_bytes, song, error_message)) {
+        return false;
+    }
+
+    if (boost != NULL) {
+        *boost = config.boost;
+    }
+    return true;
+}
+
 bool render_module_song(const ModuleSong& song_template,
                         int sample_rate,
                         int boost,
@@ -1818,7 +1844,114 @@ bool render_module_song(const ModuleSong& song_template,
     return true;
 }
 
+bool find_song_position_sample_index(const ModuleSong& song_template,
+                                     int sample_rate,
+                                     unsigned int target_song_position_hex,
+                                     std::uint64_t* sample_index,
+                                     std::string* error_message) {
+    if (sample_index == NULL) {
+        if (error_message != NULL) {
+            *error_message = "song-position sample-index output is null";
+        }
+        return false;
+    }
+    if (sample_rate <= 0) {
+        if (error_message != NULL) {
+            *error_message = "invalid module playback sample rate";
+        }
+        return false;
+    }
+
+    ModuleSong song(song_template);
+    song.akKaMaJ();
+
+    double next_tick_sample = 0.0;
+    const std::size_t kMaxSongRows = 200000U;
+    std::size_t emitted_rows = 0U;
+
+    while (emitted_rows < kMaxSongRows) {
+        const std::size_t boundary = static_cast<std::size_t>(next_tick_sample);
+        bool emitted_song_position = false;
+        unsigned int song_position_hex = 0U;
+        song.process_tick(&emitted_song_position, &song_position_hex);
+        if (emitted_song_position) {
+            if (song_position_hex == target_song_position_hex) {
+                *sample_index = static_cast<std::uint64_t>(boundary);
+                return true;
+            }
+            ++emitted_rows;
+        }
+
+        next_tick_sample += song.tick_duration_seconds() * static_cast<double>(sample_rate);
+        if (static_cast<std::size_t>(next_tick_sample) == boundary) {
+            next_tick_sample += song.tick_duration_seconds() * static_cast<double>(sample_rate);
+        }
+    }
+
+    if (error_message != NULL) {
+        *error_message = "unable to resolve song position from native module timeline";
+    }
+    return false;
+}
+
 }  // namespace
+
+bool resolve_sequence_frame_count_for_song_position(const std::string& sequence_name,
+                                                    int fps,
+                                                    int sample_rate,
+                                                    unsigned int song_position_hex,
+                                                    int post_roll_frames,
+                                                    int* frame_count,
+                                                    std::string* error_message) {
+    if (frame_count == NULL) {
+        if (error_message != NULL) {
+            *error_message = "frame-count output is null";
+        }
+        return false;
+    }
+    if (fps <= 0) {
+        if (error_message != NULL) {
+            *error_message = "fps must be positive";
+        }
+        return false;
+    }
+    if (sample_rate <= 0 || (sample_rate % fps) != 0) {
+        if (error_message != NULL) {
+            *error_message = "sample rate must be divisible by fps";
+        }
+        return false;
+    }
+    if (post_roll_frames < 0) {
+        if (error_message != NULL) {
+            *error_message = "post-roll frames must be non-negative";
+        }
+        return false;
+    }
+
+    ModuleSong song;
+    if (!load_sequence_module_song(sequence_name, &song, NULL, error_message)) {
+        return false;
+    }
+
+    std::uint64_t sample_index = 0ULL;
+    if (!find_song_position_sample_index(song,
+                                         sample_rate,
+                                         song_position_hex,
+                                         &sample_index,
+                                         error_message)) {
+        return false;
+    }
+
+    const int samples_per_frame = sample_rate / fps;
+    const std::uint64_t pre_roll_frame_count =
+        (sample_index + static_cast<std::uint64_t>(samples_per_frame) - 1ULL) /
+        static_cast<std::uint64_t>(samples_per_frame);
+    const std::uint64_t total_frame_count =
+        pre_roll_frame_count + static_cast<std::uint64_t>(post_roll_frames);
+
+    *frame_count = static_cast<int>(total_frame_count);
+    return true;
+}
 
 bool render_sequence_module_audio(const std::string& sequence_name,
                                   int sample_rate,
@@ -1844,27 +1977,15 @@ bool render_sequence_module_audio(const std::string& sequence_name,
         return false;
     }
 
-    SequenceModuleConfig config;
-    if (!lookup_sequence_module_config(sequence_name, &config)) {
-        if (error_message != NULL) {
-            *error_message = "no native module mapping for sequence: " + sequence_name;
-        }
-        return false;
-    }
-
-    std::vector<std::uint8_t> module_bytes;
-    if (!read_file_bytes(config.module_path, &module_bytes, error_message)) {
-        return false;
-    }
-
     ModuleSong song;
-    if (!load_xm_song_from_bytes(module_bytes, &song, error_message)) {
+    int boost = 0;
+    if (!load_sequence_module_song(sequence_name, &song, &boost, error_message)) {
         return false;
     }
 
     return render_module_song(song,
                               sample_rate,
-                              config.boost,
+                              boost,
                               sample_frames,
                               &render->interleaved_samples,
                               &render->song_positions);

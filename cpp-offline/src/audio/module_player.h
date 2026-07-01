@@ -18,6 +18,14 @@ struct SequenceAudioRender {
     std::vector<SongPositionEvent> song_positions;
 };
 
+bool resolve_sequence_frame_count_for_song_position(const std::string& sequence_name,
+                                                    int fps,
+                                                    int sample_rate,
+                                                    unsigned int song_position_hex,
+                                                    int post_roll_frames,
+                                                    int* frame_count,
+                                                    std::string* error_message);
+
 bool render_sequence_module_audio(const std::string& sequence_name,
                                   int sample_rate,
                                   std::size_t sample_frames,

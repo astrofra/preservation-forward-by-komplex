@@ -29,6 +29,7 @@ private:
         routine
     };
 
+    bool resolve_export_span(std::string* error_message);
     bool prepare_output(std::string* error_message) const;
     bool prepare_sequence_audio(std::string* error_message);
     bool write_log(std::string* error_message) const;
