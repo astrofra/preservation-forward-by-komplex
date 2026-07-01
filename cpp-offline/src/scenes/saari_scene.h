@@ -64,6 +64,7 @@ private:
     std::string gif_asset_path(const std::string& file_name) const;
 
     PackedRgbAsset sky_asset_;
+    PackedRgbAsset backdrop_asset_;
     IndexedAsset saari_asset_;
     IndexedAsset terrain_asset_;
     IndexedAsset water_asset_;

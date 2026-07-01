@@ -25,6 +25,7 @@ const float kNearPlane = 1.0f;
 const float kDepthRampNear = 15.0f;
 const float kDepthRampFar = 250.0f;
 const float kTerrainHeightScale = 0.16f;
+const float kBackdropUvRotation = 0.7853982f;
 
 struct CameraState {
     SaariVec3 position;
@@ -268,6 +269,50 @@ IndexedAsset slice_vertical_asset(const IndexedAsset& source, int start_y, int h
     }
 
     return slice;
+}
+
+PackedRgbAsset slice_packed_rgb_asset(const PackedRgbAsset& source,
+                                      int start_x,
+                                      int start_y,
+                                      int width,
+                                      int height) {
+    PackedRgbAsset slice;
+    slice.width = width;
+    slice.height = height;
+    slice.packed_pixels.resize(static_cast<std::size_t>(width) * static_cast<std::size_t>(height));
+
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const int src_x = clamp_int(start_x + x, 0, source.width - 1);
+            const int src_y = clamp_int(start_y + y, 0, source.height - 1);
+            const std::size_t src_index =
+                static_cast<std::size_t>(src_y) * static_cast<std::size_t>(source.width) +
+                static_cast<std::size_t>(src_x);
+            const std::size_t dst_index =
+                static_cast<std::size_t>(y) * static_cast<std::size_t>(width) +
+                static_cast<std::size_t>(x);
+            slice.packed_pixels[dst_index] = source.packed_pixels[src_index];
+        }
+    }
+
+    return slice;
+}
+
+std::uint32_t sample_packed_rgb_asset_clamped(const PackedRgbAsset& asset, float u, float v) {
+    if (asset.width <= 0 || asset.height <= 0 || asset.packed_pixels.empty()) {
+        return 0;
+    }
+
+    u = clamp_unit(u);
+    v = clamp_unit(v);
+
+    const int x = clamp_int(static_cast<int>(u * static_cast<float>(asset.width)), 0, asset.width - 1);
+    const int y = clamp_int(static_cast<int>(v * static_cast<float>(asset.height)), 0, asset.height - 1);
+    const std::uint32_t packed = asset.packed_pixels[static_cast<std::size_t>(y) * static_cast<std::size_t>(asset.width) +
+                                                     static_cast<std::size_t>(x)];
+    return static_cast<std::uint32_t>(((packed >> 20) & 0xffU) << 16 |
+                                      ((packed >> 10) & 0xffU) << 8 |
+                                      (packed & 0xffU));
 }
 
 std::string trim(const std::string& text) {
@@ -594,6 +639,33 @@ SaariVec3 camera_ray_direction(const CameraState& camera, float screen_x, float 
     return normalize(direction);
 }
 
+std::uint32_t sample_saari_backdrop(const PackedRgbAsset& backdrop_asset, const SaariVec3& ray) {
+    // Match Java BackdropMesh "procedural" mode for saari:
+    // tai1sp.jpg is cropped to its left 256x256 half, then the hemisphere UVs are
+    // square-projected after a hard-coded +45 degree Z rotation and a final U flip.
+    SaariVec3 rotated = rotate_z(normalize(ray), kBackdropUvRotation);
+    rotated = normalize(rotated);
+
+    const float planar_length = std::sqrt(rotated.x * rotated.x + rotated.y * rotated.y);
+    if (planar_length <= 1.0e-6f) {
+        return sample_packed_rgb_asset_clamped(backdrop_asset, 0.5f, 0.5f);
+    }
+
+    const float angle = std::atan2(rotated.y, rotated.x);
+    const float cosine = std::cos(angle);
+    const float sine = std::sin(angle);
+    const float secant = std::fabs(cosine) > 1.0e-6f ? std::fabs(1.0f / cosine) : FLT_MAX;
+    const float cosecant = std::fabs(sine) > 1.0e-6f ? std::fabs(1.0f / sine) : FLT_MAX;
+    const float square_scale = std::min(secant, cosecant);
+    const float height_scale = std::acos(clamp_unit(std::fabs(rotated.z))) / (0.5f * 3.14159265f);
+    const float mapped_x = rotated.x / planar_length * height_scale * square_scale;
+    const float mapped_y = rotated.y / planar_length * height_scale * square_scale;
+
+    const float u = 0.5f * (1.0f - mapped_x);
+    const float v = 0.5f * (mapped_y + 1.0f);
+    return sample_packed_rgb_asset_clamped(backdrop_asset, u, v);
+}
+
 bool project_point(const CameraState& camera,
                    const SaariVec3& world_position,
                    float* screen_x,
@@ -615,7 +687,7 @@ bool project_point(const CameraState& camera,
 
 void draw_background(RgbSurface& surface,
                      const CameraState& camera,
-                     const PackedRgbAsset& sky_asset,
+                     const PackedRgbAsset& backdrop_asset,
                      const IndexedAsset& water_asset,
                      float scene_time_seconds) {
     std::vector<std::uint32_t>& pixels = surface.pixels();
@@ -638,15 +710,11 @@ void draw_background(RgbSurface& surface,
                 color = sample_indexed_asset(water_asset, tex_u, tex_v);
                 const float horizon_mix = clamp_unit(1.0f - std::fabs(ray.z) * 28.0f);
                 if (horizon_mix > 0.0f) {
-                    const float sky_u = 0.10f + std::atan2(ray.y, ray.x) / (2.0f * 3.14159265f);
-                    const float sky_v = std::acos(clamp_unit(ray.z * 0.5f + 0.5f)) / 3.14159265f;
-                    const std::uint32_t sky_color = sample_packed_rgb_asset(sky_asset, sky_u, sky_v);
+                    const std::uint32_t sky_color = sample_saari_backdrop(backdrop_asset, ray);
                     color = blend_rgb(color, sky_color, horizon_mix * 0.35f);
                 }
             } else {
-                const float sky_u = 0.10f + std::atan2(ray.y, ray.x) / (2.0f * 3.14159265f);
-                const float sky_v = std::acos(clamp_unit(ray.z * 0.5f + 0.5f)) / 3.14159265f;
-                color = sample_packed_rgb_asset(sky_asset, sky_u, sky_v);
+                color = sample_saari_backdrop(backdrop_asset, ray);
                 const float zenith_boost = clamp_unit(ray.z * 0.75f + 0.25f);
                 color = blend_rgb(color, pack_rgb(static_cast<int>(fog_color.x),
                                                   static_cast<int>(fog_color.y),
@@ -940,6 +1008,7 @@ void render_env_mesh(RgbSurface& surface,
 
 SaariScene::SaariScene()
     : sky_asset_(),
+      backdrop_asset_(),
       saari_asset_(),
       terrain_asset_(),
       water_asset_(),
@@ -994,7 +1063,7 @@ void SaariScene::render(RgbSurface& surface, float scene_time_seconds, float del
     const SaariVec3 camera_target = sample_track(camera_target_track_, track_tick);
     const CameraState camera = make_camera_state(camera_position, camera_target);
 
-    draw_background(surface, camera, sky_asset_, water_asset_, scene_time_seconds);
+    draw_background(surface, camera, backdrop_asset_, water_asset_, scene_time_seconds);
 
     std::vector<float> depth_buffer(static_cast<std::size_t>(surface.width()) * static_cast<std::size_t>(surface.height()),
                                     std::numeric_limits<float>::infinity());
@@ -1100,6 +1169,7 @@ bool SaariScene::load_assets() {
         error_message_ = "unexpected saari sky dimensions: " + jpeg_asset_path("tai1sp.jpg");
         return false;
     }
+    backdrop_asset_ = slice_packed_rgb_asset(sky_asset_, 0, 0, kSaariTextureSize, kSaariTextureSize);
     if (saari_asset_.width != kSaariTextureSize || saari_asset_.height != kSaariTextureSize * 2) {
         error_message_ = "unexpected saari terrain dimensions: " + gif_asset_path("saari.gif");
         return false;
