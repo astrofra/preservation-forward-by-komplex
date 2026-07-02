@@ -117,6 +117,7 @@ The corrections that mattered here were:
 - Saari terrain/env primitives behave like a shared depth-sorted batch, not a modern z-buffered scene
 - Saari materials `3` and `259` are affine here, not projective
 - the two half-triangles of each terrain quad use explicit slope-sign formulas; translating them as a generic face-normal test is error-prone
+- Java does not appear to draw a separate "undersea horizon" mask; if the sky leaks through near the sea horizon, first audit water-patch coverage and backdrop mapping before suspecting postFX
 
 ### 5. Re-render and reclassify the remaining drift
 
@@ -124,6 +125,7 @@ After the terrain shards disappeared, the remaining mismatch class changed:
 
 - no longer a terrain-topology or face-selection problem
 - now more likely camera/timing/framing drift
+- or a remaining backdrop / water-footprint coverage mismatch once the core terrain topology is already correct
 
 That reclassification is important.
 

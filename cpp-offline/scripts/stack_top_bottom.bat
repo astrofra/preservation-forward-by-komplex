@@ -14,6 +14,9 @@ set "DEFAULT_BOTTOM_INPUT=cpp-offline\output-full-current\forward_full_current_h
 set "OUTPUT_FILE=%~3"
 if "%OUTPUT_FILE%"=="" set "OUTPUT_FILE=cpp-offline\output-full-current\forward_full_current_top_bottom.mp4"
 
+set "TOP_DELAY_SECONDS=%~4"
+if "%TOP_DELAY_SECONDS%"=="" set "TOP_DELAY_SECONDS=4"
+
 set "FONT_FILE=%WINDIR:\=/%"
 set "FONT_FILE=%FONT_FILE::=\:%/Fonts/arial.ttf"
 
@@ -147,7 +150,7 @@ for %%I in ("%OUTPUT_FILE%") do (
 ffmpeg -y ^
   -i "%TOP_INPUT%" ^
   -i "%BOTTOM_INPUT%" ^
-  -filter_complex "[0:v]scale=w=!STACK_WIDTH!:h=!STACK_HEIGHT!:flags=lanczos,drawtext=fontfile='%FONT_FILE%':text='Java version':x=12:y=h-th-10:fontsize=16:fontcolor=white:borderw=2:bordercolor=black@0.8[top];[1:v]scale=w=!STACK_WIDTH!:h=!STACK_HEIGHT!:flags=lanczos,drawtext=fontfile='%FONT_FILE%':text='Cpp version':x=12:y=h-th-10:fontsize=16:fontcolor=white:borderw=2:bordercolor=black@0.8[bottom];[top][bottom]vstack=inputs=2:shortest=1,fps=!STACK_FPS!,format=yuv420p[v]" ^
+  -filter_complex "[0:v]scale=w=!STACK_WIDTH!:h=!STACK_HEIGHT!:flags=lanczos,tpad=start_duration=!TOP_DELAY_SECONDS!:start_mode=clone,drawtext=fontfile='%FONT_FILE%':text='Java version':x=12:y=h-th-10:fontsize=16:fontcolor=white:borderw=2:bordercolor=black@0.8[top];[1:v]scale=w=!STACK_WIDTH!:h=!STACK_HEIGHT!:flags=lanczos,drawtext=fontfile='%FONT_FILE%':text='Cpp version':x=12:y=h-th-10:fontsize=16:fontcolor=white:borderw=2:bordercolor=black@0.8[bottom];[top][bottom]vstack=inputs=2:shortest=1,fps=!STACK_FPS!,format=yuv420p[v]" ^
   -map "[v]" ^
   -map 1:a:0 ^
   -c:v libx264 ^

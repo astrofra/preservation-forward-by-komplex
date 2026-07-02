@@ -327,14 +327,16 @@ SaariMatrix3 multiply_matrix3(const SaariMatrix3& left, const SaariMatrix3& righ
 
 SaariMatrix3 camera_env_matrix(const CameraState& camera) {
     SaariMatrix3 matrix;
+    // Java's env-mapped meshes use camera.jAKkaMa.AmajAKk(), i.e. the transposed
+    // camera basis, so each UV axis comes from dot(normal, right/up/forward).
     matrix.m00 = camera.right.x;
-    matrix.m01 = camera.right.y;
-    matrix.m02 = camera.right.z;
-    matrix.m10 = camera.up.x;
+    matrix.m01 = camera.up.x;
+    matrix.m02 = camera.forward.x;
+    matrix.m10 = camera.right.y;
     matrix.m11 = camera.up.y;
-    matrix.m12 = camera.up.z;
-    matrix.m20 = camera.forward.x;
-    matrix.m21 = camera.forward.y;
+    matrix.m12 = camera.forward.y;
+    matrix.m20 = camera.right.z;
+    matrix.m21 = camera.up.z;
     matrix.m22 = camera.forward.z;
     return matrix;
 }

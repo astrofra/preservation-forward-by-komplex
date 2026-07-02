@@ -41,6 +41,18 @@ Manifest timing fields:
 - `demo_time_ms` / `demo_time_seconds`: global elapsed time since the start of the captured run
 - `scene_time_ms` / `scene_time_seconds`: local elapsed time inside the currently active scene
 
+Important caveat for the frozen Java baseline:
+
+- in the desktop Java capture path, `demo_time_ms` is capture-session wall-clock, not a sample-accurate demo master clock
+- the frozen baseline was captured with `captureintervalms 4000`, so full-demo frames are sparse by design
+- around scene starts, Java `scene_time_ms` comes from the legacy smoothed timer and can lead wall-clock by a noticeable amount
+
+Practical consequence:
+
+- do not infer a true constant cross-port delay from the baseline frame filenames alone
+- do not align C++ full exports to the Java baseline by `capture_index` alone
+- prefer `scene` + `next_script_time_hex`, then refine with `scene_time_ms` and visual matching
+
 ### Java capture parameters
 
 - `capture <dir>`: enables capture and writes output under this directory
@@ -58,6 +70,7 @@ Recommendation:
 - use `captureevery` only for local exploratory runs, because render-frame cadence depends on machine speed
 - the ready-made wrapper defaults to one capture every `2000 ms`, which is about 10x fewer images than the original `200 ms` setup
 - keep audio enabled for reference capture; `nosound 1` is useful for smoke tests but can distort scene timing enough to skip whole sections of the demo
+- for scene-fidelity work, prefer denser ad hoc captures than the frozen `4000 ms` baseline cadence
 
 ## 2) Extract reference frames from the YouTube capture
 

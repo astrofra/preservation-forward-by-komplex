@@ -51,6 +51,9 @@ Notes:
 - The manifest is consistent with `capturestopms 300000`.
 - The run terminated before `capturelimit 250`, so `capturestopms` appears to be the effective stop condition.
 - Audio is expected to have been enabled because the wrapper default is `ENABLE_NOSOUND=0`, but the manifest alone does not prove that no local override was used.
+- `demo_time_ms` in this manifest is capture-session wall-clock (`System.currentTimeMillis() - sessionStartMs`), not the Java demo's internal sample-accurate master clock.
+- Because the capture cadence is `4000 ms`, the frame filenames can suggest a constant `4 s` phase difference when compared naively against dense C++ exports.
+- `scene_time_ms` is the better scene-local clue, but it still comes from the legacy smoothed timer and is not a perfect replacement for audio/song-position alignment.
 
 ## Toolchain Context
 
@@ -70,6 +73,7 @@ Notes:
   2. nearest `demo_time_ms` within tolerance
   3. fallback to nearest `scene_time_ms`
   4. verify `next_script_time_hex`
+- For dense C++ parity work, also verify whether the chosen Java frame is simply the nearest `4000 ms` capture sample rather than the exact behavioral match.
 
 ## Limits of This Baseline
 
