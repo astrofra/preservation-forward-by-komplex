@@ -31,7 +31,8 @@ Current limitation:
 - `intro` now renders native `kuninga.xm` audio and `saari` now renders native `jarnomix.xm` audio directly in C++, with no Java intermediation
 - `saari` now loads `tai1sp.jpg`, `saari.gif`, `envi_klu.gif`, `saarih15.gif`, and `asses/alku6.ase` directly in C++ for a source-shaped terrain/object/reflection pass with deterministic `suh0` / `suh` shock handling
 - the current `saari` port now mirrors the key Java trick: a camera-local terrain patch whose out-of-heightmap samples become flat water, with palette-masked additive reflections and no explicit `meditate` mirror copy
-- `saari` is still not at final camera/depth-sort/raster parity with Java, but the terrain/material logic is now much closer to the original engine structure than the earlier background-water approximation
+- `saari` now also follows the Java terrain visibility path more closely: heightmap samples clamp to non-negative land, terrain/env materials `3` and `259` are rasterized through a shared depth-sorted primitive batch, and the terrain quad face test now matches the original two-triangle slope logic
+- `saari` is still not at final camera parity with Java, but the terrain/material path is now substantially closer to the original renderer than the earlier background-water approximation
 - Java-based normalization helpers may still exist for validation, but they are not part of the exporter runtime path
 
 ## Build

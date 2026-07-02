@@ -70,6 +70,20 @@ struct SaariClipVertex {
     float fade;
 };
 
+enum SaariCompositeMode {
+    kSaariCompositeOpaque = 0,
+    kSaariCompositeReflectAdd = 1
+};
+
+struct SaariPrimitive {
+    std::vector<SaariClipVertex> polygon;
+    const IndexedAsset* index_texture;
+    const std::vector<std::uint32_t>* ramp_pixels;
+    const std::vector<std::uint8_t>* reflective_palette_mask;
+    SaariCompositeMode composite_mode;
+    float sort_key;
+};
+
 struct SaariMatrix3 {
     float m00;
     float m01;
@@ -80,11 +94,6 @@ struct SaariMatrix3 {
     float m20;
     float m21;
     float m22;
-};
-
-enum SaariCompositeMode {
-    kSaariCompositeOpaque = 0,
-    kSaariCompositeReflectAdd = 1
 };
 
 enum DepthFadeMode {
@@ -510,7 +519,9 @@ float sample_height_value(const IndexedAsset& asset, int x, int y) {
     const std::size_t index = static_cast<std::size_t>(clamped_y) * static_cast<std::size_t>(asset.width) +
                               static_cast<std::size_t>(clamped_x);
     const int palette_index = asset.pixels[index];
-    return static_cast<float>(asset.palette_red[static_cast<std::size_t>(palette_index)]) - 16.0f;
+    const float height =
+        static_cast<float>(asset.palette_red[static_cast<std::size_t>(palette_index)]) - 16.0f;
+    return std::max(0.0f, height);
 }
 
 IndexedAsset slice_vertical_asset(const IndexedAsset& source, int start_y, int height) {
@@ -1065,6 +1076,7 @@ void rasterize_saari_triangle(RgbSurface& surface,
                               const std::vector<std::uint32_t>& ramp_pixels,
                               const std::vector<std::uint8_t>* reflective_palette_mask,
                               SaariCompositeMode composite_mode) {
+    (void)depth_buffer;
     const float min_x = std::floor(std::min(a.x, std::min(b.x, c.x)));
     const float max_x = std::ceil(std::max(a.x, std::max(b.x, c.x)));
     const float min_y = std::floor(std::min(a.y, std::min(b.y, c.y)));
@@ -1092,25 +1104,11 @@ void rasterize_saari_triangle(RgbSurface& surface,
                 continue;
             }
 
-            const float inv_depth = w0 * a.inv_depth + w1 * b.inv_depth + w2 * c.inv_depth;
-            if (inv_depth <= 1.0e-6f) {
-                continue;
-            }
-
-            const float depth = 1.0f / inv_depth;
             const std::size_t pixel_index = static_cast<std::size_t>(y) * static_cast<std::size_t>(surface.width()) +
                                             static_cast<std::size_t>(x);
-            if (composite_mode == kSaariCompositeOpaque && depth_buffer != NULL &&
-                depth >= (*depth_buffer)[pixel_index]) {
-                continue;
-            }
-
-            const float u =
-                (w0 * a.u * a.inv_depth + w1 * b.u * b.inv_depth + w2 * c.u * c.inv_depth) * depth;
-            const float v =
-                (w0 * a.v * a.inv_depth + w1 * b.v * b.inv_depth + w2 * c.v * c.inv_depth) * depth;
-            const float fade = clamp_saari_fade_factor(
-                (w0 * a.fade * a.inv_depth + w1 * b.fade * b.inv_depth + w2 * c.fade * c.inv_depth) * depth);
+            const float u = w0 * a.u + w1 * b.u + w2 * c.u;
+            const float v = w0 * a.v + w1 * b.v + w2 * c.v;
+            const float fade = clamp_saari_fade_factor(w0 * a.fade + w1 * b.fade + w2 * c.fade);
             const int palette_index = sample_indexed_asset_palette_index(index_texture, u, v);
             const int fade_row = clamp_int(static_cast<int>(fade * 256.0f), 0, 255);
             const std::uint32_t color =
@@ -1124,11 +1122,9 @@ void rasterize_saari_triangle(RgbSurface& surface,
                             ? (*reflective_palette_mask)[static_cast<std::size_t>(palette_index)]
                             : 0U;
                 }
-                if (depth_buffer != NULL) {
-                    (*depth_buffer)[pixel_index] = depth;
-                }
             } else if (reflection_mask_buffer != NULL && (*reflection_mask_buffer)[pixel_index] != 0U) {
                 pixels[pixel_index] = add_rgb_saturate(pixels[pixel_index], color);
+                (*reflection_mask_buffer)[pixel_index] = 0U;
             }
         }
     }
@@ -1164,6 +1160,55 @@ void rasterize_saari_polygon(RgbSurface& surface,
                                  ramp_pixels,
                                  reflective_palette_mask,
                                  composite_mode);
+    }
+}
+
+void emit_saari_primitive(std::vector<SaariPrimitive>* primitives,
+                          const std::vector<SaariClipVertex>& polygon,
+                          const IndexedAsset& index_texture,
+                          const std::vector<std::uint32_t>& ramp_pixels,
+                          const std::vector<std::uint8_t>* reflective_palette_mask,
+                          SaariCompositeMode composite_mode,
+                          float sort_key) {
+    if (primitives == NULL || polygon.size() < 3U) {
+        return;
+    }
+
+    SaariPrimitive primitive;
+    primitive.polygon = polygon;
+    primitive.index_texture = &index_texture;
+    primitive.ramp_pixels = &ramp_pixels;
+    primitive.reflective_palette_mask = reflective_palette_mask;
+    primitive.composite_mode = composite_mode;
+    primitive.sort_key = sort_key;
+    primitives->push_back(primitive);
+}
+
+void render_saari_primitives(RgbSurface& surface,
+                             std::vector<std::uint8_t>* reflection_mask_buffer,
+                             const CameraState& camera,
+                             std::vector<SaariPrimitive>* primitives) {
+    if (primitives == NULL || primitives->empty()) {
+        return;
+    }
+
+    std::sort(primitives->begin(),
+              primitives->end(),
+              [](const SaariPrimitive& left, const SaariPrimitive& right) {
+                  return left.sort_key < right.sort_key;
+              });
+
+    for (std::size_t index = 0; index < primitives->size(); ++index) {
+        const SaariPrimitive& primitive = (*primitives)[index];
+        rasterize_saari_polygon(surface,
+                                NULL,
+                                reflection_mask_buffer,
+                                camera,
+                                primitive.polygon,
+                                *primitive.index_texture,
+                                *primitive.ramp_pixels,
+                                primitive.reflective_palette_mask,
+                                primitive.composite_mode);
     }
 }
 
@@ -1257,9 +1302,7 @@ void rasterize_textured_triangle(RgbSurface& surface,
     }
 }
 
-void render_terrain(RgbSurface& surface,
-                    std::vector<float>* depth_buffer,
-                    std::vector<std::uint8_t>* reflection_mask_buffer,
+void render_terrain(std::vector<SaariPrimitive>* primitives,
                     const CameraState& camera,
                     const IndexedAsset& height_asset,
                     const IndexedAsset& terrain_asset,
@@ -1377,11 +1420,11 @@ void render_terrain(RgbSurface& surface,
                 const SaariVec3& world_b = world_vertices[static_cast<std::size_t>(ib)];
                 const SaariVec3& world_c = world_vertices[static_cast<std::size_t>(ic)];
                 const float slope_x = (triangle_index == 0)
-                    ? (world_a.z - world_c.z)
-                    : (world_c.z - world_a.z);
+                    ? (world_c.z - world_a.z)
+                    : (world_a.z - world_c.z);
                 const float slope_y = (triangle_index == 0)
-                    ? (world_c.z - world_b.z)
-                    : (world_b.z - world_c.z);
+                    ? (world_b.z - world_c.z)
+                    : (world_c.z - world_b.z);
                 const float relative_x = world_a.x - camera.position.x;
                 const float relative_y = world_a.y - camera.position.y;
                 const float relative_z = world_a.z - camera.position.z;
@@ -1392,8 +1435,11 @@ void render_terrain(RgbSurface& surface,
                         continue;
                     }
                 } else {
+                    // `world_vertices` already carry mirrored Z for the reflection pass,
+                    // so the terrain slopes are already sign-flipped versus the opaque pass.
+                    // Re-negating them here shows reflection faces that Java culls.
                     const float facing_value =
-                        relative_x * -slope_x + relative_y * -slope_y + relative_z * -cell_size;
+                        relative_x * slope_x + relative_y * slope_y + relative_z * -cell_size;
                     if (facing_value >= 0.0f) {
                         continue;
                     }
@@ -1422,28 +1468,32 @@ void render_terrain(RgbSurface& surface,
                 }
 
                 const IndexedAsset& index_texture =
-                    is_water_triangle ? water_asset : terrain_asset;
+                    reflection_pass ? terrain_asset : (is_water_triangle ? water_asset : terrain_asset);
                 const std::vector<std::uint32_t>& ramp_pixels = reflection_pass ? black_ramp : white_ramp;
                 const std::vector<std::uint8_t>* triangle_mask =
                     reflection_pass ? NULL : &reflective_palette_mask;
+                const float sort_key =
+                    reflection_pass
+                        ? (view_z[static_cast<std::size_t>(ia)] +
+                           view_z[static_cast<std::size_t>(ib)] +
+                           view_z[static_cast<std::size_t>(ic)])
+                        : -(view_z[static_cast<std::size_t>(ia)] +
+                            view_z[static_cast<std::size_t>(ib)] +
+                            view_z[static_cast<std::size_t>(ic)]);
 
-                rasterize_saari_polygon(surface,
-                                        reflection_pass ? NULL : depth_buffer,
-                                        reflection_mask_buffer,
-                                        camera,
-                                        polygon,
-                                        index_texture,
-                                        ramp_pixels,
-                                        triangle_mask,
-                                        reflection_pass ? kSaariCompositeReflectAdd : kSaariCompositeOpaque);
+                emit_saari_primitive(primitives,
+                                     polygon,
+                                     index_texture,
+                                     ramp_pixels,
+                                     triangle_mask,
+                                     reflection_pass ? kSaariCompositeReflectAdd : kSaariCompositeOpaque,
+                                     sort_key);
             }
         }
     }
 }
 
-void render_env_mesh(RgbSurface& surface,
-                     std::vector<float>* depth_buffer,
-                     std::vector<std::uint8_t>* reflection_mask_buffer,
+void render_env_mesh(std::vector<SaariPrimitive>* primitives,
                      const CameraState& camera,
                      const SaariStaticMesh& mesh,
                      const IndexedAsset& env_asset,
@@ -1531,15 +1581,22 @@ void render_env_mesh(RgbSurface& surface,
             continue;
         }
 
-        rasterize_saari_polygon(surface,
-                                reflection_pass ? NULL : depth_buffer,
-                                reflection_mask_buffer,
-                                camera,
-                                polygon,
-                                env_asset,
-                                reflection_pass ? black_ramp : white_ramp,
-                                NULL,
-                                reflection_pass ? kSaariCompositeReflectAdd : kSaariCompositeOpaque);
+        const float sort_key =
+            reflection_pass
+                ? (view_z[static_cast<std::size_t>(triangle.a)] +
+                   view_z[static_cast<std::size_t>(triangle.b)] +
+                   view_z[static_cast<std::size_t>(triangle.c)])
+                : -(view_z[static_cast<std::size_t>(triangle.a)] +
+                    view_z[static_cast<std::size_t>(triangle.b)] +
+                    view_z[static_cast<std::size_t>(triangle.c)]);
+
+        emit_saari_primitive(primitives,
+                             polygon,
+                             env_asset,
+                             reflection_pass ? black_ramp : white_ramp,
+                             NULL,
+                             reflection_pass ? kSaariCompositeReflectAdd : kSaariCompositeOpaque,
+                             sort_key);
     }
 }
 
@@ -1603,26 +1660,25 @@ void SaariScene::render(RgbSurface& surface, float scene_time_seconds, float del
     }
 
     const float track_tick = scene_time_seconds * kSceneTimeScale * kTrackTickScale;
-    SaariVec3 camera_position = sample_track(camera_track_, track_tick);
+    const SaariVec3 camera_position = sample_track(camera_track_, track_tick);
     const SaariVec3 camera_target = sample_track(camera_target_track_, track_tick);
-    if (camera_position.z < 0.3f) {
-        camera_position.z = 0.3f;
+    CameraState camera = make_camera_state(camera_position, camera_target);
+    if (camera.position.z < 0.3f) {
+        camera.position.z = 0.3f;
     }
-    const CameraState camera = make_camera_state(camera_position, camera_target);
 
     draw_background(surface, camera, backdrop_asset_);
 
-    std::vector<float> depth_buffer(static_cast<std::size_t>(surface.width()) * static_cast<std::size_t>(surface.height()),
-                                    std::numeric_limits<float>::infinity());
     std::vector<std::uint8_t> reflection_mask_buffer(
         static_cast<std::size_t>(surface.width()) * static_cast<std::size_t>(surface.height()), 0U);
+    std::vector<SaariPrimitive> primitives;
+    primitives.reserve(8192U);
 
-    // Match the Java `RgbSurfacePresenter` flow:
-    // 1. opaque passes stamp or clear the reflective-water mask
-    // 2. additive reflection passes only affect pixels that still carry that mask
-    render_terrain(surface,
-                   &depth_buffer,
-                   &reflection_mask_buffer,
+    // Match the Java SceneRenderer flow:
+    // 1. collect opaque and reflection primitives into one shared sorted list
+    // 2. rasterize in depth-sorted order instead of z-buffering
+    // 3. let additive reflection primitives consume the surviving water mask
+    render_terrain(&primitives,
                    camera,
                    height_asset_,
                    terrain_asset_,
@@ -1633,9 +1689,7 @@ void SaariScene::render(RgbSurface& surface, float scene_time_seconds, float del
                    false);
 
     const SaariVec3 klunssi_position = sample_track(klunssi_track_, track_tick);
-    render_env_mesh(surface,
-                    &depth_buffer,
-                    &reflection_mask_buffer,
+    render_env_mesh(&primitives,
                     camera,
                     klunssi_mesh_,
                     env_asset_,
@@ -1650,9 +1704,7 @@ void SaariScene::render(RgbSurface& surface, float scene_time_seconds, float del
                     false,
                     true);
 
-    render_env_mesh(surface,
-                    &depth_buffer,
-                    &reflection_mask_buffer,
+    render_env_mesh(&primitives,
                     camera,
                     meditate_mesh_,
                     env_asset_,
@@ -1667,9 +1719,7 @@ void SaariScene::render(RgbSurface& surface, float scene_time_seconds, float del
                     false,
                     false);
 
-    render_terrain(surface,
-                   NULL,
-                   &reflection_mask_buffer,
+    render_terrain(&primitives,
                    camera,
                    height_asset_,
                    terrain_asset_,
@@ -1678,9 +1728,7 @@ void SaariScene::render(RgbSurface& surface, float scene_time_seconds, float del
                    saari_black_ramp_,
                    saari_reflective_palette_mask_,
                    true);
-    render_env_mesh(surface,
-                    NULL,
-                    &reflection_mask_buffer,
+    render_env_mesh(&primitives,
                     camera,
                     klunssi_mesh_,
                     env_asset_,
@@ -1694,6 +1742,7 @@ void SaariScene::render(RgbSurface& surface, float scene_time_seconds, float del
                     true,
                     true,
                     true);
+    render_saari_primitives(surface, &reflection_mask_buffer, camera, &primitives);
 
     if (shock_amount_ > 0.0f) {
         if (shock_decay_ > 0.0f) {

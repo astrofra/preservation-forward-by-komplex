@@ -16,6 +16,9 @@ Supporting sources:
 Related Java desktop investigation note:
 - `documentation/forward-saari-sky-investigation.md`
 
+Methodology reference:
+- `documentation/forward-saari-terrain-parity-methodology.md`
+
 ---
 
 ## Current C++ Status (what is already good)

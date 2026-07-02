@@ -27,6 +27,9 @@ Current implementation direction:
 
 - vendorizing `stb_image.h` is the intended runtime path for direct source-asset loading in the exporter
 - Java-side helpers may still be kept in the repository for reference capture, decode validation, or regression comparison, but not as a mandatory preprocessing stage
+- for `Saari`, the native exporter should stay close to the Java terrain/material trick: a camera-local terrain patch, off-heightmap fallback to flat water, and reflection gating driven by palette-derived masking rather than by a separate ocean mesh
+- the current `Saari` parity work also shows that renderer-level details matter: Java clamps terrain heights to non-negative land, sorts terrain/env primitives by average depth instead of z-buffering them, and uses affine material `3` / `259` rasterization for this scene
+- the recent Saari terrain recovery has been written up as a reusable parity-debugging reference in `documentation/forward-saari-terrain-parity-methodology.md`
 
 ## Executive Summary
 
