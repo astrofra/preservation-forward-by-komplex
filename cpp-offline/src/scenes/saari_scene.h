@@ -70,6 +70,11 @@ private:
     IndexedAsset water_asset_;
     IndexedAsset env_asset_;
     IndexedAsset height_asset_;
+    std::vector<std::uint32_t> saari_white_ramp_;
+    std::vector<std::uint32_t> saari_black_ramp_;
+    std::vector<std::uint32_t> env_white_ramp_;
+    std::vector<std::uint32_t> env_black_ramp_;
+    std::vector<std::uint8_t> saari_reflective_palette_mask_;
     SaariStaticMesh meditate_mesh_;
     SaariStaticMesh klunssi_mesh_;
     std::vector<SaariTrackSample> camera_track_;

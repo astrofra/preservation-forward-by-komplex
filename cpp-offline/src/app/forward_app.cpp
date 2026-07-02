@@ -1,5 +1,6 @@
 #include "app/forward_app.h"
 
+#include <chrono>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -70,6 +71,27 @@ void print_export_progress(unsigned int completed_frames, unsigned int total_fra
               << std::flush;
 }
 
+std::string format_duration_seconds(double seconds) {
+    if (seconds < 0.0) {
+        seconds = 0.0;
+    }
+
+    const std::uint64_t total_milliseconds =
+        static_cast<std::uint64_t>((seconds * 1000.0) + 0.5);
+    const std::uint64_t hours = total_milliseconds / 3600000ULL;
+    const std::uint64_t minutes = (total_milliseconds / 60000ULL) % 60ULL;
+    const std::uint64_t secs = (total_milliseconds / 1000ULL) % 60ULL;
+    const std::uint64_t milliseconds = total_milliseconds % 1000ULL;
+
+    std::ostringstream stream;
+    stream << std::setfill('0')
+           << std::setw(2) << hours << ':'
+           << std::setw(2) << minutes << ':'
+           << std::setw(2) << secs << '.'
+           << std::setw(3) << milliseconds;
+    return stream.str();
+}
+
 }  // namespace
 
 ForwardApp::ForwardApp(const ExportConfig& config)
@@ -101,6 +123,10 @@ int ForwardApp::run() {
         std::cerr << error_message << '\n';
         return 1;
     }
+
+    const std::chrono::steady_clock::time_point render_start_time =
+        std::chrono::steady_clock::now();
+
     if (!prepare_output(&error_message)) {
         std::cerr << error_message << '\n';
         return 1;
@@ -217,8 +243,24 @@ int ForwardApp::run() {
 
     manifest_writer.close();
 
+    const std::chrono::steady_clock::time_point render_end_time =
+        std::chrono::steady_clock::now();
+    const double render_time_seconds =
+        std::chrono::duration_cast<std::chrono::duration<double> >(
+            render_end_time - render_start_time).count();
+    const double animation_duration_seconds =
+        static_cast<double>(timeline_.total_samples_for_frames(total_frames)) /
+        static_cast<double>(timeline_.sample_rate());
+    const double export_fps = render_time_seconds > 0.0
+        ? static_cast<double>(total_frames) / render_time_seconds
+        : 0.0;
+
     std::cout << "wrote " << config_.frame_count << " frames and one wav under "
               << config_.output_dir << '\n';
+    std::cout << "render time: " << format_duration_seconds(render_time_seconds) << '\n';
+    std::cout << "animation duration: " << format_duration_seconds(animation_duration_seconds) << '\n';
+    std::cout << "export throughput: " << std::fixed << std::setprecision(2) << export_fps
+              << " fps\n";
     return 0;
 }
 

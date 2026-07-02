@@ -29,8 +29,9 @@ Current limitation:
 - `domina` now loads `images/phorward.gif` directly as an indexed GIF and follows the Java `512x3840 -> 512x256` frame-strip scroll path
 - `domina` late-frame comparisons are still influenced by the synthetic song-position transport, so the remaining drift there is not yet a pure scene-renderer verdict
 - `intro` now renders native `kuninga.xm` audio and `saari` now renders native `jarnomix.xm` audio directly in C++, with no Java intermediation
-- `saari` now loads `tai1sp.jpg`, `saari.gif`, `envi_klu.gif`, `saarih15.gif`, and `asses/alku6.ase` directly in C++ for a first terrain/object/reflection pass with deterministic `suh0` / `suh` shock handling
-- that `saari` renderer is now genuinely 3D (heightmap terrain, reflective water background, ASE camera/object parsing), but it is still not the final source-faithful camera/raster parity pass from the roadmap
+- `saari` now loads `tai1sp.jpg`, `saari.gif`, `envi_klu.gif`, `saarih15.gif`, and `asses/alku6.ase` directly in C++ for a source-shaped terrain/object/reflection pass with deterministic `suh0` / `suh` shock handling
+- the current `saari` port now mirrors the key Java trick: a camera-local terrain patch whose out-of-heightmap samples become flat water, with palette-masked additive reflections and no explicit `meditate` mirror copy
+- `saari` is still not at final camera/depth-sort/raster parity with Java, but the terrain/material logic is now much closer to the original engine structure than the earlier background-water approximation
 - Java-based normalization helpers may still exist for validation, but they are not part of the exporter runtime path
 
 ## Build
@@ -103,7 +104,7 @@ That wrapper:
 ## Immediate Next Porting Steps
 
 1. Finish the source-faithful `mute95` validation against Java captures.
-2. Tighten `saari` camera timing, orientation, and raster parity against the Java captures.
+2. Tighten the remaining `saari` camera timing, depth-sort, and raster parity against the Java captures now that the terrain/material path is source-shaped.
 3. Reuse the new direct indexed GIF path for `uppol` and the remaining palette-driven routines.
 4. Use the native XM sequencer / sample timeline to drive the remaining scene windows beyond the current `intro` / `saari` scope.
 5. Extend the native audio path from the current `intro` / `saari` scope to the remaining real sequences as they land.
