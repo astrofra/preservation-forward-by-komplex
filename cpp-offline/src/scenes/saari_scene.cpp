@@ -23,6 +23,8 @@ const float kCameraFieldOfView = 1.4f;
 const float kTrackTickScale = 1000.0f;
 const float kNearPlane = 0.1f;
 const float kCameraFarPlane = 250.0f;
+const float kSaariWaterPlaneHeight = -0.001f;
+const float kSaariWaterCoverageDistance = 1000.0f;
 const float kDepthRampNear = 15.0f;
 const float kDepthRampFar = 250.0f;
 const float kTerrainHeightScale = 0.16f;
@@ -1302,6 +1304,7 @@ void rasterize_textured_triangle(RgbSurface& surface,
     }
 }
 
+// Saari terrain pass: the heightfield island/mountain and its water/reflection behavior.
 void render_terrain(std::vector<SaariPrimitive>* primitives,
                     const CameraState& camera,
                     const IndexedAsset& height_asset,
@@ -1343,6 +1346,34 @@ void render_terrain(std::vector<SaariPrimitive>* primitives,
         max_world_x = std::max(max_world_x, corner.x);
         min_world_y = std::min(min_world_y, corner.y);
         max_world_y = std::max(max_world_y, corner.y);
+    }
+
+    // Cover the visible water footprint itself, not just the finite far-plane rectangle.
+    // Without this extra screen-to-water sampling, shallow Saari shots can reveal a backdrop leak
+    // where the finite terrain patch ends before the apparent sea horizon.
+    for (int sample_row = 0; sample_row < 7; ++sample_row) {
+        const float row_lerp = static_cast<float>(sample_row) / 6.0f;
+        const float screen_y = lerp(0.5f, static_cast<float>(kSurfaceHeight) - 0.5f, row_lerp);
+        for (int sample_column = 0; sample_column < 9; ++sample_column) {
+            const float column_lerp = static_cast<float>(sample_column) / 8.0f;
+            const float screen_x = lerp(0.5f, static_cast<float>(kSurfaceWidth) - 0.5f, column_lerp);
+            const SaariVec3 ray = camera_ray_direction(camera, screen_x, screen_y);
+            if (std::fabs(ray.z) <= 1.0e-6f) {
+                continue;
+            }
+
+            float distance = (kSaariWaterPlaneHeight - camera.position.z) / ray.z;
+            if (distance <= 0.0f) {
+                continue;
+            }
+            distance = std::min(distance, kSaariWaterCoverageDistance);
+
+            const SaariVec3 water_hit = add(camera.position, scale(ray, distance));
+            min_world_x = std::min(min_world_x, water_hit.x);
+            max_world_x = std::max(max_world_x, water_hit.x);
+            min_world_y = std::min(min_world_y, water_hit.y);
+            max_world_y = std::max(max_world_y, water_hit.y);
+        }
     }
 
     const int start_grid_x = java_trunc_to_int(min_world_x / cell_size) - 1;
@@ -1688,6 +1719,8 @@ void SaariScene::render(RgbSurface& surface, float scene_time_seconds, float del
                    saari_reflective_palette_mask_,
                    false);
 
+    // `klunssi` is the spinning reflective blob-like object orbiting the scene.
+    // The original mesh reads like a metaball-generated form rather than a rigid prop.
     const SaariVec3 klunssi_position = sample_track(klunssi_track_, track_tick);
     render_env_mesh(&primitives,
                     camera,
@@ -1704,6 +1737,7 @@ void SaariScene::render(RgbSurface& surface, float scene_time_seconds, float del
                     false,
                     true);
 
+    // `meditate` is the seated meditating figure staged above the mountain summit.
     render_env_mesh(&primitives,
                     camera,
                     meditate_mesh_,
@@ -1845,6 +1879,7 @@ bool SaariScene::load_ase_scene() {
     for (std::size_t index = 0; index < geom_blocks.size(); ++index) {
         const std::string& block = geom_blocks[index];
         if (!found_meditate && block.find("*NODE_NAME \"meditate\"") != std::string::npos) {
+            // `meditate`: the meditating character placed above the island/mountain.
             if (!parse_mesh_vertices_and_faces(block, &meditate_mesh_)) {
                 error_message_ = "failed to parse meditate mesh from saari ase scene: " + path;
                 return false;
@@ -1852,6 +1887,7 @@ bool SaariScene::load_ase_scene() {
             meditate_position_ = meditate_mesh_.pivot;
             found_meditate = true;
         } else if (!found_klunssi && block.find("*NODE_NAME \"klunssi\"") != std::string::npos) {
+            // `klunssi`: the spinning blob-like object, likely authored from metaball-style forms.
             if (!parse_mesh_vertices_and_faces(block, &klunssi_mesh_)) {
                 error_message_ = "failed to parse klunssi mesh from saari ase scene: " + path;
                 return false;
