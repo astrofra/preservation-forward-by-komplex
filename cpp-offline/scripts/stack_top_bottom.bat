@@ -1,5 +1,5 @@
 @echo off
-setlocal EnableDelayedExpansion
+setlocal EnableExtensions EnableDelayedExpansion
 
 set "ROOT_DIR=%~dp0..\.."
 pushd "%ROOT_DIR%" >NUL
@@ -9,6 +9,7 @@ if "%TOP_INPUT%"=="" set "TOP_INPUT=java-desktop\video\forward-by-komplex-java.m
 
 set "BOTTOM_INPUT=%~2"
 if "%BOTTOM_INPUT%"=="" set "BOTTOM_INPUT=cpp-offline\output-full-current\forward_full_current_h264.mp4"
+set "DEFAULT_BOTTOM_INPUT=cpp-offline\output-full-current\forward_full_current_h264.mp4"
 
 set "OUTPUT_FILE=%~3"
 if "%OUTPUT_FILE%"=="" set "OUTPUT_FILE=cpp-offline\output-full-current\forward_full_current_top_bottom.mp4"
@@ -38,6 +39,51 @@ if not exist "%TOP_INPUT%" (
 
 if not exist "%BOTTOM_INPUT%" (
   echo Bottom input not found: %BOTTOM_INPUT%
+  popd >NUL
+  exit /b 1
+)
+
+for %%I in ("%TOP_INPUT%") do set "TOP_INPUT_ABS=%%~fI"
+for %%I in ("%BOTTOM_INPUT%") do set "BOTTOM_INPUT_ABS=%%~fI"
+for %%I in ("%OUTPUT_FILE%") do set "OUTPUT_FILE_ABS=%%~fI"
+
+if /I "!OUTPUT_FILE_ABS!"=="!TOP_INPUT_ABS!" (
+  echo Output file must be different from top input.
+  popd >NUL
+  exit /b 1
+)
+
+if /I "!OUTPUT_FILE_ABS!"=="!BOTTOM_INPUT_ABS!" (
+  echo Output file must be different from bottom input.
+  popd >NUL
+  exit /b 1
+)
+
+ffprobe -v error -select_streams v:0 -show_entries stream=codec_type -of default=noprint_wrappers=1:nokey=1 "%TOP_INPUT%" >NUL 2>&1
+if errorlevel 1 (
+  echo Top input is not a valid media file: %TOP_INPUT%
+  popd >NUL
+  exit /b 1
+)
+
+ffprobe -v error -select_streams v:0 -show_entries stream=codec_type -of default=noprint_wrappers=1:nokey=1 "%BOTTOM_INPUT%" >NUL 2>&1
+if errorlevel 1 (
+  if /I "%BOTTOM_INPUT%"=="%DEFAULT_BOTTOM_INPUT%" (
+    if exist "cpp-offline\output-full-current\frames" if exist "cpp-offline\output-full-current\audio\forward.wav" (
+      echo Bottom input is invalid. Rebuilding default h264 from frames and audio...
+      call "cpp-offline\scripts\mux_h264.bat" "cpp-offline\output-full-current" "%BOTTOM_INPUT%" 50
+      if errorlevel 1 (
+        echo Failed to rebuild bottom input: %BOTTOM_INPUT%
+        popd >NUL
+        exit /b 1
+      )
+    )
+  )
+)
+
+ffprobe -v error -select_streams v:0 -show_entries stream=codec_type -of default=noprint_wrappers=1:nokey=1 "%BOTTOM_INPUT%" >NUL 2>&1
+if errorlevel 1 (
+  echo Bottom input is not a valid media file: %BOTTOM_INPUT%
   popd >NUL
   exit /b 1
 )
