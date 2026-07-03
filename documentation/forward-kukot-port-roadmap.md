@@ -53,6 +53,30 @@ Known fidelity gaps:
 - the particle cloud is source-shaped in placement, scale, and additive sprite blit, but still bypasses some of the original `ParticleCloudMesh` / `SurfacePresenter` batching details
 - triangle submission still skips Java near-plane clipping and some material/compositing nuances from `SceneRenderer` / `MeshObject`
 - current composition is materially closer than the first pass, but still diverges from the Java capture in silhouette smoothness, exact flare occlusion ordering on edge cases, and highlight spread/intensity tuning
+- some side-by-side playback comparisons are still offset by roughly `0.5s`, so visual judgments should continue to prioritize shot content and manifest alignment over raw video timestamp
+
+## Validated Aesthetic Override
+
+`kukot` now carries one explicit local exception to the default source-faithful policy.
+
+What the Java reconstruction says:
+- `MeshObject.KKAmaja()` deforms the mesh positions first for `jAkKAma = 2`
+- `MeshObject.KKAMaja()` then computes env-map UVs from the stored vertex normals after matrix transform
+- `MeshObject.kKamaja()` keeps the original screen-space winding test for face submission
+- in other words, the repaired Java source does not contain an explicit "flip normals" or "invert backface culling" step for this scene
+
+What visual review says:
+- in side-by-side capture review, the current C++ `kukot` bodies can still read as visually "inside out" or "in relief" compared with the Java output
+- side-by-side review after the latest patch showed a clear improvement in body relief and overall shot reading even with an estimated timing mismatch of about `0.5s`
+- the improvement was strong enough to justify keeping the deviation rather than treating it as a temporary probe
+- the retained override is intentionally narrow: flipped env-map normals plus reversed torsion direction, while backface culling stays on the Java-side contract
+
+Preservation rule for this case:
+- source-faithful behavior remains the default policy for the project overall
+- `kukot` is now a documented exception on two points only: env-map normal sign and torsion rotation sense
+- this exception is justified by observed aesthetic fidelity, not by a claim that the repaired Java source literally does the same thing
+- the choice must remain explicit, local to `kukot`, and easy to revisit in later comparisons
+- if a later renderer-level diagnosis reproduces the same visual result without semantic deviation, prefer that explanation and remove the override
 
 ## Refactor Verdict
 

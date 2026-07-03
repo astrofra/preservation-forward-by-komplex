@@ -252,8 +252,9 @@ Scene3dVec3 deform_kukot_vertex(const Scene3dVec3& vertex, float scene_time_seco
     value.y -= 0.8f;
 
     const float radius_sq = dot(value, value);
+    // Accepted kukot-specific aesthetic override: keep the Java deformation shape but reverse the twist sense.
     const float twist_angle =
-        radius_sq * 0.015f * std::sin(scene_time_seconds + value.z * 0.1f);
+        -radius_sq * 0.015f * std::sin(scene_time_seconds + value.z * 0.1f);
     const float cosine = std::cos(twist_angle);
     const float sine = std::sin(twist_angle);
     const float x = value.x * cosine - value.y * sine;
@@ -644,8 +645,10 @@ void KukotScene::render(RgbSurface& surface, float scene_time_seconds, float del
             const Scene3dVec3 rotated_vertex =
                 transform_matrix3(rotation_matrix, deformed_vertex);
             const Scene3dVec3 world_position = add(rotated_vertex, translation);
+            // Accepted kukot-specific aesthetic override: flip the env-map normal direction for closer body relief.
             const Scene3dVec3 env_vector =
-                normalize(transform_matrix3(rotation_matrix, actor.mesh.normals[vertex_index]));
+                scale(normalize(transform_matrix3(rotation_matrix, actor.mesh.normals[vertex_index])),
+                      -1.0f);
 
             world_vertices[vertex_index] = world_position;
             env_vectors[vertex_index] = env_vector;
