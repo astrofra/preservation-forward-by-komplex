@@ -142,6 +142,8 @@ macOS / POSIX shell form:
 sh cpp-offline/scripts/export_intro_full.sh
 ```
 
+That wrapper uses `python3` for the merge step between the per-sequence exports and the final combined output.
+
 That wrapper:
 
 - configures and builds `forward-export`
