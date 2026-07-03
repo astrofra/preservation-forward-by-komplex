@@ -22,6 +22,10 @@ const float kFarPlane = 150.0f;
 const float kHorizontalSmearFactor = 0.875f;
 const float kParticleSizeScale = 512.0f;
 const float kParticleMinimumDepth = 0.5f;
+const std::uint32_t kPackedCarryMask = 0x10040100U;
+const std::uint32_t kPackedColorMask = 0x0FF3FCFFU;
+const std::uint32_t kPackedHalfMask = 0x07E1F87EU;
+const std::uint32_t kPackedBlendMask = 0x01F07C1FU;
 
 struct KukotMatrix3 {
     float m00;
@@ -144,6 +148,12 @@ std::uint32_t pack_rgb(int red, int green, int blue) {
                                       clamp_int(blue, 0, 255));
 }
 
+std::uint32_t pack_original_packed_rgb(std::uint32_t rgb) {
+    return (((rgb >> 16) & 0xffU) << 20) |
+           (((rgb >> 8) & 0xffU) << 10) |
+           (rgb & 0xffU);
+}
+
 std::uint32_t add_rgb_saturate(std::uint32_t left, std::uint32_t right) {
     return pack_rgb(static_cast<int>((left >> 16) & 0xffU) + static_cast<int>((right >> 16) & 0xffU),
                     static_cast<int>((left >> 8) & 0xffU) + static_cast<int>((right >> 8) & 0xffU),
@@ -154,24 +164,6 @@ std::uint32_t subtract_rgb_floor(std::uint32_t left, std::uint32_t right) {
     return pack_rgb(static_cast<int>((left >> 16) & 0xffU) - static_cast<int>((right >> 16) & 0xffU),
                     static_cast<int>((left >> 8) & 0xffU) - static_cast<int>((right >> 8) & 0xffU),
                     static_cast<int>(left & 0xffU) - static_cast<int>(right & 0xffU));
-}
-
-std::uint32_t blend_rgb_32(std::uint32_t previous,
-                           std::uint32_t current,
-                           int previous_weight,
-                           int current_weight) {
-    return pack_rgb((static_cast<int>((previous >> 16) & 0xffU) * previous_weight +
-                     static_cast<int>((current >> 16) & 0xffU) * current_weight) >> 5,
-                    (static_cast<int>((previous >> 8) & 0xffU) * previous_weight +
-                     static_cast<int>((current >> 8) & 0xffU) * current_weight) >> 5,
-                    (static_cast<int>(previous & 0xffU) * previous_weight +
-                     static_cast<int>(current & 0xffU) * current_weight) >> 5);
-}
-
-std::uint32_t half_rgb(std::uint32_t color) {
-    return pack_rgb(static_cast<int>((color >> 16) & 0xffU) >> 1,
-                    static_cast<int>((color >> 8) & 0xffU) >> 1,
-                    static_cast<int>(color & 0xffU) >> 1);
 }
 
 Scene3dVec3 make_vec3(float x, float y, float z) {
@@ -337,6 +329,21 @@ std::uint32_t sample_packed_rgb_wrapped(const PackedRgbAsset& asset, float u, fl
                                static_cast<std::size_t>(x)];
 }
 
+std::uint32_t sample_packed_rgb_clamped(const PackedRgbAsset& asset, float u, float v) {
+    if (asset.width <= 0 || asset.height <= 0 || asset.packed_pixels.empty()) {
+        return 0U;
+    }
+
+    const int x = clamp_int(static_cast<int>(clamp_unit(u) * static_cast<float>(asset.width)),
+                            0,
+                            asset.width - 1);
+    const int y = clamp_int(static_cast<int>(clamp_unit(v) * static_cast<float>(asset.height)),
+                            0,
+                            asset.height - 1);
+    return asset.packed_pixels[static_cast<std::size_t>(y) * static_cast<std::size_t>(asset.width) +
+                               static_cast<std::size_t>(x)];
+}
+
 std::uint8_t sample_indexed_wrapped(const IndexedAsset& asset, float u, float v) {
     if (asset.width <= 0 || asset.height <= 0 || asset.pixels.empty()) {
         return 0U;
@@ -372,11 +379,14 @@ void apply_horizontal_smear(RgbSurface& surface, float factor) {
     for (int y = 0; y < surface.height(); ++y) {
         const std::size_t row_start =
             static_cast<std::size_t>(y) * static_cast<std::size_t>(surface.width());
-        std::uint32_t smeared = half_rgb(pixels[row_start]);
+        std::uint32_t smeared = (pack_original_packed_rgb(pixels[row_start]) >> 1) & kPackedHalfMask;
         for (int x = 0; x < surface.width(); ++x) {
             const std::size_t index = row_start + static_cast<std::size_t>(x);
-            smeared = blend_rgb_32(smeared, pixels[index], previous_weight, current_weight);
-            pixels[index] = smeared;
+            const std::uint32_t current = pack_original_packed_rgb(pixels[index]);
+            smeared = ((((smeared >> 3) & kPackedBlendMask) * static_cast<std::uint32_t>(previous_weight)) +
+                       (((current >> 3) & kPackedBlendMask) * static_cast<std::uint32_t>(current_weight))) >> 2;
+            smeared &= kPackedColorMask;
+            pixels[index] = unpack_original_packed_rgb(smeared);
         }
     }
 }
@@ -418,30 +428,15 @@ void rasterize_triangle(RgbSurface& surface,
                 continue;
             }
 
-            const float depth_inverse =
-                (w0 / primitive.a.depth) + (w1 / primitive.b.depth) + (w2 / primitive.c.depth);
-            if (depth_inverse <= 1.0e-6f) {
-                continue;
-            }
-
-            const float depth = 1.0f / depth_inverse;
-            const float u =
-                ((w0 * primitive.a.u / primitive.a.depth) +
-                 (w1 * primitive.b.u / primitive.b.depth) +
-                 (w2 * primitive.c.u / primitive.c.depth)) * depth;
-            const float v =
-                ((w0 * primitive.a.v / primitive.a.depth) +
-                 (w1 * primitive.b.v / primitive.b.depth) +
-                 (w2 * primitive.c.v / primitive.c.depth)) * depth;
-            const float shade =
-                ((w0 * primitive.a.shade / primitive.a.depth) +
-                 (w1 * primitive.b.shade / primitive.b.depth) +
-                 (w2 * primitive.c.shade / primitive.c.depth)) * depth;
+            // Java material 3 keeps env UV and shade affine in screen space.
+            const float u = w0 * primitive.a.u + w1 * primitive.b.u + w2 * primitive.c.u;
+            const float v = w0 * primitive.a.v + w1 * primitive.b.v + w2 * primitive.c.v;
+            const float shade = w0 * primitive.a.shade + w1 * primitive.b.shade + w2 * primitive.c.shade;
 
             const std::uint8_t env_index = sample_indexed_wrapped(env_indexed, u, v);
             const float shade_row = clamp_unit(shade) * (255.0f / 256.0f);
             const std::uint32_t color =
-                sample_packed_rgb_wrapped(env_surface,
+                sample_packed_rgb_clamped(env_surface,
                                           (static_cast<float>(env_index) + 0.5f) / 256.0f,
                                           shade_row);
             pixels[static_cast<std::size_t>(y) * static_cast<std::size_t>(surface.width()) +
@@ -530,7 +525,12 @@ void apply_temporal_feedback(RgbSurface& surface,
     }
 
     for (std::size_t index = 0; index < pixels.size(); ++index) {
-        pixels[index] = add_rgb_saturate(pixels[index], half_rgb(previous_frame[index]));
+        std::uint32_t current = pack_original_packed_rgb(pixels[index]);
+        const std::uint32_t previous = pack_original_packed_rgb(previous_frame[index]);
+        current += (previous >> 1) & kPackedColorMask;
+        const std::uint32_t carry = current & kPackedCarryMask;
+        current = current - carry | carry - (carry >> 8);
+        pixels[index] = unpack_original_packed_rgb(current);
     }
 }
 

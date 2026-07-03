@@ -39,6 +39,7 @@ struct Scene3dQuaternion {
 struct Scene3dOrientationSample {
     int tick;
     Scene3dQuaternion value;
+    Scene3dQuaternion tangent;
 };
 
 struct Scene3dStaticMesh {

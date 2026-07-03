@@ -190,8 +190,54 @@ Scene3dQuaternion multiply_quaternions(const Scene3dQuaternion& left,
                            left.w * right.w - left.x * right.x - left.y * right.y - left.z * right.z);
 }
 
+Scene3dQuaternion negate_quaternion(const Scene3dQuaternion& value) {
+    return make_quaternion(-value.x, -value.y, -value.z, -value.w);
+}
+
+Scene3dQuaternion conjugate_quaternion(const Scene3dQuaternion& value) {
+    return make_quaternion(-value.x, -value.y, -value.z, value.w);
+}
+
 float quaternion_dot(const Scene3dQuaternion& a, const Scene3dQuaternion& b) {
     return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
+}
+
+Scene3dQuaternion align_quaternion_hemisphere(const Scene3dQuaternion& reference,
+                                              const Scene3dQuaternion& value) {
+    return quaternion_dot(reference, value) < 0.0f ? negate_quaternion(value) : value;
+}
+
+Scene3dQuaternion quaternion_log(const Scene3dQuaternion& value) {
+    const Scene3dQuaternion normalized = normalize_quaternion(value);
+    const float vector_length =
+        std::sqrt(normalized.x * normalized.x + normalized.y * normalized.y + normalized.z * normalized.z);
+    if (vector_length <= 1.0e-12f) {
+        return make_quaternion(0.0f, 0.0f, 0.0f, 0.0f);
+    }
+
+    const float angle = std::atan2(vector_length, normalized.w);
+    const float scale = angle / vector_length;
+    return make_quaternion(normalized.x * scale, normalized.y * scale, normalized.z * scale, 0.0f);
+}
+
+Scene3dQuaternion quaternion_exp(const Scene3dQuaternion& value) {
+    const float angle =
+        std::sqrt(value.x * value.x + value.y * value.y + value.z * value.z);
+    const float sine = std::sin(angle);
+    const float scale = angle <= 1.0e-12f ? 1.0f : sine / angle;
+    return normalize_quaternion(make_quaternion(value.x * scale,
+                                                value.y * scale,
+                                                value.z * scale,
+                                                std::cos(angle)));
+}
+
+Scene3dQuaternion add_quaternions(const Scene3dQuaternion& a,
+                                  const Scene3dQuaternion& b) {
+    return make_quaternion(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w);
+}
+
+Scene3dQuaternion scale_quaternion(const Scene3dQuaternion& value, float factor) {
+    return make_quaternion(value.x * factor, value.y * factor, value.z * factor, value.w * factor);
 }
 
 Scene3dQuaternion slerp_quaternion(const Scene3dQuaternion& a,
@@ -219,6 +265,31 @@ Scene3dQuaternion slerp_quaternion(const Scene3dQuaternion& a,
                                                 weight_a * a.y + weight_b * end.y,
                                                 weight_a * a.z + weight_b * end.z,
                                                 weight_a * a.w + weight_b * end.w));
+}
+
+Scene3dQuaternion compute_squad_tangent(const Scene3dQuaternion& previous,
+                                        const Scene3dQuaternion& current,
+                                        const Scene3dQuaternion& next) {
+    const Scene3dQuaternion aligned_previous = align_quaternion_hemisphere(current, previous);
+    const Scene3dQuaternion aligned_next = align_quaternion_hemisphere(current, next);
+    const Scene3dQuaternion current_inverse = conjugate_quaternion(normalize_quaternion(current));
+    const Scene3dQuaternion previous_delta =
+        quaternion_log(multiply_quaternions(current_inverse, aligned_previous));
+    const Scene3dQuaternion next_delta =
+        quaternion_log(multiply_quaternions(current_inverse, aligned_next));
+    const Scene3dQuaternion tangent_delta =
+        quaternion_exp(scale_quaternion(add_quaternions(previous_delta, next_delta), -0.25f));
+    return normalize_quaternion(multiply_quaternions(current, tangent_delta));
+}
+
+Scene3dQuaternion squad_quaternion(const Scene3dQuaternion& a,
+                                   const Scene3dQuaternion& b,
+                                   const Scene3dQuaternion& tangent_a,
+                                   const Scene3dQuaternion& tangent_b,
+                                   float t) {
+    const Scene3dQuaternion ab = slerp_quaternion(a, b, t);
+    const Scene3dQuaternion tangent = slerp_quaternion(tangent_a, tangent_b, t);
+    return slerp_quaternion(ab, tangent, 2.0f * t * (1.0f - t));
 }
 
 void build_mesh_normals(Scene3dStaticMesh* mesh) {
@@ -434,8 +505,23 @@ void build_orientation_track(const std::vector<Scene3dRotationSample>& rotation_
         orientation_sample.tick = sample.tick;
         orientation_sample.value =
             index == 0U ? delta : normalize_quaternion(multiply_quaternions(delta, previous));
+        orientation_sample.tangent = orientation_sample.value;
         orientation_track->push_back(orientation_sample);
         previous = orientation_sample.value;
+    }
+
+    if (orientation_track->size() < 2U) {
+        return;
+    }
+
+    const std::size_t count = orientation_track->size();
+    for (std::size_t index = 0; index < count; ++index) {
+        const std::size_t previous_index = index == 0U ? count - 1U : index - 1U;
+        const std::size_t next_index = (index + 1U) % count;
+        (*orientation_track)[index].tangent =
+            compute_squad_tangent((*orientation_track)[previous_index].value,
+                                  (*orientation_track)[index].value,
+                                  (*orientation_track)[next_index].value);
     }
 }
 
@@ -490,7 +576,11 @@ Scene3dQuaternion sample_orientation_track(const std::vector<Scene3dOrientationS
             const Scene3dOrientationSample& next = track[index];
             const float range = static_cast<float>(next.tick - previous.tick);
             const float t = range <= 0.0f ? 0.0f : (tick - static_cast<float>(previous.tick)) / range;
-            return slerp_quaternion(previous.value, next.value, t);
+            return squad_quaternion(previous.value,
+                                    next.value,
+                                    previous.tangent,
+                                    next.tangent,
+                                    t);
         }
     }
 
