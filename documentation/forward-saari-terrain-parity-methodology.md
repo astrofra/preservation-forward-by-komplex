@@ -117,6 +117,7 @@ The corrections that mattered here were:
 - additive reflection should consume its water-mask hit once
 - Java material `259` stays additive for reflected meshes; changing it to opaque would hide the real parity bug instead of matching the source
 - reflected `klunssi` visibility must follow the clone's mirrored object transform; recomputing a world-space face normal after the Z mirror can flip concave face selection and expose interior lobes that Java culls
+- reflected `klunssi` env mapping also differs from the main mesh: the Java reflection is a `MeshObject` clone, and that clone does not copy the original `JAKkama` extra X-axis env-map tweak
 - Saari terrain/env primitives behave like a shared depth-sorted batch, not a modern z-buffered scene
 - Saari materials `3` and `259` are affine here, not projective
 - the two half-triangles of each terrain quad use explicit slope-sign formulas; translating them as a generic face-normal test is error-prone
@@ -154,6 +155,7 @@ The final breakthrough came from Java-specific details:
 - affine rasterization
 - one-shot reflection masking
 - mirrored reflected-face visibility for concave meshes
+- clone-specific env-map state on the reflected `klunssi`
 - terrain quad slope tests
 
 Those are easy to miss if the port is treated like a generic mesh renderer.
@@ -210,6 +212,7 @@ Most notably:
 - large broken mountain shards disappeared
 - land/sea separation became coherent again
 - reflected `klunssi` now behaves more like a single front-most mirrored layer instead of accumulating obvious interior concave lobes
+- reflected `klunssi` shading now stays closer to Java because the mirrored clone no longer reuses the original mesh's extra env-map X tweak
 - the remaining difference is now better described as camera/framing parity work than as terrain corruption
 
 That is the main reason to keep this note:

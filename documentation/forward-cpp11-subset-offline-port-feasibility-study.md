@@ -29,7 +29,7 @@ Current implementation direction:
 - Java-side helpers may still be kept in the repository for reference capture, decode validation, or regression comparison, but not as a mandatory preprocessing stage
 - for `Saari`, the native exporter should stay close to the Java terrain/material trick: a camera-local terrain patch, off-heightmap fallback to flat water, and reflection gating driven by palette-derived masking rather than by a separate ocean mesh
 - the current `Saari` parity work also shows that renderer-level details matter: Java clamps terrain heights to non-negative land, sorts terrain/env primitives by average depth instead of z-buffering them, and uses affine material `3` / `259` rasterization for this scene
-- `klunssi` reflection parity is a good example of why the port must preserve renderer contracts, not just scene composition: material `259` stays additive, but only through a one-shot water mask and mirrored-face visibility rules that prevent concave self-overlap in the original demo
+- `klunssi` reflection parity is a good example of why the port must preserve renderer contracts, not just scene composition: material `259` stays additive, but only through a one-shot water mask, mirrored-face visibility rules that prevent concave self-overlap in the original demo, and a reflected clone that does not inherit the original env-map tweak matrix
 - the recent Saari terrain recovery has been written up as a reusable parity-debugging reference in `documentation/forward-saari-terrain-parity-methodology.md`
 
 ## Executive Summary
