@@ -1556,13 +1556,14 @@ void render_env_mesh(std::vector<SaariPrimitive>* primitives,
     }
 
     const SaariMatrix3 rotation_matrix = build_saari_rotation_matrix(rotation_x, rotation_y, rotation_z);
-    // Java mirrors klunssi's reflection by cloning the mesh, flipping its world-space Z output,
-    // and generating env-map UVs from that mirrored transform before applying the extra X tweak.
+    // Java mirrors klunssi's reflection by cloning the mesh and flipping its world-space Z output.
+    // The reflected clone keeps env-map UVs from that mirrored transform, but it does not inherit
+    // the original klunssi's extra JAKkama X-axis tweak from SaariScene/MeshObject.
     const SaariMatrix3 mirrored_rotation_matrix =
         reflection_pass ? mirror_matrix_along_z_output(rotation_matrix) : rotation_matrix;
     SaariMatrix3 env_matrix =
         camera_locked_env ? camera_env_matrix(camera) : mirrored_rotation_matrix;
-    if (apply_klunssi_env_tweak) {
+    if (apply_klunssi_env_tweak && !reflection_pass) {
         SaariMatrix3 env_tweak = identity_matrix3();
         matrix_rotate_x_in_place(&env_tweak, -1.5707964f);
         env_matrix = multiply_matrix3(env_matrix, env_tweak);
