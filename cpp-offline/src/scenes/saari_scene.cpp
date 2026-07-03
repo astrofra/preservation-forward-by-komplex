@@ -341,6 +341,14 @@ SaariMatrix3 camera_env_matrix(const CameraState& camera) {
     return matrix;
 }
 
+SaariMatrix3 mirror_matrix_along_z_output(const SaariMatrix3& matrix) {
+    SaariMatrix3 mirrored = matrix;
+    mirrored.m02 = -mirrored.m02;
+    mirrored.m12 = -mirrored.m12;
+    mirrored.m22 = -mirrored.m22;
+    return mirrored;
+}
+
 float rgb_hue_unit(int red, int green, int blue) {
     const float red_unit = static_cast<float>(red) / 255.0f;
     const float green_unit = static_cast<float>(green) / 255.0f;
@@ -1548,7 +1556,12 @@ void render_env_mesh(std::vector<SaariPrimitive>* primitives,
     }
 
     const SaariMatrix3 rotation_matrix = build_saari_rotation_matrix(rotation_x, rotation_y, rotation_z);
-    SaariMatrix3 env_matrix = camera_locked_env ? camera_env_matrix(camera) : rotation_matrix;
+    // Java mirrors klunssi's reflection by cloning the mesh, flipping its world-space Z output,
+    // and generating env-map UVs from that mirrored transform before applying the extra X tweak.
+    const SaariMatrix3 mirrored_rotation_matrix =
+        reflection_pass ? mirror_matrix_along_z_output(rotation_matrix) : rotation_matrix;
+    SaariMatrix3 env_matrix =
+        camera_locked_env ? camera_env_matrix(camera) : mirrored_rotation_matrix;
     if (apply_klunssi_env_tweak) {
         SaariMatrix3 env_tweak = identity_matrix3();
         matrix_rotate_x_in_place(&env_tweak, -1.5707964f);
@@ -1590,8 +1603,20 @@ void render_env_mesh(std::vector<SaariPrimitive>* primitives,
         const SaariVec3& world_a = world_vertices[static_cast<std::size_t>(triangle.a)];
         const SaariVec3& world_b = world_vertices[static_cast<std::size_t>(triangle.b)];
         const SaariVec3& world_c = world_vertices[static_cast<std::size_t>(triangle.c)];
-        const SaariVec3 face_normal =
+        SaariVec3 face_normal =
             normalize(cross(subtract(world_b, world_a), subtract(world_c, world_a)));
+        if (reflection_pass) {
+            const SaariVec3 local_a = mesh.vertices[static_cast<std::size_t>(triangle.a)];
+            const SaariVec3 local_b = mesh.vertices[static_cast<std::size_t>(triangle.b)];
+            const SaariVec3 local_c = mesh.vertices[static_cast<std::size_t>(triangle.c)];
+            const SaariVec3 local_face_normal =
+                normalize(cross(subtract(local_b, local_a), subtract(local_c, local_a)));
+            // Java keeps the clone's local triangle winding and evaluates visibility through
+            // the mirrored object transform. Recomputing a world-space cross product after the
+            // Z mirror flips the normal sign and can expose concave interior faces instead of
+            // the single front-most reflected layer.
+            face_normal = normalize(transform_matrix3(mirrored_rotation_matrix, local_face_normal));
+        }
         const SaariVec3 face_center = scale(add(add(world_a, world_b), world_c), 1.0f / 3.0f);
         if (dot(face_normal, subtract(camera.position, face_center)) <= 0.0f) {
             continue;

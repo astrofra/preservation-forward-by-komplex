@@ -28,10 +28,11 @@ Already present and generally correct:
 - Heightmap-derived mountain mesh from `saarih15.gif`.
 - `meditate` and `klunssi` objects loaded from `asses/alku6.ase`.
 - `klunssi` scripted per-frame extra rotation and `meditate` extra 180 degree rotation are partially ported.
+- Source-shaped terrain/water dual pass with mirrored reflection branch is present in the C++ port.
 
 Open fidelity issues (confirmed):
 - Mountain orientation/depth axis mismatch (appears banked/rotated vs original).
-- No sea plane / no mirrored reflection pass.
+- Reflection parity is now narrower than "missing mirrored pass": the remaining sensitivity sits in exact water-mask semantics, mirrored-face selection on concave reflected meshes, and final tone match.
 - Camera path and timing differ from Java.
 - Saari script messages are only partially emulated (`suh0` and first `suh`), not full row-driven behavior.
 
@@ -84,6 +85,7 @@ From `forward.java` script for saari:
 From `kmjakmk`:
 - Terrain/water is not a single plain mesh pass; it has dedicated dual-pass logic when constructed with `true`.
 - Reflection path is generated internally (mirrored geometry path + alternate material mode `259`).
+- Material `259` is still additive in Java, but the add only lands on the reflective water mask and consumes that hit once, so reflected concave meshes do not keep piling up brightness on the same pixel.
 - Surface/depth logic uses original engine axis conventions (height is handled on the renderer's Z axis path).
 
 ---

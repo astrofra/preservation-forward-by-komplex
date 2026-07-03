@@ -99,6 +99,7 @@ For this pass, the productive buckets were:
 - terrain sample generation
 - visibility and face-test logic
 - reflection composition rules
+- reflected concave-mesh self-overlap
 - draw-order model
 - raster interpolation mode
 
@@ -114,6 +115,8 @@ The corrections that mattered here were:
 - out-of-heightmap samples fall back to `-0.001f`, which is what creates flat water outside the island
 - terrain reflection uses the terrain texture with the black ramp, not the water texture
 - additive reflection should consume its water-mask hit once
+- Java material `259` stays additive for reflected meshes; changing it to opaque would hide the real parity bug instead of matching the source
+- reflected `klunssi` visibility must follow the clone's mirrored object transform; recomputing a world-space face normal after the Z mirror can flip concave face selection and expose interior lobes that Java culls
 - Saari terrain/env primitives behave like a shared depth-sorted batch, not a modern z-buffered scene
 - Saari materials `3` and `259` are affine here, not projective
 - the two half-triangles of each terrain quad use explicit slope-sign formulas; translating them as a generic face-normal test is error-prone
@@ -150,6 +153,7 @@ The final breakthrough came from Java-specific details:
 - average-depth sorting
 - affine rasterization
 - one-shot reflection masking
+- mirrored reflected-face visibility for concave meshes
 - terrain quad slope tests
 
 Those are easy to miss if the port is treated like a generic mesh renderer.
@@ -170,6 +174,7 @@ In this case, the apparent normal inversion was mostly an emergent symptom of:
 - wrong terrain visibility
 - wrong ordering
 - wrong interpolation mode
+- or, later in the pass, wrong mirrored-face selection on the reflected `klunssi` clone rather than a truly wrong blend mode
 
 Treat the first visual guess as a hypothesis only.
 
@@ -204,6 +209,7 @@ Most notably:
 
 - large broken mountain shards disappeared
 - land/sea separation became coherent again
+- reflected `klunssi` now behaves more like a single front-most mirrored layer instead of accumulating obvious interior concave lobes
 - the remaining difference is now better described as camera/framing parity work than as terrain corruption
 
 That is the main reason to keep this note:
