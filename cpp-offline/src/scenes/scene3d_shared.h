@@ -29,6 +29,18 @@ struct Scene3dRotationSample {
     float angle;
 };
 
+struct Scene3dQuaternion {
+    float x;
+    float y;
+    float z;
+    float w;
+};
+
+struct Scene3dOrientationSample {
+    int tick;
+    Scene3dQuaternion value;
+};
+
 struct Scene3dStaticMesh {
     std::vector<Scene3dVec3> vertices;
     std::vector<Scene3dVec3> normals;
@@ -50,11 +62,14 @@ void parse_rotation_track(const std::string& block,
                           const std::string& node_name,
                           std::vector<Scene3dRotationSample>* track);
 
+void build_orientation_track(const std::vector<Scene3dRotationSample>& rotation_track,
+                             std::vector<Scene3dOrientationSample>* orientation_track);
+
 Scene3dVec3 sample_track(const std::vector<Scene3dTrackSample>& track,
                          float tick);
 
-Scene3dRotationSample sample_rotation_track(const std::vector<Scene3dRotationSample>& track,
-                                            float tick);
+Scene3dQuaternion sample_orientation_track(const std::vector<Scene3dOrientationSample>& track,
+                                           float tick);
 
 }  // namespace forward_offline
 

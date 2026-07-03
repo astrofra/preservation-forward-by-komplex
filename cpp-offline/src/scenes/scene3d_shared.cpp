@@ -110,6 +110,117 @@ float lerp(float a, float b, float t) {
     return a + (b - a) * t;
 }
 
+Scene3dVec3 catmull_rom_vec3(const Scene3dVec3& p0,
+                             const Scene3dVec3& p1,
+                             const Scene3dVec3& p2,
+                             const Scene3dVec3& p3,
+                             float t) {
+    const float t2 = t * t;
+    const float t3 = t2 * t;
+    const Scene3dVec3 m1 = scale(subtract(p2, p0), 0.5f);
+    const Scene3dVec3 m2 = scale(subtract(p3, p1), 0.5f);
+    const float h00 = 2.0f * t3 - 3.0f * t2 + 1.0f;
+    const float h10 = t3 - 2.0f * t2 + t;
+    const float h01 = -2.0f * t3 + 3.0f * t2;
+    const float h11 = t3 - t2;
+    return add(add(scale(p1, h00), scale(m1, h10)),
+               add(scale(p2, h01), scale(m2, h11)));
+}
+
+float wrap_tick(float tick, float duration) {
+    if (duration <= 0.0f) {
+        return 0.0f;
+    }
+
+    tick = std::fmod(tick, duration);
+    if (tick < 0.0f) {
+        tick += duration;
+    }
+    return tick;
+}
+
+Scene3dTrackSample get_loop_track_sample(const std::vector<Scene3dTrackSample>& track, int index) {
+    if (index < 0) {
+        return track[track.size() > 1U ? track.size() - 2U : 0U];
+    }
+    if (index >= static_cast<int>(track.size())) {
+        return track[track.size() > 1U ? 1U : 0U];
+    }
+    return track[static_cast<std::size_t>(index)];
+}
+
+Scene3dQuaternion make_quaternion(float x, float y, float z, float w) {
+    Scene3dQuaternion value;
+    value.x = x;
+    value.y = y;
+    value.z = z;
+    value.w = w;
+    return value;
+}
+
+Scene3dQuaternion normalize_quaternion(const Scene3dQuaternion& value) {
+    const float length =
+        std::sqrt(value.x * value.x + value.y * value.y + value.z * value.z + value.w * value.w);
+    if (length <= 1.0e-12f) {
+        return make_quaternion(0.0f, 0.0f, 0.0f, 1.0f);
+    }
+
+    const float inverse_length = 1.0f / length;
+    return make_quaternion(value.x * inverse_length,
+                           value.y * inverse_length,
+                           value.z * inverse_length,
+                           value.w * inverse_length);
+}
+
+Scene3dQuaternion axis_angle_to_quaternion(const Scene3dVec3& axis, float angle) {
+    const Scene3dVec3 normalized_axis = normalize(axis);
+    const float half_angle = angle * 0.5f;
+    const float sine = std::sin(half_angle);
+    return normalize_quaternion(make_quaternion(normalized_axis.x * sine,
+                                                normalized_axis.y * sine,
+                                                normalized_axis.z * sine,
+                                                std::cos(half_angle)));
+}
+
+Scene3dQuaternion multiply_quaternions(const Scene3dQuaternion& left,
+                                       const Scene3dQuaternion& right) {
+    return make_quaternion(left.w * right.x + left.x * right.w + left.y * right.z - left.z * right.y,
+                           left.w * right.y + left.y * right.w + left.z * right.x - left.x * right.z,
+                           left.w * right.z + left.z * right.w + left.x * right.y - left.y * right.x,
+                           left.w * right.w - left.x * right.x - left.y * right.y - left.z * right.z);
+}
+
+float quaternion_dot(const Scene3dQuaternion& a, const Scene3dQuaternion& b) {
+    return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
+}
+
+Scene3dQuaternion slerp_quaternion(const Scene3dQuaternion& a,
+                                   const Scene3dQuaternion& b,
+                                   float t) {
+    Scene3dQuaternion end = b;
+    float cosine = quaternion_dot(a, b);
+    if (cosine < 0.0f) {
+        cosine = -cosine;
+        end = make_quaternion(-b.x, -b.y, -b.z, -b.w);
+    }
+
+    if (1.0f - cosine <= 1.0e-6f) {
+        return normalize_quaternion(make_quaternion(lerp(a.x, end.x, t),
+                                                    lerp(a.y, end.y, t),
+                                                    lerp(a.z, end.z, t),
+                                                    lerp(a.w, end.w, t)));
+    }
+
+    const float angle = std::acos(cosine);
+    const float sine = std::sin(angle);
+    const float weight_a = std::sin((1.0f - t) * angle) / sine;
+    const float weight_b = std::sin(t * angle) / sine;
+    return normalize_quaternion(make_quaternion(weight_a * a.x + weight_b * end.x,
+                                                weight_a * a.y + weight_b * end.y,
+                                                weight_a * a.z + weight_b * end.z,
+                                                weight_a * a.w + weight_b * end.w));
+}
+
 void build_mesh_normals(Scene3dStaticMesh* mesh) {
     mesh->normals.assign(mesh->vertices.size(), make_vec3(0.0f, 0.0f, 0.0f));
     for (std::size_t index = 0; index < mesh->triangles.size(); ++index) {
@@ -303,66 +414,87 @@ void parse_rotation_track(const std::string& block,
     }
 }
 
+void build_orientation_track(const std::vector<Scene3dRotationSample>& rotation_track,
+                             std::vector<Scene3dOrientationSample>* orientation_track) {
+    if (orientation_track == NULL) {
+        return;
+    }
+
+    orientation_track->clear();
+    if (rotation_track.empty()) {
+        return;
+    }
+
+    Scene3dQuaternion previous = make_quaternion(0.0f, 0.0f, 0.0f, 1.0f);
+    for (std::size_t index = 0; index < rotation_track.size(); ++index) {
+        const Scene3dRotationSample& sample = rotation_track[index];
+        const Scene3dQuaternion delta = axis_angle_to_quaternion(sample.axis, sample.angle);
+
+        Scene3dOrientationSample orientation_sample;
+        orientation_sample.tick = sample.tick;
+        orientation_sample.value =
+            index == 0U ? delta : normalize_quaternion(multiply_quaternions(delta, previous));
+        orientation_track->push_back(orientation_sample);
+        previous = orientation_sample.value;
+    }
+}
+
 Scene3dVec3 sample_track(const std::vector<Scene3dTrackSample>& track,
                          float tick) {
     if (track.empty()) {
         return make_vec3(0.0f, 0.0f, 0.0f);
     }
-    if (tick <= static_cast<float>(track.front().tick)) {
+    if (track.size() == 1U) {
         return track.front().value;
     }
-    if (tick >= static_cast<float>(track.back().tick)) {
-        return track.back().value;
-    }
+
+    tick = wrap_tick(tick, static_cast<float>(track.back().tick));
 
     for (std::size_t index = 1; index < track.size(); ++index) {
         if (tick <= static_cast<float>(track[index].tick)) {
-            const Scene3dTrackSample& previous = track[index - 1U];
-            const Scene3dTrackSample& next = track[index];
+            const std::size_t previous_index = index - 1U;
+            const Scene3dTrackSample previous = get_loop_track_sample(track, static_cast<int>(previous_index));
+            const Scene3dTrackSample next = get_loop_track_sample(track, static_cast<int>(index));
+            const Scene3dTrackSample before_previous =
+                get_loop_track_sample(track, static_cast<int>(previous_index) - 1);
+            const Scene3dTrackSample after_next =
+                get_loop_track_sample(track, static_cast<int>(index) + 1);
             const float range = static_cast<float>(next.tick - previous.tick);
             const float t = range <= 0.0f ? 0.0f : (tick - static_cast<float>(previous.tick)) / range;
-            return make_vec3(lerp(previous.value.x, next.value.x, t),
-                             lerp(previous.value.y, next.value.y, t),
-                             lerp(previous.value.z, next.value.z, t));
+            return catmull_rom_vec3(before_previous.value,
+                                    previous.value,
+                                    next.value,
+                                    after_next.value,
+                                    t);
         }
     }
 
-    return track.back().value;
+    return track.front().value;
 }
 
-Scene3dRotationSample sample_rotation_track(const std::vector<Scene3dRotationSample>& track,
-                                            float tick) {
-    Scene3dRotationSample identity;
-    identity.tick = 0;
-    identity.axis = make_vec3(0.0f, 0.0f, 1.0f);
-    identity.angle = 0.0f;
+Scene3dQuaternion sample_orientation_track(const std::vector<Scene3dOrientationSample>& track,
+                                           float tick) {
+    const Scene3dQuaternion identity = make_quaternion(0.0f, 0.0f, 0.0f, 1.0f);
     if (track.empty()) {
         return identity;
     }
-    if (tick <= static_cast<float>(track.front().tick)) {
-        return track.front();
+    if (track.size() == 1U) {
+        return track.front().value;
     }
-    if (tick >= static_cast<float>(track.back().tick)) {
-        return track.back();
-    }
+
+    tick = wrap_tick(tick, static_cast<float>(track.back().tick));
 
     for (std::size_t index = 1; index < track.size(); ++index) {
         if (tick <= static_cast<float>(track[index].tick)) {
-            const Scene3dRotationSample& previous = track[index - 1U];
-            const Scene3dRotationSample& next = track[index];
+            const Scene3dOrientationSample& previous = track[index - 1U];
+            const Scene3dOrientationSample& next = track[index];
             const float range = static_cast<float>(next.tick - previous.tick);
             const float t = range <= 0.0f ? 0.0f : (tick - static_cast<float>(previous.tick)) / range;
-            Scene3dRotationSample sample;
-            sample.tick = static_cast<int>(tick);
-            sample.axis = normalize(make_vec3(lerp(previous.axis.x, next.axis.x, t),
-                                              lerp(previous.axis.y, next.axis.y, t),
-                                              lerp(previous.axis.z, next.axis.z, t)));
-            sample.angle = lerp(previous.angle, next.angle, t);
-            return sample;
+            return slerp_quaternion(previous.value, next.value, t);
         }
     }
 
-    return track.back();
+    return track.front().value;
 }
 
 }  // namespace forward_offline

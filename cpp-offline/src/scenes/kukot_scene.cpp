@@ -52,6 +52,7 @@ struct KukotProjectedVertex {
     float depth;
     float u;
     float v;
+    float shade;
 };
 
 struct KukotTrianglePrimitive {
@@ -186,53 +187,34 @@ Scene3dVec3 normalize(const Scene3dVec3& value) {
     return scale(value, inverse_magnitude);
 }
 
-KukotMatrix3 identity_matrix3() {
-    KukotMatrix3 matrix;
-    matrix.m00 = 1.0f;
-    matrix.m01 = 0.0f;
-    matrix.m02 = 0.0f;
-    matrix.m10 = 0.0f;
-    matrix.m11 = 1.0f;
-    matrix.m12 = 0.0f;
-    matrix.m20 = 0.0f;
-    matrix.m21 = 0.0f;
-    matrix.m22 = 1.0f;
-    return matrix;
-}
-
-KukotMatrix3 matrix_multiply(const KukotMatrix3& left, const KukotMatrix3& right) {
-    KukotMatrix3 result;
-    result.m00 = left.m00 * right.m00 + left.m01 * right.m10 + left.m02 * right.m20;
-    result.m01 = left.m00 * right.m01 + left.m01 * right.m11 + left.m02 * right.m21;
-    result.m02 = left.m00 * right.m02 + left.m01 * right.m12 + left.m02 * right.m22;
-    result.m10 = left.m10 * right.m00 + left.m11 * right.m10 + left.m12 * right.m20;
-    result.m11 = left.m10 * right.m01 + left.m11 * right.m11 + left.m12 * right.m21;
-    result.m12 = left.m10 * right.m02 + left.m11 * right.m12 + left.m12 * right.m22;
-    result.m20 = left.m20 * right.m00 + left.m21 * right.m10 + left.m22 * right.m20;
-    result.m21 = left.m20 * right.m01 + left.m21 * right.m11 + left.m22 * right.m21;
-    result.m22 = left.m20 * right.m02 + left.m21 * right.m12 + left.m22 * right.m22;
-    return result;
-}
-
-KukotMatrix3 axis_angle_matrix(const Scene3dVec3& axis, float angle) {
-    const Scene3dVec3 normalized_axis = normalize(axis);
-    const float x = normalized_axis.x;
-    const float y = normalized_axis.y;
-    const float z = normalized_axis.z;
-    const float cosine = std::cos(angle);
-    const float sine = std::sin(angle);
-    const float one_minus_cosine = 1.0f - cosine;
+KukotMatrix3 quaternion_matrix(const Scene3dQuaternion& quaternion) {
+    const float length_sq =
+        quaternion.x * quaternion.x + quaternion.y * quaternion.y + quaternion.z * quaternion.z +
+        quaternion.w * quaternion.w;
+    const float scale = length_sq <= 1.0e-12f ? 2.0f : 2.0f / length_sq;
+    const float x2 = quaternion.x * scale;
+    const float y2 = quaternion.y * scale;
+    const float z2 = quaternion.z * scale;
+    const float wx = quaternion.w * x2;
+    const float wy = quaternion.w * y2;
+    const float wz = quaternion.w * z2;
+    const float xx = quaternion.x * x2;
+    const float xy = quaternion.x * y2;
+    const float xz = quaternion.x * z2;
+    const float yy = quaternion.y * y2;
+    const float yz = quaternion.y * z2;
+    const float zz = quaternion.z * z2;
 
     KukotMatrix3 matrix;
-    matrix.m00 = one_minus_cosine * x * x + cosine;
-    matrix.m01 = one_minus_cosine * x * y - sine * z;
-    matrix.m02 = one_minus_cosine * x * z + sine * y;
-    matrix.m10 = one_minus_cosine * x * y + sine * z;
-    matrix.m11 = one_minus_cosine * y * y + cosine;
-    matrix.m12 = one_minus_cosine * y * z - sine * x;
-    matrix.m20 = one_minus_cosine * x * z - sine * y;
-    matrix.m21 = one_minus_cosine * y * z + sine * x;
-    matrix.m22 = one_minus_cosine * z * z + cosine;
+    matrix.m00 = 1.0f - (yy + zz);
+    matrix.m01 = xy - wz;
+    matrix.m02 = xz + wy;
+    matrix.m10 = xy + wz;
+    matrix.m11 = 1.0f - (xx + zz);
+    matrix.m12 = yz - wx;
+    matrix.m20 = xz - wy;
+    matrix.m21 = yz + wx;
+    matrix.m22 = 1.0f - (xx + yy);
     return matrix;
 }
 
@@ -240,6 +222,23 @@ Scene3dVec3 transform_matrix3(const KukotMatrix3& matrix, const Scene3dVec3& val
     return make_vec3(matrix.m00 * value.x + matrix.m10 * value.y + matrix.m20 * value.z,
                      matrix.m01 * value.x + matrix.m11 * value.y + matrix.m21 * value.z,
                      matrix.m02 * value.x + matrix.m12 * value.y + matrix.m22 * value.z);
+}
+
+Scene3dVec3 deform_kukot_vertex(const Scene3dVec3& vertex, float scene_time_seconds) {
+    Scene3dVec3 value = vertex;
+    value.y -= 0.8f;
+
+    const float radius_sq = dot(value, value);
+    const float twist_angle =
+        radius_sq * 0.015f * std::sin(scene_time_seconds + value.z * 0.1f);
+    const float cosine = std::cos(twist_angle);
+    const float sine = std::sin(twist_angle);
+    const float x = value.x * cosine - value.y * sine;
+    const float y = value.y * cosine + value.x * sine;
+
+    value.x = x;
+    value.y = y + 0.8f;
+    return value;
 }
 
 KukotCameraState make_camera_state(const Scene3dVec3& position,
@@ -307,6 +306,30 @@ std::uint32_t sample_packed_rgb_wrapped(const PackedRgbAsset& asset, float u, fl
                                static_cast<std::size_t>(x)];
 }
 
+std::uint8_t sample_indexed_wrapped(const IndexedAsset& asset, float u, float v) {
+    if (asset.width <= 0 || asset.height <= 0 || asset.pixels.empty()) {
+        return 0U;
+    }
+
+    u -= std::floor(u);
+    v -= std::floor(v);
+    if (u < 0.0f) {
+        u += 1.0f;
+    }
+    if (v < 0.0f) {
+        v += 1.0f;
+    }
+
+    const int x = clamp_int(static_cast<int>(u * static_cast<float>(asset.width)),
+                            0,
+                            asset.width - 1);
+    const int y = clamp_int(static_cast<int>(v * static_cast<float>(asset.height)),
+                            0,
+                            asset.height - 1);
+    return asset.pixels[static_cast<std::size_t>(y) * static_cast<std::size_t>(asset.width) +
+                        static_cast<std::size_t>(x)];
+}
+
 std::uint32_t sample_packed_rgb_clamped(const PackedRgbAsset& asset, float u, float v) {
     if (asset.width <= 0 || asset.height <= 0 || asset.packed_pixels.empty()) {
         return 0U;
@@ -331,6 +354,7 @@ void darken_surface(RgbSurface& surface, float factor) {
 
 void rasterize_triangle(RgbSurface& surface,
                         const PackedRgbAsset& env_surface,
+                        const IndexedAsset& env_indexed,
                         const KukotTrianglePrimitive& primitive) {
     const float min_x = std::floor(std::min(primitive.a.x, std::min(primitive.b.x, primitive.c.x)));
     const float max_x = std::ceil(std::max(primitive.a.x, std::max(primitive.b.x, primitive.c.x)));
@@ -347,9 +371,6 @@ void rasterize_triangle(RgbSurface& surface,
     if (std::fabs(denominator) <= 1.0e-6f) {
         return;
     }
-
-    const float depth_shade =
-        1.0f - clamp_unit((primitive.depth - 18.0f) / (kFarPlane - 18.0f)) * 0.68f;
 
     std::vector<std::uint32_t>& pixels = surface.pixels();
     for (int y = start_y; y <= end_y; ++y) {
@@ -383,9 +404,17 @@ void rasterize_triangle(RgbSurface& surface,
                 ((w0 * primitive.a.v / primitive.a.depth) +
                  (w1 * primitive.b.v / primitive.b.depth) +
                  (w2 * primitive.c.v / primitive.c.depth)) * depth;
+            const float shade =
+                ((w0 * primitive.a.shade / primitive.a.depth) +
+                 (w1 * primitive.b.shade / primitive.b.depth) +
+                 (w2 * primitive.c.shade / primitive.c.depth)) * depth;
 
-            std::uint32_t color = sample_packed_rgb_wrapped(env_surface, u, v);
-            color = multiply_rgb(color, depth_shade);
+            const std::uint8_t env_index = sample_indexed_wrapped(env_indexed, u, v);
+            const float shade_row = clamp_unit(shade) * (255.0f / 256.0f);
+            const std::uint32_t color =
+                sample_packed_rgb_wrapped(env_surface,
+                                          (static_cast<float>(env_index) + 0.5f) / 256.0f,
+                                          shade_row);
             pixels[static_cast<std::size_t>(y) * static_cast<std::size_t>(surface.width()) +
                    static_cast<std::size_t>(x)] = color;
         }
@@ -500,7 +529,8 @@ void KukotScene::render(RgbSurface& surface, float scene_time_seconds, float del
         }
     }
 
-    const float track_tick = scene_time_seconds * kSceneTimeScale * kTrackTickScale;
+    const float track_time_seconds = scene_time_seconds * kSceneTimeScale;
+    const float track_tick = track_time_seconds * kTrackTickScale;
     const Scene3dVec3 camera_position = forward_offline::sample_track(camera_track_, track_tick);
     const Scene3dVec3 camera_target = forward_offline::sample_track(camera_target_track_, track_tick);
     const KukotCameraState camera = make_camera_state(camera_position, camera_target);
@@ -512,9 +542,9 @@ void KukotScene::render(RgbSurface& surface, float scene_time_seconds, float del
             actor.position_track.empty()
                 ? actor.mesh.pivot
                 : forward_offline::sample_track(actor.position_track, track_tick);
-        const Scene3dRotationSample rotation_sample =
-            forward_offline::sample_rotation_track(actor.rotation_track, track_tick);
-        const KukotMatrix3 rotation_matrix = axis_angle_matrix(rotation_sample.axis, rotation_sample.angle);
+        const Scene3dQuaternion orientation =
+            forward_offline::sample_orientation_track(actor.orientation_track, track_tick);
+        const KukotMatrix3 rotation_matrix = quaternion_matrix(orientation);
 
         std::vector<Scene3dVec3> world_vertices(actor.mesh.vertices.size());
         std::vector<Scene3dVec3> env_vectors(actor.mesh.vertices.size());
@@ -524,8 +554,10 @@ void KukotScene::render(RgbSurface& surface, float scene_time_seconds, float del
         std::vector<bool> projected(actor.mesh.vertices.size(), false);
 
         for (std::size_t vertex_index = 0; vertex_index < actor.mesh.vertices.size(); ++vertex_index) {
+            const Scene3dVec3 deformed_vertex =
+                deform_kukot_vertex(actor.mesh.vertices[vertex_index], track_time_seconds);
             const Scene3dVec3 rotated_vertex =
-                transform_matrix3(rotation_matrix, actor.mesh.vertices[vertex_index]);
+                transform_matrix3(rotation_matrix, deformed_vertex);
             const Scene3dVec3 world_position = add(rotated_vertex, translation);
             const Scene3dVec3 env_vector =
                 normalize(transform_matrix3(rotation_matrix, normalize(actor.mesh.vertices[vertex_index])));
@@ -569,18 +601,24 @@ void KukotScene::render(RgbSurface& surface, float scene_time_seconds, float del
             primitive.a.depth = vertex_depths[a_index];
             primitive.a.u = 0.5f * (env_vectors[a_index].x + 1.0f);
             primitive.a.v = 0.5f * (env_vectors[a_index].y + 1.0f);
+            primitive.a.shade =
+                clamp_unit((vertex_depths[a_index] - kNearPlane) / (kFarPlane - kNearPlane));
 
             primitive.b.x = screen_x[b_index];
             primitive.b.y = screen_y[b_index];
             primitive.b.depth = vertex_depths[b_index];
             primitive.b.u = 0.5f * (env_vectors[b_index].x + 1.0f);
             primitive.b.v = 0.5f * (env_vectors[b_index].y + 1.0f);
+            primitive.b.shade =
+                clamp_unit((vertex_depths[b_index] - kNearPlane) / (kFarPlane - kNearPlane));
 
             primitive.c.x = screen_x[c_index];
             primitive.c.y = screen_y[c_index];
             primitive.c.depth = vertex_depths[c_index];
             primitive.c.u = 0.5f * (env_vectors[c_index].x + 1.0f);
             primitive.c.v = 0.5f * (env_vectors[c_index].y + 1.0f);
+            primitive.c.shade =
+                clamp_unit((vertex_depths[c_index] - kNearPlane) / (kFarPlane - kNearPlane));
 
             primitive.depth =
                 (vertex_depths[a_index] + vertex_depths[b_index] + vertex_depths[c_index]) / 3.0f;
@@ -595,7 +633,7 @@ void KukotScene::render(RgbSurface& surface, float scene_time_seconds, float del
               });
 
     for (std::size_t index = 0; index < primitives.size(); ++index) {
-        rasterize_triangle(surface, env_surface_, primitives[index]);
+        rasterize_triangle(surface, env_surface_, env_indexed_asset_, primitives[index]);
     }
 
     const Scene3dVec3 particle_origin = make_vec3(-5.0f, 35.0f, 5.501f);
@@ -671,11 +709,10 @@ bool KukotScene::load_assets() {
     camera_track_.clear();
     camera_target_track_.clear();
 
-    IndexedAsset env_palette_asset;
-    if (!load_original_gif_indexed(image_asset_path("envplane.gif"), &env_palette_asset, &error_message_)) {
+    if (!load_original_gif_indexed(image_asset_path("envplane.gif"), &env_indexed_asset_, &error_message_)) {
         return false;
     }
-    build_environment_surface(env_palette_asset);
+    build_environment_surface(env_indexed_asset_);
 
     if (!load_original_jpeg_packed_rgb(image_asset_path("flare1.jpg"), &flare_asset_, &error_message_)) {
         return false;
@@ -728,7 +765,9 @@ bool KukotScene::load_ase_scene() {
         }
 
         forward_offline::parse_position_track(geom_blocks[index], actor.name, &actor.position_track);
-        forward_offline::parse_rotation_track(geom_blocks[index], actor.name, &actor.rotation_track);
+        std::vector<Scene3dRotationSample> rotation_deltas;
+        forward_offline::parse_rotation_track(geom_blocks[index], actor.name, &rotation_deltas);
+        forward_offline::build_orientation_track(rotation_deltas, &actor.orientation_track);
         actors_.push_back(actor);
     }
 

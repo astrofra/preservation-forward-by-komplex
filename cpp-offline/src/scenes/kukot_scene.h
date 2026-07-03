@@ -16,7 +16,7 @@ struct KukotMeshActor {
     std::string name;
     Scene3dStaticMesh mesh;
     std::vector<Scene3dTrackSample> position_track;
-    std::vector<Scene3dRotationSample> rotation_track;
+    std::vector<Scene3dOrientationSample> orientation_track;
 };
 
 struct KukotParticle {
@@ -48,6 +48,7 @@ private:
     std::string image_asset_path(const std::string& file_name) const;
 
     PackedRgbAsset env_surface_;
+    IndexedAsset env_indexed_asset_;
     PackedRgbAsset flare_asset_;
     PackedRgbAsset background_noise_;
     std::vector<KukotMeshActor> actors_;

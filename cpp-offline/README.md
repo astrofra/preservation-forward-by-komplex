@@ -36,7 +36,7 @@ Current limitation:
 - `saari` now also follows the Java terrain visibility path more closely: heightmap samples clamp to non-negative land, terrain/env materials `3` and `259` are rasterized through a shared depth-sorted primitive batch, and the terrain quad face test now matches the original two-triangle slope logic
 - `klunssi` reflection parity is source-driven here: Java keeps material `259` additive, but only on a one-shot reflective water mask; its mirrored concave face selection must follow the clone's mirrored object transform rather than a recomputed post-mirror world-space cross product; and the reflected clone does not inherit the original `klunssi` env-map `JAKkama` X-axis tweak
 - `saari` is still not at final camera parity with Java, but the terrain/material path is now substantially closer to the original renderer than the earlier background-water approximation
-- `kukot` now loads `asses/under1.ase`, `images/envplane.gif`, and `images/flare1.jpg` directly in C++, then renders a first source-shaped pass with tracked camera motion, env-mapped meshes, static flare cloud, tiled noise background, and scripted flash overlays
+- `kukot` now loads `asses/under1.ase`, `images/envplane.gif`, and `images/flare1.jpg` directly in C++, then renders a substantially closer source-shaped pass with looped spline-like track sampling, accumulated object rotations, Java-style `jAkKAma = 2` mesh deformation, indexed-env material `3` lookup, static flare cloud, tiled noise background, and scripted flash overlays
 - the current `kukot` port uses the real `jarnomix.xm` song-position slice from `0x0700`, so the standalone sequence and the full wrapper no longer restart the module from the beginning when entering that scene
 - a light shared refactor is now in place for `ASE`/track parsing (`src/scenes/scene3d_shared.*`), reused by both `saari` and `kukot`; the rasterizers remain separate because `saari` still carries scene-specific terrain/reflection contracts that would make a broader 3D unification premature
 - Java-based normalization helpers may still exist for validation, but they are not part of the exporter runtime path
@@ -119,6 +119,6 @@ That wrapper:
 
 1. Finish the source-faithful `mute95` validation against Java captures.
 2. Tighten the remaining `saari` camera timing, depth-sort, and raster parity against the Java captures now that the terrain/material path is source-shaped.
-3. Port `kukot` from its current first-pass renderer toward Java parity, especially spline-like track interpolation, particle distribution, and mesh composition against the reference captures.
+3. Keep tightening `kukot` toward Java parity, with the next likely wins being near-plane clipping, later-shot flare occlusion, and any remaining quaternion-spline drift against the reference captures.
 4. Reuse the new direct indexed GIF path for `uppol` and the remaining palette-driven routines.
 5. Use the native XM sequencer / sample timeline to drive the remaining scene windows beyond the current `intro` / `saari` / `kukot` scope.
