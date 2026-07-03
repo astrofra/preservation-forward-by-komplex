@@ -34,6 +34,10 @@ Already present:
   - accumulated quaternion playback for object rotation tracks instead of treating `*CONTROL_ROT_SAMPLE` values as absolute
   - `kukot` mesh deformation equivalent to Java `jAkKAma = 2`
   - material `3` env lookup closer to Java: indexed `envplane.gif` indirection into the generated RGB gradient, shaded by perspective-correct depth fraction
+  - env-map vectors now come from mesh normals, matching the Java `Triangle -> MeshObject.KKAMaja()` path instead of reusing normalized vertex positions
+  - flare sprites now follow the Java `mAjAkka = 1024` contract more closely: additive nearest-neighbor scaled blit with depth-sized quads rather than the earlier oversized radial sampler
+  - `flare1.jpg` is now explicitly unpacked from the original Java `<<20/<<10` RGB layout before C++ additive blending, which removes the false “overflow” ring/cycle artifact seen on close bright flares
+  - end-of-frame temporal feedback now mirrors Java `RgbSurface.AmajakK()`, giving `kukot` its analog/VHS-like ghosting layer
 
 Comparison note:
 - the first Java-vs-C++ comparison that triggered this pass was not time-aligned
@@ -43,9 +47,9 @@ Comparison note:
 Known fidelity gaps:
 - camera and object positions now use a looped spline approximation, but not the full Java `SplineTrack` tangent/quaternion machinery yet
 - object rotations are now accumulated correctly, but still use direct quaternion `slerp` rather than the full Java quaternion spline path
-- the particle cloud is source-shaped in placement and scale, but still rendered through a simplified sprite pass rather than the original `ParticleCloudMesh` / `SurfacePresenter` contract
+- the particle cloud is source-shaped in placement, scale, and additive sprite blit, but still bypasses some of the original `ParticleCloudMesh` / `SurfacePresenter` batching details
 - triangle submission still skips Java near-plane clipping and some material/compositing nuances from `SceneRenderer` / `MeshObject`
-- current composition is materially closer than the first pass, but still diverges from the Java capture in silhouette smoothness, flare occlusion, and white-hot highlight balance
+- current composition is materially closer than the first pass, but still diverges from the Java capture in silhouette smoothness, exact flare occlusion ordering on edge cases, and highlight spread/intensity tuning
 
 ## Refactor Verdict
 

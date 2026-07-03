@@ -62,6 +62,25 @@ struct KukotTrianglePrimitive {
     float depth;
 };
 
+struct KukotSpritePrimitive {
+    float center_x;
+    float center_y;
+    float depth;
+    float size;
+};
+
+enum KukotPrimitiveType {
+    kKukotPrimitiveTriangle = 0,
+    kKukotPrimitiveSprite = 1
+};
+
+struct KukotRenderPrimitive {
+    KukotPrimitiveType type;
+    float depth;
+    KukotTrianglePrimitive triangle;
+    KukotSpritePrimitive sprite;
+};
+
 bool starts_with(const std::string& text, const std::string& prefix) {
     return text.size() >= prefix.size() && text.compare(0, prefix.size(), prefix) == 0;
 }
@@ -141,6 +160,12 @@ std::uint32_t multiply_rgb(std::uint32_t color, float factor) {
     return pack_rgb(static_cast<int>(((color >> 16) & 0xffU) * factor),
                     static_cast<int>(((color >> 8) & 0xffU) * factor),
                     static_cast<int>((color & 0xffU) * factor));
+}
+
+std::uint32_t half_rgb(std::uint32_t color) {
+    return pack_rgb(static_cast<int>((color >> 16) & 0xffU) >> 1,
+                    static_cast<int>((color >> 8) & 0xffU) >> 1,
+                    static_cast<int>(color & 0xffU) >> 1);
 }
 
 Scene3dVec3 make_vec3(float x, float y, float z) {
@@ -330,21 +355,6 @@ std::uint8_t sample_indexed_wrapped(const IndexedAsset& asset, float u, float v)
                         static_cast<std::size_t>(x)];
 }
 
-std::uint32_t sample_packed_rgb_clamped(const PackedRgbAsset& asset, float u, float v) {
-    if (asset.width <= 0 || asset.height <= 0 || asset.packed_pixels.empty()) {
-        return 0U;
-    }
-
-    const int x = clamp_int(static_cast<int>(clamp_unit(u) * static_cast<float>(asset.width)),
-                            0,
-                            asset.width - 1);
-    const int y = clamp_int(static_cast<int>(clamp_unit(v) * static_cast<float>(asset.height)),
-                            0,
-                            asset.height - 1);
-    return asset.packed_pixels[static_cast<std::size_t>(y) * static_cast<std::size_t>(asset.width) +
-                               static_cast<std::size_t>(x)];
-}
-
 void darken_surface(RgbSurface& surface, float factor) {
     std::vector<std::uint32_t>& pixels = surface.pixels();
     for (std::size_t index = 0; index < pixels.size(); ++index) {
@@ -425,31 +435,83 @@ void draw_additive_sprite(RgbSurface& surface,
                           const PackedRgbAsset& asset,
                           float center_x,
                           float center_y,
-                          float radius) {
-    if (radius <= 0.5f) {
+                          float size) {
+    const int draw_width = static_cast<int>(size);
+    const int draw_height = static_cast<int>(size);
+    if (draw_width <= 0 || draw_height <= 0 || asset.width <= 0 || asset.height <= 0) {
         return;
     }
 
-    const int start_x = clamp_int(static_cast<int>(std::floor(center_x - radius)), 0, surface.width() - 1);
-    const int end_x = clamp_int(static_cast<int>(std::ceil(center_x + radius)), 0, surface.width() - 1);
-    const int start_y = clamp_int(static_cast<int>(std::floor(center_y - radius)), 0, surface.height() - 1);
-    const int end_y = clamp_int(static_cast<int>(std::ceil(center_y + radius)), 0, surface.height() - 1);
+    int start_x = static_cast<int>(center_x - size * 0.5f);
+    int start_y = static_cast<int>(center_y - size * 0.5f);
+    int clipped_width = draw_width;
+    int clipped_height = draw_height;
+    int source_offset_x = 0;
+    int source_offset_y = 0;
+
+    if (start_x < 0) {
+        clipped_width += start_x;
+        source_offset_x = -start_x;
+        start_x = 0;
+    }
+    if (clipped_width <= 0) {
+        return;
+    }
+    if (start_x + clipped_width > surface.width()) {
+        clipped_width = surface.width() - start_x;
+    }
+    if (clipped_width <= 0) {
+        return;
+    }
+
+    if (start_y < 0) {
+        clipped_height += start_y;
+        source_offset_y = -start_y;
+        start_y = 0;
+    }
+    if (clipped_height <= 0) {
+        return;
+    }
+    if (start_y + clipped_height > surface.height()) {
+        clipped_height = surface.height() - start_y;
+    }
+    if (clipped_height <= 0) {
+        return;
+    }
 
     std::vector<std::uint32_t>& pixels = surface.pixels();
-    for (int y = start_y; y <= end_y; ++y) {
-        for (int x = start_x; x <= end_x; ++x) {
-            const float u = ((static_cast<float>(x) + 0.5f) - (center_x - radius)) / (radius * 2.0f);
-            const float v = ((static_cast<float>(y) + 0.5f) - (center_y - radius)) / (radius * 2.0f);
-            if (u < 0.0f || u > 1.0f || v < 0.0f || v > 1.0f) {
-                continue;
-            }
+    const int step_x = static_cast<int>((1024.0f * static_cast<float>(asset.width)) / size);
+    const int step_y = static_cast<int>((1024.0f * static_cast<float>(asset.height)) / size);
+    const int source_x_fp_origin = step_x * source_offset_x;
+    int source_y_fp = step_y * source_offset_y;
 
-            const std::uint32_t sample = sample_packed_rgb_clamped(asset, u, v);
-            const std::size_t pixel_index =
-                static_cast<std::size_t>(y) * static_cast<std::size_t>(surface.width()) +
-                static_cast<std::size_t>(x);
+    for (int row = 0; row < clipped_height; ++row) {
+        std::size_t pixel_index =
+            static_cast<std::size_t>(start_y + row) * static_cast<std::size_t>(surface.width()) +
+            static_cast<std::size_t>(start_x);
+        int remaining = clipped_width;
+        int source_index_fp =
+            source_x_fp_origin + ((source_y_fp & ~1023) * asset.width);
+        while (remaining-- > 0) {
+            const std::uint32_t sample =
+                asset.packed_pixels[static_cast<std::size_t>(source_index_fp >> 10)];
             pixels[pixel_index] = add_rgb_saturate(pixels[pixel_index], sample);
+            ++pixel_index;
+            source_index_fp += step_x;
         }
+        source_y_fp += step_y;
+    }
+}
+
+void apply_temporal_feedback(RgbSurface& surface,
+                             const std::vector<std::uint32_t>& previous_frame) {
+    std::vector<std::uint32_t>& pixels = surface.pixels();
+    if (previous_frame.size() != pixels.size()) {
+        return;
+    }
+
+    for (std::size_t index = 0; index < pixels.size(); ++index) {
+        pixels[index] = add_rgb_saturate(pixels[index], half_rgb(previous_frame[index]));
     }
 }
 
@@ -469,6 +531,7 @@ bool parse_actor_name(const std::string& block, std::string* name) {
 
 KukotScene::KukotScene()
     : env_surface_(),
+      env_indexed_asset_(),
       flare_asset_(),
       background_noise_(),
       actors_(),
@@ -482,6 +545,7 @@ KukotScene::KukotScene()
       flash_init_random_(0x46534C48ULL),
       flash_frame_random_(0x46534C49ULL),
       particle_random_(0x50415254ULL),
+      frame_history_(static_cast<std::size_t>(kSurfaceWidth) * static_cast<std::size_t>(kSurfaceHeight), 0U),
       flash_amount_(0.0f),
       flash_decay_(0.0f),
       ready_(false),
@@ -502,11 +566,13 @@ void KukotScene::on_show() {
     flash_decay_ = 0.0f;
     background_frame_random_ = JavaRandom(0x4B554B50ULL);
     flash_frame_random_ = JavaRandom(0x46534C49ULL);
+    std::fill(frame_history_.begin(), frame_history_.end(), 0U);
 }
 
 void KukotScene::dispose() {
     actors_.clear();
     particles_.clear();
+    std::fill(frame_history_.begin(), frame_history_.end(), 0U);
 }
 
 void KukotScene::render(RgbSurface& surface, float scene_time_seconds, float delta_seconds) {
@@ -535,7 +601,7 @@ void KukotScene::render(RgbSurface& surface, float scene_time_seconds, float del
     const Scene3dVec3 camera_target = forward_offline::sample_track(camera_target_track_, track_tick);
     const KukotCameraState camera = make_camera_state(camera_position, camera_target);
 
-    std::vector<KukotTrianglePrimitive> primitives;
+    std::vector<KukotRenderPrimitive> primitives;
     for (std::size_t actor_index = 0; actor_index < actors_.size(); ++actor_index) {
         const KukotMeshActor& actor = actors_[actor_index];
         const Scene3dVec3 translation =
@@ -560,7 +626,7 @@ void KukotScene::render(RgbSurface& surface, float scene_time_seconds, float del
                 transform_matrix3(rotation_matrix, deformed_vertex);
             const Scene3dVec3 world_position = add(rotated_vertex, translation);
             const Scene3dVec3 env_vector =
-                normalize(transform_matrix3(rotation_matrix, normalize(actor.mesh.vertices[vertex_index])));
+                normalize(transform_matrix3(rotation_matrix, actor.mesh.normals[vertex_index]));
 
             world_vertices[vertex_index] = world_position;
             env_vectors[vertex_index] = env_vector;
@@ -595,45 +661,38 @@ void KukotScene::render(RgbSurface& surface, float scene_time_seconds, float del
                 continue;
             }
 
-            KukotTrianglePrimitive primitive;
-            primitive.a.x = screen_x[a_index];
-            primitive.a.y = screen_y[a_index];
-            primitive.a.depth = vertex_depths[a_index];
-            primitive.a.u = 0.5f * (env_vectors[a_index].x + 1.0f);
-            primitive.a.v = 0.5f * (env_vectors[a_index].y + 1.0f);
-            primitive.a.shade =
+            KukotRenderPrimitive primitive;
+            primitive.type = kKukotPrimitiveTriangle;
+            primitive.triangle.a.x = screen_x[a_index];
+            primitive.triangle.a.y = screen_y[a_index];
+            primitive.triangle.a.depth = vertex_depths[a_index];
+            primitive.triangle.a.u = 0.5f * (env_vectors[a_index].x + 1.0f);
+            primitive.triangle.a.v = 0.5f * (env_vectors[a_index].y + 1.0f);
+            primitive.triangle.a.shade =
                 clamp_unit((vertex_depths[a_index] - kNearPlane) / (kFarPlane - kNearPlane));
 
-            primitive.b.x = screen_x[b_index];
-            primitive.b.y = screen_y[b_index];
-            primitive.b.depth = vertex_depths[b_index];
-            primitive.b.u = 0.5f * (env_vectors[b_index].x + 1.0f);
-            primitive.b.v = 0.5f * (env_vectors[b_index].y + 1.0f);
-            primitive.b.shade =
+            primitive.triangle.b.x = screen_x[b_index];
+            primitive.triangle.b.y = screen_y[b_index];
+            primitive.triangle.b.depth = vertex_depths[b_index];
+            primitive.triangle.b.u = 0.5f * (env_vectors[b_index].x + 1.0f);
+            primitive.triangle.b.v = 0.5f * (env_vectors[b_index].y + 1.0f);
+            primitive.triangle.b.shade =
                 clamp_unit((vertex_depths[b_index] - kNearPlane) / (kFarPlane - kNearPlane));
 
-            primitive.c.x = screen_x[c_index];
-            primitive.c.y = screen_y[c_index];
-            primitive.c.depth = vertex_depths[c_index];
-            primitive.c.u = 0.5f * (env_vectors[c_index].x + 1.0f);
-            primitive.c.v = 0.5f * (env_vectors[c_index].y + 1.0f);
-            primitive.c.shade =
+            primitive.triangle.c.x = screen_x[c_index];
+            primitive.triangle.c.y = screen_y[c_index];
+            primitive.triangle.c.depth = vertex_depths[c_index];
+            primitive.triangle.c.u = 0.5f * (env_vectors[c_index].x + 1.0f);
+            primitive.triangle.c.v = 0.5f * (env_vectors[c_index].y + 1.0f);
+            primitive.triangle.c.shade =
                 clamp_unit((vertex_depths[c_index] - kNearPlane) / (kFarPlane - kNearPlane));
 
             primitive.depth =
                 (vertex_depths[a_index] + vertex_depths[b_index] + vertex_depths[c_index]) / 3.0f;
+            primitive.triangle.depth =
+                (vertex_depths[a_index] + vertex_depths[b_index] + vertex_depths[c_index]) / 3.0f;
             primitives.push_back(primitive);
         }
-    }
-
-    std::sort(primitives.begin(),
-              primitives.end(),
-              [](const KukotTrianglePrimitive& left, const KukotTrianglePrimitive& right) {
-                  return left.depth > right.depth;
-              });
-
-    for (std::size_t index = 0; index < primitives.size(); ++index) {
-        rasterize_triangle(surface, env_surface_, env_indexed_asset_, primitives[index]);
     }
 
     const Scene3dVec3 particle_origin = make_vec3(-5.0f, 35.0f, 5.501f);
@@ -649,8 +708,35 @@ void KukotScene::render(RgbSurface& surface, float scene_time_seconds, float del
             continue;
         }
 
-        const float radius = std::max(1.2f, kParticleSizeScale / depth);
-        draw_additive_sprite(surface, flare_asset_, screen_x_value, screen_y_value, radius);
+        KukotRenderPrimitive primitive;
+        primitive.type = kKukotPrimitiveSprite;
+        primitive.depth = depth;
+        primitive.sprite.center_x = screen_x_value;
+        primitive.sprite.center_y = screen_y_value;
+        primitive.sprite.depth = depth;
+        primitive.sprite.size = kParticleSizeScale / depth;
+        primitives.push_back(primitive);
+    }
+
+    std::sort(primitives.begin(),
+              primitives.end(),
+              [](const KukotRenderPrimitive& left, const KukotRenderPrimitive& right) {
+                  return left.depth > right.depth;
+              });
+
+    for (std::size_t index = 0; index < primitives.size(); ++index) {
+        if (primitives[index].type == kKukotPrimitiveTriangle) {
+            rasterize_triangle(surface,
+                               env_surface_,
+                               env_indexed_asset_,
+                               primitives[index].triangle);
+        } else {
+            draw_additive_sprite(surface,
+                                 flare_asset_,
+                                 primitives[index].sprite.center_x,
+                                 primitives[index].sprite.center_y,
+                                 primitives[index].sprite.size);
+        }
     }
 
     darken_surface(surface, kFrameDarken);
@@ -676,6 +762,9 @@ void KukotScene::render(RgbSurface& surface, float scene_time_seconds, float del
             }
         }
     }
+
+    apply_temporal_feedback(surface, frame_history_);
+    frame_history_ = surface.pixels();
 }
 
 void KukotScene::handle_message(const std::string& message, float scene_time_seconds) {
@@ -717,6 +806,7 @@ bool KukotScene::load_assets() {
     if (!load_original_jpeg_packed_rgb(image_asset_path("flare1.jpg"), &flare_asset_, &error_message_)) {
         return false;
     }
+    convert_original_packed_rgb_asset(&flare_asset_);
 
     build_background_noise();
     build_flash_tables();

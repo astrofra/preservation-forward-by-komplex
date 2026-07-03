@@ -9,6 +9,9 @@
 
 namespace forward_offline {
 
+std::uint32_t unpack_original_packed_rgb(std::uint32_t packed);
+void convert_original_packed_rgb_asset(PackedRgbAsset* asset);
+
 bool load_original_jpeg_packed_rgb(const std::string& path,
                                    PackedRgbAsset* asset,
                                    std::string* error_message);

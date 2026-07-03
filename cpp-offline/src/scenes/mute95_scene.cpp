@@ -120,9 +120,7 @@ std::uint32_t Mute95Scene::pack_rgb(std::uint8_t red, std::uint8_t green, std::u
 }
 
 std::uint32_t Mute95Scene::packed_to_standard_rgb(std::uint32_t packed) {
-    return static_cast<std::uint32_t>(((packed >> 20) & 0xffU) << 16 |
-                                      ((packed >> 10) & 0xffU) << 8 |
-                                      (packed & 0xffU));
+    return unpack_original_packed_rgb(packed);
 }
 
 std::uint32_t Mute95Scene::standard_to_packed_rgb(std::uint32_t rgb) {

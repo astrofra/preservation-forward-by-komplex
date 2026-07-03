@@ -391,6 +391,22 @@ bool decode_gif_indexed(const std::vector<unsigned char>& bytes,
 
 }  // namespace
 
+std::uint32_t unpack_original_packed_rgb(std::uint32_t packed) {
+    return (((packed >> 20) & 0xffU) << 16) |
+           (((packed >> 10) & 0xffU) << 8) |
+           (packed & 0xffU);
+}
+
+void convert_original_packed_rgb_asset(PackedRgbAsset* asset) {
+    if (asset == NULL) {
+        return;
+    }
+
+    for (std::size_t index = 0; index < asset->packed_pixels.size(); ++index) {
+        asset->packed_pixels[index] = unpack_original_packed_rgb(asset->packed_pixels[index]);
+    }
+}
+
 bool load_original_jpeg_packed_rgb(const std::string& path,
                                    PackedRgbAsset* asset,
                                    std::string* error_message) {

@@ -431,9 +431,7 @@ std::uint32_t sample_packed_rgb_asset(const PackedRgbAsset& asset, float u, floa
     const int y = clamp_int(static_cast<int>(v * static_cast<float>(asset.height)), 0, asset.height - 1);
     const std::uint32_t packed = asset.packed_pixels[static_cast<std::size_t>(y) * static_cast<std::size_t>(asset.width) +
                                                      static_cast<std::size_t>(x)];
-    return static_cast<std::uint32_t>(((packed >> 20) & 0xffU) << 16 |
-                                      ((packed >> 10) & 0xffU) << 8 |
-                                      (packed & 0xffU));
+    return unpack_original_packed_rgb(packed);
 }
 
 std::uint32_t sample_indexed_asset(const IndexedAsset& asset, float u, float v) {
@@ -596,9 +594,7 @@ std::uint32_t sample_packed_rgb_asset_clamped(const PackedRgbAsset& asset, float
     const int y = clamp_int(static_cast<int>(v * static_cast<float>(asset.height)), 0, asset.height - 1);
     const std::uint32_t packed = asset.packed_pixels[static_cast<std::size_t>(y) * static_cast<std::size_t>(asset.width) +
                                                      static_cast<std::size_t>(x)];
-    return static_cast<std::uint32_t>(((packed >> 20) & 0xffU) << 16 |
-                                      ((packed >> 10) & 0xffU) << 8 |
-                                      (packed & 0xffU));
+    return unpack_original_packed_rgb(packed);
 }
 
 std::string trim(const std::string& text) {

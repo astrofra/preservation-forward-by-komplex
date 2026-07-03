@@ -62,6 +62,7 @@ private:
     JavaRandom flash_init_random_;
     JavaRandom flash_frame_random_;
     JavaRandom particle_random_;
+    std::vector<std::uint32_t> frame_history_;
     float flash_amount_;
     float flash_decay_;
     bool ready_;
