@@ -364,8 +364,8 @@ bool parse_mesh_vertices_and_faces(const std::string& block,
             float x = 0.0f;
             float y = 0.0f;
             float z = 0.0f;
-            if (sscanf_s(trimmed.c_str(), "*MESH_VERTEX %d %f %f %f",
-                         &index, &x, &y, &z) == 4) {
+            if (std::sscanf(trimmed.c_str(), "*MESH_VERTEX %d %f %f %f",
+                            &index, &x, &y, &z) == 4) {
                 if (index >= static_cast<int>(world_vertices.size())) {
                     world_vertices.resize(static_cast<std::size_t>(index + 1));
                 }
@@ -376,8 +376,8 @@ bool parse_mesh_vertices_and_faces(const std::string& block,
             int a = 0;
             int b = 0;
             int c = 0;
-            if (sscanf_s(trimmed.c_str(), "*MESH_FACE %d: A: %d B: %d C: %d",
-                         &face_index, &a, &b, &c) == 4) {
+            if (std::sscanf(trimmed.c_str(), "*MESH_FACE %d: A: %d B: %d C: %d",
+                            &face_index, &a, &b, &c) == 4) {
                 (void)face_index;
                 Scene3dTriangle triangle;
                 triangle.a = a;
@@ -386,8 +386,8 @@ bool parse_mesh_vertices_and_faces(const std::string& block,
                 mesh->triangles.push_back(triangle);
             }
         } else if (starts_with(trimmed, "*TM_POS")) {
-            sscanf_s(trimmed.c_str(), "*TM_POS %f %f %f",
-                     &mesh->pivot.x, &mesh->pivot.y, &mesh->pivot.z);
+            std::sscanf(trimmed.c_str(), "*TM_POS %f %f %f",
+                        &mesh->pivot.x, &mesh->pivot.y, &mesh->pivot.z);
         }
     }
 
@@ -433,11 +433,11 @@ void parse_position_track(const std::string& block,
         }
         if (starts_with(trimmed, "*CONTROL_POS_SAMPLE") && active_track_name == node_name) {
             Scene3dTrackSample sample;
-            if (sscanf_s(trimmed.c_str(), "*CONTROL_POS_SAMPLE %d %f %f %f",
-                         &sample.tick,
-                         &sample.value.x,
-                         &sample.value.y,
-                         &sample.value.z) == 4) {
+            if (std::sscanf(trimmed.c_str(), "*CONTROL_POS_SAMPLE %d %f %f %f",
+                            &sample.tick,
+                            &sample.value.x,
+                            &sample.value.y,
+                            &sample.value.z) == 4) {
                 track->push_back(sample);
             }
         }
@@ -473,12 +473,12 @@ void parse_rotation_track(const std::string& block,
         }
         if (starts_with(trimmed, "*CONTROL_ROT_SAMPLE") && active_track_name == node_name) {
             Scene3dRotationSample sample;
-            if (sscanf_s(trimmed.c_str(), "*CONTROL_ROT_SAMPLE %d %f %f %f %f",
-                         &sample.tick,
-                         &sample.axis.x,
-                         &sample.axis.y,
-                         &sample.axis.z,
-                         &sample.angle) == 5) {
+            if (std::sscanf(trimmed.c_str(), "*CONTROL_ROT_SAMPLE %d %f %f %f %f",
+                            &sample.tick,
+                            &sample.axis.x,
+                            &sample.axis.y,
+                            &sample.axis.z,
+                            &sample.angle) == 5) {
                 track->push_back(sample);
             }
         }

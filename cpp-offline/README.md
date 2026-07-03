@@ -52,10 +52,24 @@ cmake -S cpp-offline -B cpp-offline/build
 cmake --build cpp-offline/build --config Release
 ```
 
+On macOS, Apple Command Line Tools are sufficient:
+
+```bash
+xcode-select --install
+cmake -S cpp-offline -B cpp-offline/build
+cmake --build cpp-offline/build
+```
+
 ## Run
 
 ```powershell
 cpp-offline/build/forward-export --output cpp-offline/output --frames 250
+```
+
+macOS / POSIX shell form:
+
+```bash
+./cpp-offline/build/forward-export --output cpp-offline/output --frames 250
 ```
 
 Longer intro validation run:
@@ -98,16 +112,34 @@ Archive-quality:
 cpp-offline/scripts/mux_master.bat cpp-offline/output
 ```
 
+macOS / POSIX shell form:
+
+```bash
+sh cpp-offline/scripts/mux_master.sh cpp-offline/output
+```
+
 Distribution copy:
 
 ```powershell
 cpp-offline/scripts/mux_h264.bat cpp-offline/output
 ```
 
+macOS / POSIX shell form:
+
+```bash
+sh cpp-offline/scripts/mux_h264.sh cpp-offline/output
+```
+
 Full current convenience wrapper:
 
 ```powershell
 cpp-offline/scripts/export_intro_full.bat
+```
+
+macOS / POSIX shell form:
+
+```bash
+sh cpp-offline/scripts/export_intro_full.sh
 ```
 
 That wrapper:
