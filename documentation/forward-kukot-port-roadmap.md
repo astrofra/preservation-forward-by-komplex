@@ -41,6 +41,7 @@ Already present:
   - the two Java blur passes are now separated correctly: `RgbSurface.aMajAKK(0.875f)` is ported as the in-frame left-to-right VHS-like smear, and `RgbSurface.AmajakK()` remains the end-of-frame temporal ghosting pass
   - the blur/ghosting passes now also run with Java-like packed-color math instead of the earlier RGB approximation, which reduces some of the excess glow in `kukot`
   - material `3` rasterization now keeps env UVs and shade affine in screen space, matching the original `TexturedTriangleRasterizer` path rather than using perspective-correct interpolation
+  - the currently accepted `kukot` compromise now also keeps a local aesthetic relief override: reversed torsion sense, inverted body normals at mesh-load time, inverted face winding for backface culling, and an env-map projection basis remapped to `u <- 0.5 * (1 - z)`, `v <- 0.5 * (1 - y)`
 
 Comparison note:
 - the first Java-vs-C++ comparison that triggered this pass was not time-aligned
@@ -57,7 +58,7 @@ Known fidelity gaps:
 
 ## Validated Aesthetic Override
 
-`kukot` now carries one explicit local exception to the default source-faithful policy.
+`kukot` now carries one explicit local exception bundle to the default source-faithful policy.
 
 What the Java reconstruction says:
 - `MeshObject.KKAmaja()` deforms the mesh positions first for `jAkKAma = 2`
@@ -69,11 +70,11 @@ What visual review says:
 - in side-by-side capture review, the current C++ `kukot` bodies can still read as visually "inside out" or "in relief" compared with the Java output
 - side-by-side review after the latest patch showed a clear improvement in body relief and overall shot reading even with an estimated timing mismatch of about `0.5s`
 - the improvement was strong enough to justify keeping the deviation rather than treating it as a temporary probe
-- the retained override is intentionally narrow: flipped env-map normals plus reversed torsion direction, while backface culling stays on the Java-side contract
+- the retained override is still local to `kukot`, but it is broader than the first validated step: reversed torsion direction, inverted body normals, inverted backface culling winding, and a remapped env-map projection basis using `z/y` instead of the earlier direct `x/y` read
 
 Preservation rule for this case:
 - source-faithful behavior remains the default policy for the project overall
-- `kukot` is now a documented exception on two points only: env-map normal sign and torsion rotation sense
+- `kukot` is now a documented exception on four tightly related points only: torsion rotation sense, body normal sign, backface culling winding, and env-map projection basis orientation
 - this exception is justified by observed aesthetic fidelity, not by a claim that the repaired Java source literally does the same thing
 - the choice must remain explicit, local to `kukot`, and easy to revisit in later comparisons
 - if a later renderer-level diagnosis reproduces the same visual result without semantic deviation, prefer that explanation and remove the override
