@@ -19,7 +19,7 @@ const float kTrackTickScale = 1000.0f;
 const float kFieldOfView = 1.4f;
 const float kNearPlane = 0.1f;
 const float kFarPlane = 150.0f;
-const float kFrameDarken = 0.875f;
+const float kHorizontalSmearFactor = 0.875f;
 const float kParticleSizeScale = 512.0f;
 const float kParticleMinimumDepth = 0.5f;
 
@@ -156,10 +156,16 @@ std::uint32_t subtract_rgb_floor(std::uint32_t left, std::uint32_t right) {
                     static_cast<int>(left & 0xffU) - static_cast<int>(right & 0xffU));
 }
 
-std::uint32_t multiply_rgb(std::uint32_t color, float factor) {
-    return pack_rgb(static_cast<int>(((color >> 16) & 0xffU) * factor),
-                    static_cast<int>(((color >> 8) & 0xffU) * factor),
-                    static_cast<int>((color & 0xffU) * factor));
+std::uint32_t blend_rgb_32(std::uint32_t previous,
+                           std::uint32_t current,
+                           int previous_weight,
+                           int current_weight) {
+    return pack_rgb((static_cast<int>((previous >> 16) & 0xffU) * previous_weight +
+                     static_cast<int>((current >> 16) & 0xffU) * current_weight) >> 5,
+                    (static_cast<int>((previous >> 8) & 0xffU) * previous_weight +
+                     static_cast<int>((current >> 8) & 0xffU) * current_weight) >> 5,
+                    (static_cast<int>(previous & 0xffU) * previous_weight +
+                     static_cast<int>(current & 0xffU) * current_weight) >> 5);
 }
 
 std::uint32_t half_rgb(std::uint32_t color) {
@@ -355,10 +361,23 @@ std::uint8_t sample_indexed_wrapped(const IndexedAsset& asset, float u, float v)
                         static_cast<std::size_t>(x)];
 }
 
-void darken_surface(RgbSurface& surface, float factor) {
+void apply_horizontal_smear(RgbSurface& surface, float factor) {
     std::vector<std::uint32_t>& pixels = surface.pixels();
-    for (std::size_t index = 0; index < pixels.size(); ++index) {
-        pixels[index] = multiply_rgb(pixels[index], factor);
+    if (pixels.empty()) {
+        return;
+    }
+
+    const int previous_weight = clamp_int(static_cast<int>(31.0f * factor), 0, 31);
+    const int current_weight = 32 - previous_weight;
+    for (int y = 0; y < surface.height(); ++y) {
+        const std::size_t row_start =
+            static_cast<std::size_t>(y) * static_cast<std::size_t>(surface.width());
+        std::uint32_t smeared = half_rgb(pixels[row_start]);
+        for (int x = 0; x < surface.width(); ++x) {
+            const std::size_t index = row_start + static_cast<std::size_t>(x);
+            smeared = blend_rgb_32(smeared, pixels[index], previous_weight, current_weight);
+            pixels[index] = smeared;
+        }
     }
 }
 
@@ -739,7 +758,7 @@ void KukotScene::render(RgbSurface& surface, float scene_time_seconds, float del
         }
     }
 
-    darken_surface(surface, kFrameDarken);
+    apply_horizontal_smear(surface, kHorizontalSmearFactor);
     if (flash_amount_ > 0.0f) {
         flash_amount_ -= flash_decay_ * delta_seconds;
         if (flash_amount_ < 0.0f) {
