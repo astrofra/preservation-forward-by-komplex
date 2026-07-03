@@ -645,10 +645,8 @@ void KukotScene::render(RgbSurface& surface, float scene_time_seconds, float del
             const Scene3dVec3 rotated_vertex =
                 transform_matrix3(rotation_matrix, deformed_vertex);
             const Scene3dVec3 world_position = add(rotated_vertex, translation);
-            // Accepted kukot-specific aesthetic override: flip the env-map normal direction for closer body relief.
             const Scene3dVec3 env_vector =
-                scale(normalize(transform_matrix3(rotation_matrix, actor.mesh.normals[vertex_index])),
-                      -1.0f);
+                normalize(transform_matrix3(rotation_matrix, actor.mesh.normals[vertex_index]));
 
             world_vertices[vertex_index] = world_position;
             env_vectors[vertex_index] = env_vector;
@@ -677,7 +675,7 @@ void KukotScene::render(RgbSurface& surface, float scene_time_seconds, float del
             const Scene3dVec3 world_b = world_vertices[b_index];
             const Scene3dVec3 world_c = world_vertices[c_index];
             const Scene3dVec3 face_normal =
-                normalize(cross(subtract(world_b, world_a), subtract(world_c, world_a)));
+                normalize(cross(subtract(world_c, world_a), subtract(world_b, world_a)));
             const Scene3dVec3 face_center = scale(add(add(world_a, world_b), world_c), 1.0f / 3.0f);
             if (dot(face_normal, subtract(camera.position, face_center)) <= 0.0f) {
                 continue;
@@ -688,24 +686,24 @@ void KukotScene::render(RgbSurface& surface, float scene_time_seconds, float del
             primitive.triangle.a.x = screen_x[a_index];
             primitive.triangle.a.y = screen_y[a_index];
             primitive.triangle.a.depth = vertex_depths[a_index];
-            primitive.triangle.a.u = 0.5f * (env_vectors[a_index].x + 1.0f);
-            primitive.triangle.a.v = 0.5f * (env_vectors[a_index].y + 1.0f);
+            primitive.triangle.a.u = 0.5f * (1.0f - env_vectors[a_index].z);
+            primitive.triangle.a.v = 0.5f * (1.0f - env_vectors[a_index].y);
             primitive.triangle.a.shade =
                 clamp_unit((vertex_depths[a_index] - kNearPlane) / (kFarPlane - kNearPlane));
 
             primitive.triangle.b.x = screen_x[b_index];
             primitive.triangle.b.y = screen_y[b_index];
             primitive.triangle.b.depth = vertex_depths[b_index];
-            primitive.triangle.b.u = 0.5f * (env_vectors[b_index].x + 1.0f);
-            primitive.triangle.b.v = 0.5f * (env_vectors[b_index].y + 1.0f);
+            primitive.triangle.b.u = 0.5f * (1.0f - env_vectors[b_index].z);
+            primitive.triangle.b.v = 0.5f * (1.0f - env_vectors[b_index].y);
             primitive.triangle.b.shade =
                 clamp_unit((vertex_depths[b_index] - kNearPlane) / (kFarPlane - kNearPlane));
 
             primitive.triangle.c.x = screen_x[c_index];
             primitive.triangle.c.y = screen_y[c_index];
             primitive.triangle.c.depth = vertex_depths[c_index];
-            primitive.triangle.c.u = 0.5f * (env_vectors[c_index].x + 1.0f);
-            primitive.triangle.c.v = 0.5f * (env_vectors[c_index].y + 1.0f);
+            primitive.triangle.c.u = 0.5f * (1.0f - env_vectors[c_index].z);
+            primitive.triangle.c.v = 0.5f * (1.0f - env_vectors[c_index].y);
             primitive.triangle.c.shade =
                 clamp_unit((vertex_depths[c_index] - kNearPlane) / (kFarPlane - kNearPlane));
 
@@ -874,6 +872,11 @@ bool KukotScene::load_ase_scene() {
         }
         if (!forward_offline::parse_mesh_vertices_and_faces(geom_blocks[index], &actor.mesh)) {
             continue;
+        }
+        // Accepted kukot-specific aesthetic override: keep the body mesh normals inverted
+        // at the source so subsequent env-map basis experiments reuse the same flipped relief.
+        for (std::size_t normal_index = 0; normal_index < actor.mesh.normals.size(); ++normal_index) {
+            actor.mesh.normals[normal_index] = scale(actor.mesh.normals[normal_index], -1.0f);
         }
 
         forward_offline::parse_position_track(geom_blocks[index], actor.name, &actor.position_track);
