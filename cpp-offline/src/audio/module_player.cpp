@@ -1766,6 +1766,13 @@ bool lookup_sequence_module_config(const std::string& sequence_name,
         config->start_song_position_hex = 0x0700U;
         return true;
     }
+    if (sequence_name == "maku") {
+        config->module_path = "original/forward/mods/jarnomix.xm";
+        config->boost = 128;
+        config->has_start_song_position = true;
+        config->start_song_position_hex = 0x0D00U;
+        return true;
+    }
     return false;
 }
 

@@ -69,6 +69,26 @@ const char* const kKukotScriptLines[] = {
     "_d00 shutdown"
 };
 
+const char* const kMakuScriptLines[] = {
+    "_d00 msg maku go 160.5",
+    "msg maku speed -3.0",
+    "_e00 msg maku go 25.5",
+    "msg maku speed 2",
+    "_e20 msg maku go 0",
+    "msg maku speed 2.5",
+    "_f00 msg maku go 42.5",
+    "msg maku speed -2",
+    "_f20 msg maku ksor",
+    "msg maku go 55.5",
+    "msg maku speed 4",
+    "__8 msg maku ksor",
+    "__8 msg maku ksor",
+    "__4 msg maku ksor",
+    "__4 msg maku ksor",
+    "__4 msg maku ksor",
+    "_1000 shutdown"
+};
+
 std::string trim(const std::string& value) {
     std::size_t start = 0;
     while (start < value.size() &&
@@ -187,6 +207,28 @@ std::string KukotScript::next_position_hex(std::size_t next_index) const {
 std::vector<ScriptCommand> KukotScript::build_commands() {
     return build_script_commands(kKukotScriptLines,
                                  sizeof(kKukotScriptLines) / sizeof(kKukotScriptLines[0]));
+}
+
+MakuScript::MakuScript() : commands_(build_commands()) {
+}
+
+const std::vector<ScriptCommand>& MakuScript::commands() const {
+    return commands_;
+}
+
+std::string MakuScript::next_position_hex(std::size_t next_index) const {
+    if (next_index >= commands_.size()) {
+        return std::string();
+    }
+
+    std::ostringstream builder;
+    builder << "0x" << std::hex << commands_[next_index].song_position_hex;
+    return builder.str();
+}
+
+std::vector<ScriptCommand> MakuScript::build_commands() {
+    return build_script_commands(kMakuScriptLines,
+                                 sizeof(kMakuScriptLines) / sizeof(kMakuScriptLines[0]));
 }
 
 }  // namespace forward_offline

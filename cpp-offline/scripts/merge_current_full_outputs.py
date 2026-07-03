@@ -52,6 +52,7 @@ def parse_args():
     parser.add_argument("--intro-dir", required=True)
     parser.add_argument("--saari-dir", required=True)
     parser.add_argument("--kukot-dir", default="")
+    parser.add_argument("--maku-dir", default="")
     parser.add_argument("--fps", type=int, default=50)
     parser.add_argument("--sample-rate", type=int, default=22050)
     return parser.parse_args()
@@ -79,6 +80,8 @@ def main():
     ]
     if args.kukot_dir.strip():
         segments.append({"name": "kukot", "dir": Path(args.kukot_dir)})
+    if args.maku_dir.strip():
+        segments.append({"name": "maku", "dir": Path(args.maku_dir)})
 
     segment_rows = {}
     for segment in segments:

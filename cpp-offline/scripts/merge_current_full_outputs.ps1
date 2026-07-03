@@ -9,6 +9,7 @@ param(
     [string]$SaariDir,
 
     [string]$KukotDir = "",
+    [string]$MakuDir = "",
 
     [int]$Fps = 50,
     [int]$SampleRate = 22050
@@ -230,6 +231,9 @@ $segments = @(
 )
 if (-not [string]::IsNullOrWhiteSpace($KukotDir)) {
     $segments += [PSCustomObject]@{ Name = "kukot"; Dir = $KukotDir }
+}
+if (-not [string]::IsNullOrWhiteSpace($MakuDir)) {
+    $segments += [PSCustomObject]@{ Name = "maku"; Dir = $MakuDir }
 }
 
 $segmentRows = @{}
