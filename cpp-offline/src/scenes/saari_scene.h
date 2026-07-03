@@ -8,38 +8,15 @@
 #include "assets/original_asset_loader.h"
 #include "core/java_random.h"
 #include "scenes/scene.h"
+#include "scenes/scene3d_shared.h"
 
 namespace forward_offline {
 
-struct SaariVec3 {
-    float x;
-    float y;
-    float z;
-};
-
-struct SaariTriangle {
-    int a;
-    int b;
-    int c;
-};
-
-struct SaariTrackSample {
-    int tick;
-    SaariVec3 value;
-};
-
-struct SaariRotationSample {
-    int tick;
-    SaariVec3 axis;
-    float angle;
-};
-
-struct SaariStaticMesh {
-    std::vector<SaariVec3> vertices;
-    std::vector<SaariVec3> normals;
-    std::vector<SaariTriangle> triangles;
-    SaariVec3 pivot;
-};
+typedef Scene3dVec3 SaariVec3;
+typedef Scene3dTriangle SaariTriangle;
+typedef Scene3dTrackSample SaariTrackSample;
+typedef Scene3dRotationSample SaariRotationSample;
+typedef Scene3dStaticMesh SaariStaticMesh;
 
 class SaariScene : public Scene {
 public:

@@ -10,6 +10,7 @@
 #include "core/offline_timeline.h"
 #include "render/rgb_surface.h"
 #include "scenes/domina_routine.h"
+#include "scenes/kukot_scene.h"
 #include "scenes/mute95_scene.h"
 #include "scenes/placeholder_scene.h"
 #include "scenes/saari_scene.h"
@@ -36,9 +37,11 @@ private:
     bool write_sequence_audio(class WavWriter* wav_writer, std::string* error_message) const;
     bool is_intro_sequence() const;
     bool is_saari_sequence() const;
+    bool is_kukot_sequence() const;
     bool initialize_sequence(std::string* error_message);
     void process_intro_script(std::uint64_t sample_index);
     void process_saari_script(std::uint64_t sample_index);
+    void process_kukot_script(std::uint64_t sample_index);
     std::string song_position_string(unsigned int song_position) const;
     void execute_script_command(const ScriptCommand& command, double demo_time_seconds);
     void show_scene(const std::string& scene_name, double demo_time_seconds);
@@ -50,11 +53,13 @@ private:
     ExportConfig config_;
     OfflineTimeline timeline_;
     IntroScript intro_script_;
+    KukotScript kukot_script_;
     SequenceAudioRender sequence_audio_render_;
     RgbSurface frame_buffer_;
     Mute95Scene mute95_scene_;
     DominaRoutine domina_routine_;
     SaariScene saari_scene_;
+    KukotScene kukot_scene_;
     PlaceholderScene scene_;
     ActiveRenderable active_renderable_;
     std::string active_name_;

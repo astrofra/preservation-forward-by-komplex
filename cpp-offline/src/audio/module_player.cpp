@@ -1739,6 +1739,8 @@ bool load_xm_song_from_bytes(const std::vector<std::uint8_t>& byArray,
 struct SequenceModuleConfig {
     const char* module_path;
     int boost;
+    bool has_start_song_position;
+    unsigned int start_song_position_hex;
 };
 
 bool lookup_sequence_module_config(const std::string& sequence_name,
@@ -1746,11 +1748,22 @@ bool lookup_sequence_module_config(const std::string& sequence_name,
     if (sequence_name == "intro") {
         config->module_path = "original/forward/mods/kuninga.xm";
         config->boost = 88;
+        config->has_start_song_position = false;
+        config->start_song_position_hex = 0U;
         return true;
     }
     if (sequence_name == "saari") {
         config->module_path = "original/forward/mods/jarnomix.xm";
         config->boost = 128;
+        config->has_start_song_position = false;
+        config->start_song_position_hex = 0U;
+        return true;
+    }
+    if (sequence_name == "kukot") {
+        config->module_path = "original/forward/mods/jarnomix.xm";
+        config->boost = 128;
+        config->has_start_song_position = true;
+        config->start_song_position_hex = 0x0700U;
         return true;
     }
     return false;
@@ -1759,6 +1772,7 @@ bool lookup_sequence_module_config(const std::string& sequence_name,
 bool load_sequence_module_song(const std::string& sequence_name,
                                ModuleSong* song,
                                int* boost,
+                               SequenceModuleConfig* config_out,
                                std::string* error_message) {
     SequenceModuleConfig config;
     if (!lookup_sequence_module_config(sequence_name, &config)) {
@@ -1778,6 +1792,9 @@ bool load_sequence_module_song(const std::string& sequence_name,
 
     if (boost != NULL) {
         *boost = config.boost;
+    }
+    if (config_out != NULL) {
+        *config_out = config;
     }
     return true;
 }
@@ -1929,22 +1946,39 @@ bool resolve_sequence_frame_count_for_song_position(const std::string& sequence_
     }
 
     ModuleSong song;
-    if (!load_sequence_module_song(sequence_name, &song, NULL, error_message)) {
+    SequenceModuleConfig config;
+    if (!load_sequence_module_song(sequence_name, &song, NULL, &config, error_message)) {
         return false;
     }
 
-    std::uint64_t sample_index = 0ULL;
+    std::uint64_t start_sample_index = 0ULL;
+    if (config.has_start_song_position &&
+        !find_song_position_sample_index(song,
+                                         sample_rate,
+                                         config.start_song_position_hex,
+                                         &start_sample_index,
+                                         error_message)) {
+        return false;
+    }
+
+    std::uint64_t end_sample_index = 0ULL;
     if (!find_song_position_sample_index(song,
                                          sample_rate,
                                          song_position_hex,
-                                         &sample_index,
+                                         &end_sample_index,
                                          error_message)) {
+        return false;
+    }
+    if (end_sample_index < start_sample_index) {
+        if (error_message != NULL) {
+            *error_message = "target song position resolves before the sequence start";
+        }
         return false;
     }
 
     const int samples_per_frame = sample_rate / fps;
     const std::uint64_t pre_roll_frame_count =
-        (sample_index + static_cast<std::uint64_t>(samples_per_frame) - 1ULL) /
+        ((end_sample_index - start_sample_index) + static_cast<std::uint64_t>(samples_per_frame) - 1ULL) /
         static_cast<std::uint64_t>(samples_per_frame);
     const std::uint64_t total_frame_count =
         pre_roll_frame_count + static_cast<std::uint64_t>(post_roll_frames);
@@ -1979,16 +2013,58 @@ bool render_sequence_module_audio(const std::string& sequence_name,
 
     ModuleSong song;
     int boost = 0;
-    if (!load_sequence_module_song(sequence_name, &song, &boost, error_message)) {
+    SequenceModuleConfig config;
+    if (!load_sequence_module_song(sequence_name, &song, &boost, &config, error_message)) {
         return false;
     }
 
-    return render_module_song(song,
-                              sample_rate,
-                              boost,
-                              sample_frames,
-                              &render->interleaved_samples,
-                              &render->song_positions);
+    std::uint64_t start_sample_index = 0ULL;
+    if (config.has_start_song_position &&
+        !find_song_position_sample_index(song,
+                                         sample_rate,
+                                         config.start_song_position_hex,
+                                         &start_sample_index,
+                                         error_message)) {
+        return false;
+    }
+
+    const std::size_t total_sample_frames =
+        static_cast<std::size_t>(start_sample_index) + sample_frames;
+    std::vector<std::int16_t> full_interleaved_samples;
+    std::vector<SongPositionEvent> full_song_positions;
+    if (!render_module_song(song,
+                            sample_rate,
+                            boost,
+                            total_sample_frames,
+                            &full_interleaved_samples,
+                            &full_song_positions)) {
+        if (error_message != NULL) {
+            *error_message = "native module render failed";
+        }
+        return false;
+    }
+
+    if (start_sample_index == 0ULL) {
+        render->interleaved_samples.swap(full_interleaved_samples);
+        render->song_positions.swap(full_song_positions);
+        return true;
+    }
+
+    const std::size_t start_pcm_index = static_cast<std::size_t>(start_sample_index) * 2U;
+    render->interleaved_samples.assign(full_interleaved_samples.begin() + start_pcm_index,
+                                       full_interleaved_samples.end());
+    render->song_positions.clear();
+    for (std::size_t index = 0; index < full_song_positions.size(); ++index) {
+        if (full_song_positions[index].sample_index < start_sample_index) {
+            continue;
+        }
+
+        SongPositionEvent event = full_song_positions[index];
+        event.sample_index -= start_sample_index;
+        render->song_positions.push_back(event);
+    }
+
+    return true;
 }
 
 }  // namespace forward_offline

@@ -1719,8 +1719,8 @@ void SaariScene::render(RgbSurface& surface, float scene_time_seconds, float del
     }
 
     const float track_tick = scene_time_seconds * kSceneTimeScale * kTrackTickScale;
-    const SaariVec3 camera_position = sample_track(camera_track_, track_tick);
-    const SaariVec3 camera_target = sample_track(camera_target_track_, track_tick);
+    const SaariVec3 camera_position = forward_offline::sample_track(camera_track_, track_tick);
+    const SaariVec3 camera_target = forward_offline::sample_track(camera_target_track_, track_tick);
     CameraState camera = make_camera_state(camera_position, camera_target);
     if (camera.position.z < 0.3f) {
         camera.position.z = 0.3f;
@@ -1749,7 +1749,7 @@ void SaariScene::render(RgbSurface& surface, float scene_time_seconds, float del
 
     // `klunssi` is the spinning reflective blob-like object orbiting the scene.
     // The original mesh reads like a metaball-generated form rather than a rigid prop.
-    const SaariVec3 klunssi_position = sample_track(klunssi_track_, track_tick);
+    const SaariVec3 klunssi_position = forward_offline::sample_track(klunssi_track_, track_tick);
     render_env_mesh(&primitives,
                     camera,
                     klunssi_mesh_,
@@ -1887,28 +1887,30 @@ bool SaariScene::load_ase_scene() {
     content_builder << stream.rdbuf();
     const std::string content = content_builder.str();
 
-    const std::vector<std::string> camera_blocks = extract_braced_blocks(content, "*CAMERAOBJECT");
+    const std::vector<std::string> camera_blocks =
+        forward_offline::extract_braced_blocks(content, "*CAMERAOBJECT");
     if (camera_blocks.empty()) {
         error_message_ = "missing camera block in saari ase scene: " + path;
         return false;
     }
 
-    parse_position_track(camera_blocks.front(), "Camera01", &camera_track_);
-    parse_position_track(camera_blocks.front(), "Camera01.Target", &camera_target_track_);
-    parse_rotation_track(camera_blocks.front(), "Camera01", &camera_rotation_track_);
+    forward_offline::parse_position_track(camera_blocks.front(), "Camera01", &camera_track_);
+    forward_offline::parse_position_track(camera_blocks.front(), "Camera01.Target", &camera_target_track_);
+    forward_offline::parse_rotation_track(camera_blocks.front(), "Camera01", &camera_rotation_track_);
     if (camera_track_.empty() || camera_target_track_.empty() || camera_rotation_track_.empty()) {
         error_message_ = "missing camera track data in saari ase scene: " + path;
         return false;
     }
 
-    const std::vector<std::string> geom_blocks = extract_braced_blocks(content, "*GEOMOBJECT");
+    const std::vector<std::string> geom_blocks =
+        forward_offline::extract_braced_blocks(content, "*GEOMOBJECT");
     bool found_meditate = false;
     bool found_klunssi = false;
     for (std::size_t index = 0; index < geom_blocks.size(); ++index) {
         const std::string& block = geom_blocks[index];
         if (!found_meditate && block.find("*NODE_NAME \"meditate\"") != std::string::npos) {
             // `meditate`: the meditating character placed above the island/mountain.
-            if (!parse_mesh_vertices_and_faces(block, &meditate_mesh_)) {
+            if (!forward_offline::parse_mesh_vertices_and_faces(block, &meditate_mesh_)) {
                 error_message_ = "failed to parse meditate mesh from saari ase scene: " + path;
                 return false;
             }
@@ -1916,12 +1918,12 @@ bool SaariScene::load_ase_scene() {
             found_meditate = true;
         } else if (!found_klunssi && block.find("*NODE_NAME \"klunssi\"") != std::string::npos) {
             // `klunssi`: the spinning blob-like object, likely authored from metaball-style forms.
-            if (!parse_mesh_vertices_and_faces(block, &klunssi_mesh_)) {
+            if (!forward_offline::parse_mesh_vertices_and_faces(block, &klunssi_mesh_)) {
                 error_message_ = "failed to parse klunssi mesh from saari ase scene: " + path;
                 return false;
             }
             klunssi_initial_position_ = klunssi_mesh_.pivot;
-            parse_position_track(block, "klunssi", &klunssi_track_);
+            forward_offline::parse_position_track(block, "klunssi", &klunssi_track_);
             found_klunssi = true;
         }
     }

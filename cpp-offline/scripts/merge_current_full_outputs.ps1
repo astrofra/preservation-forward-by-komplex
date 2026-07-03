@@ -8,6 +8,8 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$SaariDir,
 
+    [string]$KukotDir = "",
+
     [int]$Fps = 50,
     [int]$SampleRate = 22050
 )
@@ -222,10 +224,19 @@ Ensure-Directory -Path $audioDir
 Get-ChildItem -LiteralPath $framesDir -File -ErrorAction SilentlyContinue | Remove-Item -Force
 Get-ChildItem -LiteralPath $audioDir -File -ErrorAction SilentlyContinue | Remove-Item -Force
 
-$introManifestPath = Join-Path $IntroDir "manifest.csv"
-$saariManifestPath = Join-Path $SaariDir "manifest.csv"
-$introRows = @(Import-Csv -LiteralPath $introManifestPath)
-$saariRows = @(Import-Csv -LiteralPath $saariManifestPath)
+$segments = @(
+    [PSCustomObject]@{ Name = "intro"; Dir = $IntroDir },
+    [PSCustomObject]@{ Name = "saari"; Dir = $SaariDir }
+)
+if (-not [string]::IsNullOrWhiteSpace($KukotDir)) {
+    $segments += [PSCustomObject]@{ Name = "kukot"; Dir = $KukotDir }
+}
+
+$segmentRows = @{}
+foreach ($segment in $segments) {
+    $manifestPath = Join-Path $segment.Dir "manifest.csv"
+    $segmentRows[$segment.Name] = @(Import-Csv -LiteralPath $manifestPath)
+}
 
 $manifestPath = Join-Path $OutputDir "manifest.csv"
 $manifestWriter = New-Object System.IO.StreamWriter($manifestPath, $false, [System.Text.Encoding]::ASCII)
@@ -234,60 +245,39 @@ try {
     $manifestWriter.WriteLine("capture_index,render_frame,demo_time_ms,demo_time_seconds,scene_time_ms,scene_time_seconds,scene,next_script_time_hex,frame_path")
 
     $frameIndex = 0
-    $introDurationMs = 0L
-    if ($introRows.Count -gt 0) {
-        $lastIntro = $introRows[$introRows.Count - 1]
-        $introDurationMs = [long]$lastIntro.demo_time_ms + [long][Math]::Round(1000.0 / $Fps)
-    }
+    $segmentStartTimeMs = 0L
 
-    foreach ($row in $introRows) {
-        $sourceFrame = Join-Path $IntroDir ($row.frame_path -replace "/", "\")
-        $targetName = ("frame_{0:D6}.tga" -f $frameIndex)
-        $targetFrame = Join-Path $framesDir $targetName
-        Copy-Item -LiteralPath $sourceFrame -Destination $targetFrame -Force
+    foreach ($segment in $segments) {
+        $rows = $segmentRows[$segment.Name]
+        foreach ($row in $rows) {
+            $sourceFrame = Join-Path $segment.Dir ($row.frame_path -replace "/", "\")
+            $targetName = ("frame_{0:D6}.tga" -f $frameIndex)
+            $targetFrame = Join-Path $framesDir $targetName
+            Copy-Item -LiteralPath $sourceFrame -Destination $targetFrame -Force
 
-        $demoTimeMs = [long]$row.demo_time_ms
-        $sceneTimeMs = [long]$row.scene_time_ms
-        $framePath = "frames/$targetName"
-        $manifestWriter.WriteLine((
-            "{0},{1},{2},{3},{4},{5},{6},{7},{8}" -f
-            $frameIndex,
-            $frameIndex,
-            $demoTimeMs,
-            (Format-Seconds -TimeMs $demoTimeMs),
-            $sceneTimeMs,
-            (Format-Seconds -TimeMs $sceneTimeMs),
-            (Escape-Csv -Value ([string]$row.scene)),
-            (Escape-Csv -Value ([string]$row.next_script_time_hex)),
-            (Escape-Csv -Value $framePath)
-        ))
+            $demoTimeMs = $segmentStartTimeMs + [long]$row.demo_time_ms
+            $sceneTimeMs = [long]$row.scene_time_ms
+            $framePath = "frames/$targetName"
+            $manifestWriter.WriteLine((
+                "{0},{1},{2},{3},{4},{5},{6},{7},{8}" -f
+                $frameIndex,
+                $frameIndex,
+                $demoTimeMs,
+                (Format-Seconds -TimeMs $demoTimeMs),
+                $sceneTimeMs,
+                (Format-Seconds -TimeMs $sceneTimeMs),
+                (Escape-Csv -Value ([string]$row.scene)),
+                (Escape-Csv -Value ([string]$row.next_script_time_hex)),
+                (Escape-Csv -Value $framePath)
+            ))
 
-        $frameIndex += 1
-    }
+            $frameIndex += 1
+        }
 
-    foreach ($row in $saariRows) {
-        $sourceFrame = Join-Path $SaariDir ($row.frame_path -replace "/", "\")
-        $targetName = ("frame_{0:D6}.tga" -f $frameIndex)
-        $targetFrame = Join-Path $framesDir $targetName
-        Copy-Item -LiteralPath $sourceFrame -Destination $targetFrame -Force
-
-        $demoTimeMs = $introDurationMs + [long]$row.demo_time_ms
-        $sceneTimeMs = [long]$row.scene_time_ms
-        $framePath = "frames/$targetName"
-        $manifestWriter.WriteLine((
-            "{0},{1},{2},{3},{4},{5},{6},{7},{8}" -f
-            $frameIndex,
-            $frameIndex,
-            $demoTimeMs,
-            (Format-Seconds -TimeMs $demoTimeMs),
-            $sceneTimeMs,
-            (Format-Seconds -TimeMs $sceneTimeMs),
-            (Escape-Csv -Value ([string]$row.scene)),
-            (Escape-Csv -Value ([string]$row.next_script_time_hex)),
-            (Escape-Csv -Value $framePath)
-        ))
-
-        $frameIndex += 1
+        if ($rows.Count -gt 0) {
+            $lastRow = $rows[$rows.Count - 1]
+            $segmentStartTimeMs += [long]$lastRow.demo_time_ms + [long][Math]::Round(1000.0 / $Fps)
+        }
     }
 } finally {
     $manifestWriter.Dispose()
@@ -295,31 +285,55 @@ try {
 
 $samplesPerFrame = [int]($SampleRate / $Fps)
 $wavPath = Join-Path $audioDir "forward.wav"
-$introWavPath = Join-Path (Join-Path $IntroDir "audio") "forward.wav"
-$saariWavPath = Join-Path (Join-Path $SaariDir "audio") "forward.wav"
-$introAudio = Read-WavPcm -Path $introWavPath
-$saariAudio = Read-WavPcm -Path $saariWavPath
+$segmentAudio = @()
+$audioCompatible = $true
+foreach ($segment in $segments) {
+    $audio = Read-WavPcm -Path (Join-Path (Join-Path $segment.Dir "audio") "forward.wav")
+    if ($null -eq $audio) {
+        $audioCompatible = $false
+        break
+    }
 
-if ($null -ne $introAudio -and
-    $null -ne $saariAudio -and
-    $introAudio.SampleRate -eq $saariAudio.SampleRate -and
-    $introAudio.Channels -eq $saariAudio.Channels -and
-    $introAudio.BitsPerSample -eq $saariAudio.BitsPerSample) {
-    $mergedLength = $introAudio.Data.Length + $saariAudio.Data.Length
+    if ($segmentAudio.Count -gt 0) {
+        $reference = $segmentAudio[0]
+        if ($audio.SampleRate -ne $reference.SampleRate -or
+            $audio.Channels -ne $reference.Channels -or
+            $audio.BitsPerSample -ne $reference.BitsPerSample) {
+            $audioCompatible = $false
+            break
+        }
+    }
+
+    $segmentAudio += $audio
+}
+
+if ($audioCompatible -and $segmentAudio.Count -gt 0) {
+    $mergedLength = 0
+    foreach ($audio in $segmentAudio) {
+        $mergedLength += $audio.Data.Length
+    }
+
     $mergedAudio = New-Object byte[] $mergedLength
-    [System.Buffer]::BlockCopy($introAudio.Data, 0, $mergedAudio, 0, $introAudio.Data.Length)
-    [System.Buffer]::BlockCopy($saariAudio.Data, 0, $mergedAudio, $introAudio.Data.Length, $saariAudio.Data.Length)
+    $copyOffset = 0
+    foreach ($audio in $segmentAudio) {
+        [System.Buffer]::BlockCopy($audio.Data, 0, $mergedAudio, $copyOffset, $audio.Data.Length)
+        $copyOffset += $audio.Data.Length
+    }
+
+    $reference = $segmentAudio[0]
     Write-WavBytes -Path $wavPath `
-        -SampleRateValue $introAudio.SampleRate `
-        -Channels $introAudio.Channels `
-        -BitsPerSample $introAudio.BitsPerSample `
+        -SampleRateValue $reference.SampleRate `
+        -Channels $reference.Channels `
+        -BitsPerSample $reference.BitsPerSample `
         -Data $mergedAudio
-} else {
+}
+else {
     $totalSamples = [long]$frameIndex * [long]$samplesPerFrame
     Write-SilentWav -Path $wavPath -SampleRateValue $SampleRate -Channels 2 -BitsPerSample 16 -TotalSamples $totalSamples
 }
 
 $logPath = Join-Path $OutputDir "log.txt"
+$segmentNames = ($segments | ForEach-Object { $_.Name }) -join ","
 $logLines = @(
     "forward-export current full wrapper",
     "resolution=512x256",
@@ -327,10 +341,13 @@ $logLines = @(
     "sample_rate=$SampleRate",
     "samples_per_frame=$samplesPerFrame",
     "sequence=current-full",
-    "segments=intro,saari",
-    "intro_frames=$($introRows.Count)",
-    "saari_frames=$($saariRows.Count)",
+    "segments=$segmentNames",
     "frames=$frameIndex",
-    "note=merged wrapper output for all currently ported non-placeholder sequences; remaining demo scenes are still unported"
+    "note=merged wrapper output for all currently ported non-placeholder sequences; later demo scenes remain unported"
 )
+[System.Collections.Generic.List[string]]$frameLines = @()
+foreach ($segment in $segments) {
+    $frameLines.Add(("{0}_frames={1}" -f $segment.Name, $segmentRows[$segment.Name].Count))
+}
+$logLines += $frameLines
 [System.IO.File]::WriteAllLines($logPath, $logLines, [System.Text.Encoding]::ASCII)

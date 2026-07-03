@@ -7,6 +7,7 @@ This directory contains the first usable milestone of the `documentation/forward
 - deterministic `50 fps` / `22050 Hz` offline timeline
 - Java-style intro script player for `mute95 -> domina -> filmbox`
 - first autonomous `saari` 3D pass with script-row shock events
+- first autonomous `kukot` 3D pass with sliced `jarnomix.xm` playback from `0x0700`
 - direct loading of original assets from `original/forward`
 - native `512x256` uncompressed `TGA` frames
 - one stereo `16-bit PCM` `WAV`
@@ -18,6 +19,7 @@ The default export path now runs on an audio-sample master clock:
 - `--sequence intro` is the default
 - `--intro-frames-per-row` and `--intro-rows-per-order` remain available as legacy wrapper hints, but they no longer drive scene/script timing
 - `--sequence saari` exports the current direct-asset `saari` 3D pass with row-driven `suh0` / `suh` shock events
+- `--sequence kukot` exports the current direct-asset `kukot` pass, starting from `jarnomix.xm` song position `0x0700`
 - `--sequence bootstrap` keeps the older placeholder scene available for quick pipeline checks
 
 Current limitation:
@@ -34,6 +36,9 @@ Current limitation:
 - `saari` now also follows the Java terrain visibility path more closely: heightmap samples clamp to non-negative land, terrain/env materials `3` and `259` are rasterized through a shared depth-sorted primitive batch, and the terrain quad face test now matches the original two-triangle slope logic
 - `klunssi` reflection parity is source-driven here: Java keeps material `259` additive, but only on a one-shot reflective water mask; its mirrored concave face selection must follow the clone's mirrored object transform rather than a recomputed post-mirror world-space cross product; and the reflected clone does not inherit the original `klunssi` env-map `JAKkama` X-axis tweak
 - `saari` is still not at final camera parity with Java, but the terrain/material path is now substantially closer to the original renderer than the earlier background-water approximation
+- `kukot` now loads `asses/under1.ase`, `images/envplane.gif`, and `images/flare1.jpg` directly in C++, then renders a first source-shaped pass with tracked camera motion, env-mapped meshes, static flare cloud, tiled noise background, and scripted flash overlays
+- the current `kukot` port uses the real `jarnomix.xm` song-position slice from `0x0700`, so the standalone sequence and the full wrapper no longer restart the module from the beginning when entering that scene
+- a light shared refactor is now in place for `ASE`/track parsing (`src/scenes/scene3d_shared.*`), reused by both `saari` and `kukot`; the rasterizers remain separate because `saari` still carries scene-specific terrain/reflection contracts that would make a broader 3D unification premature
 - Java-based normalization helpers may still exist for validation, but they are not part of the exporter runtime path
 
 ## Build
@@ -63,6 +68,12 @@ Saari 3D pass run:
 cpp-offline/build/forward-export --sequence saari --output cpp-offline/output-saari --frames 3136 --intro-frames-per-row 7
 ```
 
+Kukot 3D pass run:
+
+```powershell
+cpp-offline/build/forward-export --sequence kukot --output cpp-offline/output-kukot --until-song-position 0x0D00
+```
+
 Generated output:
 
 - `cpp-offline/output/frames/frame_000000.tga`
@@ -72,9 +83,10 @@ Generated output:
 
 Current audio status:
 
-- `intro` and `saari` now write native stereo `16-bit PCM` module audio directly from `mods/kuninga.xm` and `mods/jarnomix.xm`.
+- `intro`, `saari`, and `kukot` now write native stereo `16-bit PCM` module audio directly from `mods/kuninga.xm` and `mods/jarnomix.xm`.
+- `kukot` now slices `jarnomix.xm` from its real handoff point (`0x0700`) before writing audio or song-position events.
 - `bootstrap` still falls back to silence because it remains a placeholder scene outside the current preservation path.
-- intro/saari visual scripting now advances from the native XM song-position timeline derived from audio sample position.
+- intro/saari/kukot visual scripting now advances from the native XM song-position timeline derived from audio sample position.
 
 ## Mux with FFmpeg
 
@@ -99,7 +111,7 @@ cpp-offline/scripts/export_intro_full.bat
 That wrapper:
 
 - configures and builds `forward-export`
-- resolves segment lengths from native XM song positions, then exports the complete current intro window through `0x1024` plus a short post-roll, followed by the current `saari` window through `0x0700`
+- resolves segment lengths from native XM song positions, then exports the complete current intro window through `0x1024` plus a short post-roll, followed by the current `saari` window through `0x0700` and the current `kukot` window through `0x0D00`
 - writes outputs under `cpp-offline/output-full-current`
 - muxes `forward_full_current_master.mkv` and `forward_full_current_h264.mp4` when `ffmpeg` is available
 
@@ -107,6 +119,6 @@ That wrapper:
 
 1. Finish the source-faithful `mute95` validation against Java captures.
 2. Tighten the remaining `saari` camera timing, depth-sort, and raster parity against the Java captures now that the terrain/material path is source-shaped.
-3. Reuse the new direct indexed GIF path for `uppol` and the remaining palette-driven routines.
-4. Use the native XM sequencer / sample timeline to drive the remaining scene windows beyond the current `intro` / `saari` scope.
-5. Extend the native audio path from the current `intro` / `saari` scope to the remaining real sequences as they land.
+3. Port `kukot` from its current first-pass renderer toward Java parity, especially spline-like track interpolation, particle distribution, and mesh composition against the reference captures.
+4. Reuse the new direct indexed GIF path for `uppol` and the remaining palette-driven routines.
+5. Use the native XM sequencer / sample timeline to drive the remaining scene windows beyond the current `intro` / `saari` / `kukot` scope.

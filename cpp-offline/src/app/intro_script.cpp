@@ -36,6 +36,39 @@ const char* const kIntroScriptLines[] = {
     "kill mute95"
 };
 
+const char* const kKukotScriptLines[] = {
+    "_900 msg kukot suh",
+    "__10 msg kukot suh",
+    "__10 msg kukot suh",
+    "__10 msg kukot suh",
+    "_900 msg kukot suh2",
+    "_a00 msg kukot suh1",
+    "_b00 msg kukot suh0",
+    "__04 msg kukot suh",
+    "__04 msg kukot suh",
+    "__04 msg kukot suh",
+    "__10 msg kukot suh0",
+    "__10 msg kukot suh0",
+    "__04 msg kukot suh",
+    "__04 msg kukot suh",
+    "__04 msg kukot suh",
+    "__10 msg kukot suh0",
+    "__04 msg kukot suh1",
+    "__04 msg kukot suh1",
+    "__04 msg kukot suh1",
+    "_c00 msg kukot suh0",
+    "__10 msg kukot suh0",
+    "__10 msg kukot suh0",
+    "__04 msg kukot suh",
+    "__04 msg kukot suh",
+    "__04 msg kukot suh",
+    "__10 msg kukot suh1",
+    "__04 msg kukot suh2",
+    "__04 msg kukot suh2",
+    "__04 msg kukot suh2",
+    "_d00 shutdown"
+};
+
 std::string trim(const std::string& value) {
     std::size_t start = 0;
     while (start < value.size() &&
@@ -71,32 +104,12 @@ unsigned int parse_song_position_hex(const std::string& token) {
     return static_cast<unsigned int>(std::strtoul(token.c_str(), NULL, 16));
 }
 
-}  // namespace
-
-IntroScript::IntroScript() : commands_(build_commands()) {
-}
-
-const std::vector<ScriptCommand>& IntroScript::commands() const {
-    return commands_;
-}
-
-std::string IntroScript::next_position_hex(std::size_t next_index) const {
-    if (next_index >= commands_.size()) {
-        return std::string();
-    }
-
-    std::ostringstream builder;
-    builder << "0x" << std::hex << commands_[next_index].song_position_hex;
-    return builder.str();
-}
-
-std::vector<ScriptCommand> IntroScript::build_commands() {
+std::vector<ScriptCommand> build_script_commands(const char* const* lines, std::size_t count) {
     std::vector<ScriptCommand> commands;
     unsigned int current_song_position = 0;
 
-    const std::size_t count = sizeof(kIntroScriptLines) / sizeof(kIntroScriptLines[0]);
     for (std::size_t index = 0; index < count; ++index) {
-        const std::string line = trim(kIntroScriptLines[index]);
+        const std::string line = trim(lines[index]);
         if (line.empty() || line[0] == '#') {
             continue;
         }
@@ -128,6 +141,52 @@ std::vector<ScriptCommand> IntroScript::build_commands() {
     }
 
     return commands;
+}
+
+}  // namespace
+
+IntroScript::IntroScript() : commands_(build_commands()) {
+}
+
+const std::vector<ScriptCommand>& IntroScript::commands() const {
+    return commands_;
+}
+
+std::string IntroScript::next_position_hex(std::size_t next_index) const {
+    if (next_index >= commands_.size()) {
+        return std::string();
+    }
+
+    std::ostringstream builder;
+    builder << "0x" << std::hex << commands_[next_index].song_position_hex;
+    return builder.str();
+}
+
+std::vector<ScriptCommand> IntroScript::build_commands() {
+    return build_script_commands(kIntroScriptLines,
+                                 sizeof(kIntroScriptLines) / sizeof(kIntroScriptLines[0]));
+}
+
+KukotScript::KukotScript() : commands_(build_commands()) {
+}
+
+const std::vector<ScriptCommand>& KukotScript::commands() const {
+    return commands_;
+}
+
+std::string KukotScript::next_position_hex(std::size_t next_index) const {
+    if (next_index >= commands_.size()) {
+        return std::string();
+    }
+
+    std::ostringstream builder;
+    builder << "0x" << std::hex << commands_[next_index].song_position_hex;
+    return builder.str();
+}
+
+std::vector<ScriptCommand> KukotScript::build_commands() {
+    return build_script_commands(kKukotScriptLines,
+                                 sizeof(kKukotScriptLines) / sizeof(kKukotScriptLines[0]));
 }
 
 }  // namespace forward_offline

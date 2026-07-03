@@ -25,9 +25,11 @@ add_executable(forward-export
     src/render/rgb_surface.cpp
     src/render/tga_writer.cpp
     src/scenes/domina_routine.cpp
+    src/scenes/kukot_scene.cpp
     src/scenes/mute95_scene.cpp
     src/scenes/placeholder_scene.cpp
     src/scenes/saari_scene.cpp
+    src/scenes/scene3d_shared.cpp
 )
 
 target_include_directories(forward-export PRIVATE src third_party)
