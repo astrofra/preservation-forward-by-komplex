@@ -53,6 +53,7 @@ def parse_args():
     parser.add_argument("--saari-dir", required=True)
     parser.add_argument("--kukot-dir", default="")
     parser.add_argument("--maku-dir", default="")
+    parser.add_argument("--watercube-dir", default="")
     parser.add_argument("--fps", type=int, default=50)
     parser.add_argument("--sample-rate", type=int, default=22050)
     return parser.parse_args()
@@ -82,6 +83,8 @@ def main():
         segments.append({"name": "kukot", "dir": Path(args.kukot_dir)})
     if args.maku_dir.strip():
         segments.append({"name": "maku", "dir": Path(args.maku_dir)})
+    if args.watercube_dir.strip():
+        segments.append({"name": "watercube", "dir": Path(args.watercube_dir)})
 
     segment_rows = {}
     for segment in segments:
@@ -176,8 +179,8 @@ def main():
         handle.write(f"segments={segment_names}\n")
         handle.write(f"frames={frame_index}\n")
         handle.write(
-            "note=merged wrapper output for all currently ported non-placeholder sequences; "
-            "later demo scenes remain unported\n"
+            "note=merged wrapper output for all currently ported non-placeholder sequences "
+            "through watercube; later demo scenes starting with feta remain unported\n"
         )
         for segment in segments:
             handle.write(f"{segment['name']}_frames={len(segment_rows[segment['name']])}\n")

@@ -32,6 +32,7 @@ Current implementation direction:
 - `klunssi` reflection parity is a good example of why the port must preserve renderer contracts, not just scene composition: material `259` stays additive, but only through a one-shot water mask, mirrored-face visibility rules that prevent concave self-overlap in the original demo, and a reflected clone that does not inherit the original env-map tweak matrix
 - the recent Saari terrain recovery has been written up as a reusable parity-debugging reference in `documentation/forward-saari-terrain-parity-methodology.md`
 - the recent `maku` baseline conversion is also a useful process datapoint: from the current exporter state it landed in a single prompt and was materially more direct than the previous scene-port attempts, which suggests that some later scene windows may now be blocked more by fidelity iteration than by baseline translation friction
+- the first native `watercube` pass now reinforces that direction shift: baseline reachability is no longer the main blocker there, and the remaining work is mostly renderer-material parity around env-lighting, overlay blending, and Java face-mode `49`
 
 ## Executive Summary
 

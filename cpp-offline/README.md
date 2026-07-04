@@ -9,6 +9,7 @@ This directory contains the first usable milestone of the `documentation/forward
 - first autonomous `saari` 3D pass with script-row shock events
 - first autonomous `kukot` 3D pass with sliced `jarnomix.xm` playback from `0x0700`
 - first autonomous `maku` terrain pass with sliced `jarnomix.xm` playback from `0x0D00`
+- first autonomous `watercube` mixed 3D / packed-surface pass with sliced `jarnomix.xm` playback from `0x1000`
 - direct loading of original assets from `original/forward`
 - native `512x256` uncompressed `TGA` frames
 - one stereo `16-bit PCM` `WAV`
@@ -22,6 +23,7 @@ The default export path now runs on an audio-sample master clock:
 - `--sequence saari` exports the current direct-asset `saari` 3D pass with row-driven `suh0` / `suh` shock events
 - `--sequence kukot` exports the current direct-asset `kukot` pass, starting from `jarnomix.xm` song position `0x0700`
 - `--sequence maku` exports the current direct-asset `maku` terrain flythrough, starting from `jarnomix.xm` song position `0x0D00`
+- `--sequence watercube` exports the current direct-asset `watercube` mixed 3D / packed-surface pass, starting from `jarnomix.xm` song position `0x1000`
 - `--sequence bootstrap` keeps the older placeholder scene available for quick pipeline checks
 
 Current limitation:
@@ -45,6 +47,8 @@ Current limitation:
 - `maku` now loads `images/scape/loopk40.gif`, `images/scape/loopa2.gif`, and the camera tracks from `asses/vuori5.ase` directly in C++, then renders a first source-shaped repeating canyon flythrough with Java-like `go` / `speed` script messages, `suh` shock lines, rolling camera toggle support, default frame averaging, and the later `ksor` invert/smear feedback burst
 - process note: the baseline `maku` conversion itself was completed in a single prompt from the current exporter state, and was materially more direct than the previous scene-port attempts; the remaining work is now fidelity tightening rather than first-pass structural translation
 - the current `maku` pass is already in the right visual family against the frozen Java captures, but the exact timing of the washed-out/fog-heavy states and the later feedback cadence still need tightening
+- `watercube` now loads `asses/nosto3.ase`, `images/1.jpg`, `images/txt1.jpg`, `images/reunus2.jpg`, `images/env3.jpg`, `images/rinku2.jpg`, `images/riple2.jpg`, and `meshes/kluns1.igu` / `meshes/kluns2.igu` directly in C++, then reproduces the native ripple ping-pong buffers, right-side panel, giant text overlay, and scripted `pum` / `rok` / `suh*` / `tex*` message flow
+- the current `watercube` pass is already close to the frozen Java captures in broad composition, with the main remaining drift concentrated around env-mesh lighting and deeper Java face-mode `49` parity
 - a light shared refactor is now in place for `ASE`/track parsing (`src/scenes/scene3d_shared.*`), reused by both `saari` and `kukot`; the rasterizers remain separate because `saari` still carries scene-specific terrain/reflection contracts that would make a broader 3D unification premature
 - Java-based normalization helpers may still exist for validation, but they are not part of the exporter runtime path
 
@@ -101,6 +105,12 @@ Maku terrain pass run:
 cpp-offline/build/forward-export --sequence maku --output cpp-offline/output-maku --until-song-position 0x1000
 ```
 
+Watercube mixed pass run:
+
+```powershell
+cpp-offline/build/forward-export --sequence watercube --output cpp-offline/output-watercube --until-song-position 0x1300
+```
+
 Generated output:
 
 - `cpp-offline/output/frames/frame_000000.tga`
@@ -110,11 +120,12 @@ Generated output:
 
 Current audio status:
 
-- `intro`, `saari`, `kukot`, and `maku` now write native stereo `16-bit PCM` module audio directly from `mods/kuninga.xm` and `mods/jarnomix.xm`.
+- `intro`, `saari`, `kukot`, `maku`, and `watercube` now write native stereo `16-bit PCM` module audio directly from `mods/kuninga.xm` and `mods/jarnomix.xm`.
 - `kukot` now slices `jarnomix.xm` from its real handoff point (`0x0700`) before writing audio or song-position events.
 - `maku` now slices `jarnomix.xm` from its real handoff point (`0x0D00`) before writing audio or song-position events.
+- `watercube` now slices `jarnomix.xm` from its real handoff point (`0x1000`) before writing audio or song-position events.
 - `bootstrap` still falls back to silence because it remains a placeholder scene outside the current preservation path.
-- intro/saari/kukot/maku visual scripting now advances from the native XM song-position timeline derived from audio sample position.
+- intro/saari/kukot/maku/watercube visual scripting now advances from the native XM song-position timeline derived from audio sample position.
 
 ## Mux with FFmpeg
 
@@ -154,12 +165,12 @@ macOS / POSIX shell form:
 sh cpp-offline/scripts/export_intro_full.sh
 ```
 
-That wrapper uses `python3` for the merge step between the per-sequence exports and the final combined output.
+The Windows wrapper uses the PowerShell merge script, and the POSIX wrapper uses `python3`, to combine the per-sequence exports into the final current-full output.
 
 That wrapper:
 
 - configures and builds `forward-export`
-- resolves segment lengths from native XM song positions, then exports the complete current intro window through `0x1024` plus a short post-roll, followed by the current `saari` window through `0x0700`, the current `kukot` window through `0x0D00`, and the current `maku` window through `0x1000`
+- resolves segment lengths from native XM song positions, then exports the complete current intro window through `0x1024` plus a short post-roll, followed by the current `saari` window through `0x0700`, the current `kukot` window through `0x0D00`, the current `maku` window through `0x1000`, and the current `watercube` window through `0x1300`
 - writes outputs under `cpp-offline/output-full-current`
 - muxes `forward_full_current_master.mkv` and `forward_full_current_h264.mp4` when `ffmpeg` is available
 
@@ -169,5 +180,6 @@ That wrapper:
 2. Tighten the remaining `saari` camera timing, depth-sort, and raster parity against the Java captures now that the terrain/material path is source-shaped.
 3. Keep tightening `kukot` toward Java parity, with the next likely wins being near-plane clipping, later-shot flare occlusion, and any remaining quaternion-spline drift against the reference captures.
 4. Tighten `maku` timing against the Java capture checkpoints now that the tiled terrain/camera path is source-shaped.
-5. Reuse the new direct indexed GIF path for `uppol` and the remaining palette-driven routines.
-6. Use the native XM sequencer / sample timeline to drive the remaining scene windows beyond the current `intro` / `saari` / `kukot` / `maku` scope.
+5. Tighten `watercube` env-mesh lighting, near-plane behavior, and Java face-mode `49` parity against the frozen captures now that the broad composition is source-shaped.
+6. Reuse the new direct indexed GIF path for `uppol` and the remaining palette-driven routines.
+7. Use the native XM sequencer / sample timeline to drive the remaining scene windows beyond the current `intro` / `saari` / `kukot` / `maku` / `watercube` scope, starting with `feta`.

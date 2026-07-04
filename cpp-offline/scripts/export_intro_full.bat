@@ -12,6 +12,7 @@ set "INTRO_OUTPUT=%TEMP_DIR%\intro"
 set "SAARI_OUTPUT=%TEMP_DIR%\saari"
 set "KUKOT_OUTPUT=%TEMP_DIR%\kukot"
 set "MAKU_OUTPUT=%TEMP_DIR%\maku"
+set "WATERCUBE_OUTPUT=%TEMP_DIR%\watercube"
 
 if not defined INTRO_END_POSITION set "INTRO_END_POSITION=0x1024"
 if not defined INTRO_POST_ROLL_FRAMES set "INTRO_POST_ROLL_FRAMES=12"
@@ -25,17 +26,20 @@ if not defined KUKOT_POST_ROLL_FRAMES set "KUKOT_POST_ROLL_FRAMES=0"
 if not defined MAKU_END_POSITION set "MAKU_END_POSITION=0x1000"
 if not defined MAKU_POST_ROLL_FRAMES set "MAKU_POST_ROLL_FRAMES=0"
 
+if not defined WATERCUBE_END_POSITION set "WATERCUBE_END_POSITION=0x1300"
+if not defined WATERCUBE_POST_ROLL_FRAMES set "WATERCUBE_POST_ROLL_FRAMES=0"
+
 if exist "%TEMP_DIR%" rmdir /s /q "%TEMP_DIR%"
 
-echo [1/8] Configure CMake
+echo [1/9] Configure CMake
 cmake -S cpp-offline -B "%BUILD_DIR%"
 if errorlevel 1 goto :fail
 
-echo [2/8] Build exporter
+echo [2/9] Build exporter
 cmake --build "%BUILD_DIR%" --config %CONFIG%
 if errorlevel 1 goto :fail
 
-echo [3/8] Export intro segment
+echo [3/9] Export intro segment
 echo         end=%INTRO_END_POSITION% post_roll_frames=%INTRO_POST_ROLL_FRAMES%
 "%BUILD_DIR%\%CONFIG%\forward-export.exe" ^
   --sequence intro ^
@@ -44,7 +48,7 @@ echo         end=%INTRO_END_POSITION% post_roll_frames=%INTRO_POST_ROLL_FRAMES%
   --post-roll-frames %INTRO_POST_ROLL_FRAMES%
 if errorlevel 1 goto :fail
 
-echo [4/8] Export saari segment
+echo [4/9] Export saari segment
 echo         end=%SAARI_END_POSITION% post_roll_frames=%SAARI_POST_ROLL_FRAMES%
 "%BUILD_DIR%\%CONFIG%\forward-export.exe" ^
   --sequence saari ^
@@ -53,7 +57,7 @@ echo         end=%SAARI_END_POSITION% post_roll_frames=%SAARI_POST_ROLL_FRAMES%
   --post-roll-frames %SAARI_POST_ROLL_FRAMES%
 if errorlevel 1 goto :fail
 
-echo [5/8] Export kukot segment
+echo [5/9] Export kukot segment
 echo         end=%KUKOT_END_POSITION% post_roll_frames=%KUKOT_POST_ROLL_FRAMES%
 "%BUILD_DIR%\%CONFIG%\forward-export.exe" ^
   --sequence kukot ^
@@ -62,7 +66,7 @@ echo         end=%KUKOT_END_POSITION% post_roll_frames=%KUKOT_POST_ROLL_FRAMES%
   --post-roll-frames %KUKOT_POST_ROLL_FRAMES%
 if errorlevel 1 goto :fail
 
-echo [6/8] Export maku segment
+echo [6/9] Export maku segment
 echo         end=%MAKU_END_POSITION% post_roll_frames=%MAKU_POST_ROLL_FRAMES%
 "%BUILD_DIR%\%CONFIG%\forward-export.exe" ^
   --sequence maku ^
@@ -71,7 +75,16 @@ echo         end=%MAKU_END_POSITION% post_roll_frames=%MAKU_POST_ROLL_FRAMES%
   --post-roll-frames %MAKU_POST_ROLL_FRAMES%
 if errorlevel 1 goto :fail
 
-echo [7/8] Merge current full output
+echo [7/9] Export watercube segment
+echo         end=%WATERCUBE_END_POSITION% post_roll_frames=%WATERCUBE_POST_ROLL_FRAMES%
+"%BUILD_DIR%\%CONFIG%\forward-export.exe" ^
+  --sequence watercube ^
+  --output "%WATERCUBE_OUTPUT%" ^
+  --until-song-position %WATERCUBE_END_POSITION% ^
+  --post-roll-frames %WATERCUBE_POST_ROLL_FRAMES%
+if errorlevel 1 goto :fail
+
+echo [8/9] Merge current full output
 powershell -NoProfile -ExecutionPolicy Bypass -File ^
   "cpp-offline\scripts\merge_current_full_outputs.ps1" ^
   -OutputDir "%OUTPUT_DIR%" ^
@@ -79,6 +92,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File ^
   -SaariDir "%SAARI_OUTPUT%" ^
   -KukotDir "%KUKOT_OUTPUT%" ^
   -MakuDir "%MAKU_OUTPUT%" ^
+  -WatercubeDir "%WATERCUBE_OUTPUT%" ^
   -Fps 50 ^
   -SampleRate 22050
 if errorlevel 1 goto :fail
@@ -88,7 +102,7 @@ if exist "%TEMP_DIR%" rmdir /s /q "%TEMP_DIR%"
 where ffmpeg >NUL 2>NUL
 if errorlevel 1 goto :done
 
-echo [8/8] Mux master and h264 copies
+echo [9/9] Mux master and h264 copies
 call cpp-offline\scripts\mux_master.bat "%OUTPUT_DIR%" "%OUTPUT_DIR%\forward_full_current_master.mkv" 50
 if errorlevel 1 goto :fail
 call cpp-offline\scripts\mux_h264.bat "%OUTPUT_DIR%" "%OUTPUT_DIR%\forward_full_current_h264.mp4" 50

@@ -15,6 +15,14 @@ Supporting sources:
 
 ---
 
+## Current Status
+
+- A first autonomous native `watercube` pass now exists in `cpp-offline`, with direct loading of `nosto3.ase`, the `1.jpg` / `txt1.jpg` / `reunus2.jpg` / `env3.jpg` / `rinku2.jpg` / `riple2.jpg` textures, and the `kluns*.igu` meshes.
+- Broad composition beats already match the frozen Java baseline captures: right-side panel placement, large text overlay cadence, ripple-body framing, and the `pum` / `rok` / `suh*` / `tex*` message flow are all present in the native pass.
+- The main remaining drift is no longer baseline translation; it is renderer-material parity, especially env-mesh lighting, near-plane behavior, and deeper Java face-mode `49` equivalence.
+
+---
+
 ## What The Original Scene Actually Does
 
 From `kmajmka`:

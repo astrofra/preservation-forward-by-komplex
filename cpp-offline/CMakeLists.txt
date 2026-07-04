@@ -31,6 +31,7 @@ add_executable(forward-export
     src/scenes/placeholder_scene.cpp
     src/scenes/saari_scene.cpp
     src/scenes/scene3d_shared.cpp
+    src/scenes/watercube_scene.cpp
 )
 
 target_include_directories(forward-export PRIVATE src third_party)
