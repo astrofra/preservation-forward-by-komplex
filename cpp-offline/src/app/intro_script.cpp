@@ -89,6 +89,28 @@ const char* const kMakuScriptLines[] = {
     "_1000 shutdown"
 };
 
+const char* const kWatercubeScriptLines[] = {
+    "_1004 msg watercube pum",
+    "__4 msg watercube rok",
+    "__4 msg watercube suh",
+    "_1030 msg watercube pum",
+    "_1100 msg watercube rok",
+    "msg watercube pum",
+    "__10 msg watercube suh0",
+    "__18 msg watercube suh0",
+    "__8 msg watercube suh0",
+    "_1200 msg watercube suh1",
+    "msg watercube pum",
+    "msg watercube rok",
+    "__10 msg watercube suh0",
+    "msg watercube tex0",
+    "__10 msg watercube suh1",
+    "msg watercube tex1",
+    "__10 msg watercube suh0",
+    "msg watercube tex2",
+    "_1300 shutdown"
+};
+
 std::string trim(const std::string& value) {
     std::size_t start = 0;
     while (start < value.size() &&
@@ -229,6 +251,28 @@ std::string MakuScript::next_position_hex(std::size_t next_index) const {
 std::vector<ScriptCommand> MakuScript::build_commands() {
     return build_script_commands(kMakuScriptLines,
                                  sizeof(kMakuScriptLines) / sizeof(kMakuScriptLines[0]));
+}
+
+WatercubeScript::WatercubeScript() : commands_(build_commands()) {
+}
+
+const std::vector<ScriptCommand>& WatercubeScript::commands() const {
+    return commands_;
+}
+
+std::string WatercubeScript::next_position_hex(std::size_t next_index) const {
+    if (next_index >= commands_.size()) {
+        return std::string();
+    }
+
+    std::ostringstream builder;
+    builder << "0x" << std::hex << commands_[next_index].song_position_hex;
+    return builder.str();
+}
+
+std::vector<ScriptCommand> WatercubeScript::build_commands() {
+    return build_script_commands(kWatercubeScriptLines,
+                                 sizeof(kWatercubeScriptLines) / sizeof(kWatercubeScriptLines[0]));
 }
 
 }  // namespace forward_offline

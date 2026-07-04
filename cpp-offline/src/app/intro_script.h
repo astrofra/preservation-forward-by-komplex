@@ -53,6 +53,19 @@ private:
     std::vector<ScriptCommand> commands_;
 };
 
+class WatercubeScript {
+public:
+    WatercubeScript();
+
+    const std::vector<ScriptCommand>& commands() const;
+    std::string next_position_hex(std::size_t next_index) const;
+
+private:
+    static std::vector<ScriptCommand> build_commands();
+
+    std::vector<ScriptCommand> commands_;
+};
+
 }  // namespace forward_offline
 
 #endif  // FORWARD_OFFLINE_APP_INTRO_SCRIPT_H

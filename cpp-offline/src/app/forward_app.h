@@ -15,6 +15,7 @@
 #include "scenes/mute95_scene.h"
 #include "scenes/placeholder_scene.h"
 #include "scenes/saari_scene.h"
+#include "scenes/watercube_scene.h"
 
 namespace forward_offline {
 
@@ -40,11 +41,13 @@ private:
     bool is_saari_sequence() const;
     bool is_kukot_sequence() const;
     bool is_maku_sequence() const;
+    bool is_watercube_sequence() const;
     bool initialize_sequence(std::string* error_message);
     void process_intro_script(std::uint64_t sample_index);
     void process_saari_script(std::uint64_t sample_index);
     void process_kukot_script(std::uint64_t sample_index);
     void process_maku_script(std::uint64_t sample_index);
+    void process_watercube_script(std::uint64_t sample_index);
     std::string song_position_string(unsigned int song_position) const;
     void execute_script_command(const ScriptCommand& command, double demo_time_seconds);
     void show_scene(const std::string& scene_name, double demo_time_seconds);
@@ -58,6 +61,7 @@ private:
     IntroScript intro_script_;
     KukotScript kukot_script_;
     MakuScript maku_script_;
+    WatercubeScript watercube_script_;
     SequenceAudioRender sequence_audio_render_;
     RgbSurface frame_buffer_;
     Mute95Scene mute95_scene_;
@@ -65,6 +69,7 @@ private:
     SaariScene saari_scene_;
     KukotScene kukot_scene_;
     MakuScene maku_scene_;
+    WatercubeScene watercube_scene_;
     PlaceholderScene scene_;
     ActiveRenderable active_renderable_;
     std::string active_name_;

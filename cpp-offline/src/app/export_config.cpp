@@ -194,7 +194,7 @@ void print_usage(std::ostream& stream) {
         << "  --height <pixels>     Frame height (default: 256)\n"
         << "  --fps <rate>          Video frame rate (default: 50)\n"
         << "  --sample-rate <hz>    Audio sample rate (default: 22050)\n"
-        << "  --sequence <name>     Export sequence: intro|saari|kukot|maku|bootstrap (default: intro)\n"
+        << "  --sequence <name>     Export sequence: intro|saari|kukot|maku|watercube|bootstrap (default: intro)\n"
         << "  --until-song-position <hex>\n"
         << "                        Resolve frame count from the native XM timeline\n"
         << "  --post-roll-frames <n>\n"

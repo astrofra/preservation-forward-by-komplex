@@ -100,6 +100,7 @@ ForwardApp::ForwardApp(const ExportConfig& config)
       intro_script_(),
       kukot_script_(),
       maku_script_(),
+      watercube_script_(),
       sequence_audio_render_(),
       frame_buffer_(config.width, config.height),
       mute95_scene_(),
@@ -107,6 +108,7 @@ ForwardApp::ForwardApp(const ExportConfig& config)
       saari_scene_(),
       kukot_scene_(),
       maku_scene_(),
+      watercube_scene_(),
       scene_(),
       active_renderable_(ActiveRenderable::none),
       active_name_(),
@@ -182,6 +184,8 @@ int ForwardApp::run() {
             process_kukot_script(frame_sample_index);
         } else if (is_maku_sequence()) {
             process_maku_script(frame_sample_index);
+        } else if (is_watercube_sequence()) {
+            process_watercube_script(frame_sample_index);
         }
 
         frame_buffer_.clear(0);
@@ -198,6 +202,8 @@ int ForwardApp::run() {
             kukot_scene_.render(frame_buffer_, static_cast<float>(demo_time_seconds), delta_seconds);
         } else if (is_maku_sequence()) {
             maku_scene_.render(frame_buffer_, static_cast<float>(demo_time_seconds), delta_seconds);
+        } else if (is_watercube_sequence()) {
+            watercube_scene_.render(frame_buffer_, static_cast<float>(demo_time_seconds), delta_seconds);
         } else {
             const float scene_time_seconds = static_cast<float>(demo_time_seconds);
             scene_.render(frame_buffer_, scene_time_seconds, delta_seconds);
@@ -243,6 +249,8 @@ int ForwardApp::run() {
         kukot_scene_.dispose();
     } else if (is_maku_sequence()) {
         maku_scene_.dispose();
+    } else if (is_watercube_sequence()) {
+        watercube_scene_.dispose();
     } else {
         scene_.dispose();
     }
@@ -284,10 +292,11 @@ bool ForwardApp::resolve_export_span(std::string* error_message) {
     if (!config_.has_end_song_position) {
         return true;
     }
-    if (!is_intro_sequence() && !is_saari_sequence() && !is_kukot_sequence() && !is_maku_sequence()) {
+    if (!is_intro_sequence() && !is_saari_sequence() && !is_kukot_sequence() &&
+        !is_maku_sequence() && !is_watercube_sequence()) {
         if (error_message != NULL) {
             *error_message =
-                "--until-song-position is currently supported for intro, saari, kukot, and maku";
+                "--until-song-position is currently supported for intro, saari, kukot, maku, and watercube";
         }
         return false;
     }
@@ -326,7 +335,8 @@ bool ForwardApp::prepare_sequence_audio(std::string* error_message) {
     next_song_position_event_index_ = 0U;
     current_song_position_ = 0U;
 
-    if (!is_intro_sequence() && !is_saari_sequence() && !is_kukot_sequence() && !is_maku_sequence()) {
+    if (!is_intro_sequence() && !is_saari_sequence() && !is_kukot_sequence() &&
+        !is_maku_sequence() && !is_watercube_sequence()) {
         return true;
     }
 
@@ -378,6 +388,11 @@ bool ForwardApp::write_log(std::string* error_message) const {
         stream << "intro_rows_per_order=" << config_.intro_rows_per_order << '\n';
         stream << "scene=maku\n";
         stream << "note=first autonomous maku terrain flythrough with direct loopk40/loopa2 asset loading, ASE camera-track playback, scripted shock feedback, and native jarnomix.xm playback sliced from song position 0x0D00; terrain/raster parity is still pending\n";
+    } else if (is_watercube_sequence()) {
+        stream << "intro_frames_per_row=" << config_.intro_frames_per_row << '\n';
+        stream << "intro_rows_per_order=" << config_.intro_rows_per_order << '\n';
+        stream << "scene=watercube\n";
+        stream << "note=first autonomous watercube mixed 3D and packed-surface pass with direct nosto3/reunus2/txt1/env3/rinku2/riple2 asset loading, scripted flash and strip overlays, and native jarnomix.xm playback sliced from song position 0x1000; env-mesh lighting and face-mode parity are still pending\n";
     } else {
         stream << "scene=" << scene_.script_name() << '\n';
         stream << "note=placeholder scene plus silent wav until the real Java systems are ported\n";
@@ -389,7 +404,8 @@ bool ForwardApp::write_sequence_audio(WavWriter* wav_writer, std::string* error_
     const std::size_t total_sample_frames =
         static_cast<std::size_t>(timeline_.total_samples_for_frames(config_.frame_count));
 
-    if (!is_intro_sequence() && !is_saari_sequence() && !is_kukot_sequence() && !is_maku_sequence()) {
+    if (!is_intro_sequence() && !is_saari_sequence() && !is_kukot_sequence() &&
+        !is_maku_sequence() && !is_watercube_sequence()) {
         return wav_writer->write_silence(total_sample_frames, error_message);
     }
 
@@ -423,6 +439,10 @@ bool ForwardApp::is_kukot_sequence() const {
 
 bool ForwardApp::is_maku_sequence() const {
     return config_.sequence_name == "maku";
+}
+
+bool ForwardApp::is_watercube_sequence() const {
+    return config_.sequence_name == "watercube";
 }
 
 bool ForwardApp::initialize_sequence(std::string* error_message) {
@@ -516,6 +536,27 @@ bool ForwardApp::initialize_sequence(std::string* error_message) {
         maku_scene_.on_show();
         active_renderable_ = ActiveRenderable::scene;
         active_name_ = maku_scene_.script_name();
+        active_start_seconds_ = 0.0;
+        return true;
+    }
+
+    if (is_watercube_sequence()) {
+        if (config_.width != 512 || config_.height != 256) {
+            if (error_message != NULL) {
+                *error_message = "watercube sequence currently requires native 512x256 output";
+            }
+            return false;
+        }
+        watercube_scene_.init();
+        if (!watercube_scene_.is_ready()) {
+            if (error_message != NULL) {
+                *error_message = watercube_scene_.error_message();
+            }
+            return false;
+        }
+        watercube_scene_.on_show();
+        active_renderable_ = ActiveRenderable::scene;
+        active_name_ = watercube_scene_.script_name();
         active_start_seconds_ = 0.0;
         return true;
     }
@@ -630,6 +671,29 @@ void ForwardApp::process_maku_script(std::uint64_t sample_index) {
     }
 }
 
+void ForwardApp::process_watercube_script(std::uint64_t sample_index) {
+    if (!is_watercube_sequence()) {
+        return;
+    }
+
+    while (next_song_position_event_index_ < sequence_audio_render_.song_positions.size() &&
+           sequence_audio_render_.song_positions[next_song_position_event_index_].sample_index <= sample_index) {
+        const SongPositionEvent& event =
+            sequence_audio_render_.song_positions[next_song_position_event_index_];
+        current_song_position_ = event.song_position_hex;
+        const double demo_time_seconds =
+            static_cast<double>(event.sample_index) / static_cast<double>(config_.sample_rate);
+        const std::vector<ScriptCommand>& commands = watercube_script_.commands();
+
+        while (next_script_index_ < commands.size() &&
+               commands[next_script_index_].song_position_hex <= current_song_position_) {
+            execute_script_command(commands[next_script_index_], demo_time_seconds);
+            ++next_script_index_;
+        }
+        ++next_song_position_event_index_;
+    }
+}
+
 void ForwardApp::execute_script_command(const ScriptCommand& command, double demo_time_seconds) {
     if (command.verb == "init") {
         return;
@@ -656,6 +720,8 @@ void ForwardApp::execute_script_command(const ScriptCommand& command, double dem
             show_scene(command.target, demo_time_seconds);
         } else if (command.target == "maku") {
             show_scene(command.target, demo_time_seconds);
+        } else if (command.target == "watercube") {
+            show_scene(command.target, demo_time_seconds);
         } else if (command.target == "domina") {
             show_routine(command.target, demo_time_seconds);
         }
@@ -674,6 +740,9 @@ void ForwardApp::execute_script_command(const ScriptCommand& command, double dem
         } else if (command.target == "maku") {
             maku_scene_.handle_message(command.argument,
                                        static_cast<float>(demo_time_seconds - active_start_seconds_));
+        } else if (command.target == "watercube") {
+            watercube_scene_.handle_message(command.argument,
+                                            static_cast<float>(demo_time_seconds - active_start_seconds_));
         }
         return;
     }
@@ -699,6 +768,8 @@ void ForwardApp::show_scene(const std::string& scene_name, double demo_time_seco
         kukot_scene_.on_show();
     } else if (scene_name == "maku") {
         maku_scene_.on_show();
+    } else if (scene_name == "watercube") {
+        watercube_scene_.on_show();
     } else {
         return;
     }
@@ -763,6 +834,21 @@ std::string ForwardApp::next_script_time_hex(unsigned int frame_index) const {
         }
 
         return maku_script_.next_position_hex(next_script_index_);
+    }
+
+    if (is_watercube_sequence()) {
+        const std::vector<ScriptCommand>& commands = watercube_script_.commands();
+        if (next_script_index_ >= commands.size()) {
+            return std::string();
+        }
+
+        const unsigned int current_song_position = current_song_position_;
+        const unsigned int next_song_position = commands[next_script_index_].song_position_hex;
+        if (next_song_position < current_song_position) {
+            return song_position_string(current_song_position);
+        }
+
+        return watercube_script_.next_position_hex(next_script_index_);
     }
 
     if (!is_intro_sequence()) {
