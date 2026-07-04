@@ -902,17 +902,19 @@ void WatercubeScene::render(RgbSurface& surface, float scene_time_seconds, float
                 continue;
             }
 
-            const Scene3dVec3 normal_a =
+            // Java's auto-envmap path projects the rotated normalized vertex directions
+            // directly onto the object's local matrix axes rather than using spherical UVs.
+            const Scene3dVec3 env_a =
                 normalize(rotate_euler(mesh.normals[static_cast<std::size_t>(triangle.a)],
                                        rotate_x,
                                        0.0f,
                                        rotate_z));
-            const Scene3dVec3 normal_b =
+            const Scene3dVec3 env_b =
                 normalize(rotate_euler(mesh.normals[static_cast<std::size_t>(triangle.b)],
                                        rotate_x,
                                        0.0f,
                                        rotate_z));
-            const Scene3dVec3 normal_c =
+            const Scene3dVec3 env_c =
                 normalize(rotate_euler(mesh.normals[static_cast<std::size_t>(triangle.c)],
                                        rotate_x,
                                        0.0f,
@@ -921,12 +923,12 @@ void WatercubeScene::render(RgbSurface& surface, float scene_time_seconds, float
             primitive.a.depth = depth_a;
             primitive.b.depth = depth_b;
             primitive.c.depth = depth_c;
-            primitive.a.u = 0.5f + std::atan2(normal_a.x, normal_a.z) / (2.0f * kPi);
-            primitive.a.v = 0.5f - std::asin(clamp_unit((normal_a.y + 1.0f) * 0.5f) * 2.0f - 1.0f) / kPi;
-            primitive.b.u = 0.5f + std::atan2(normal_b.x, normal_b.z) / (2.0f * kPi);
-            primitive.b.v = 0.5f - std::asin(clamp_unit((normal_b.y + 1.0f) * 0.5f) * 2.0f - 1.0f) / kPi;
-            primitive.c.u = 0.5f + std::atan2(normal_c.x, normal_c.z) / (2.0f * kPi);
-            primitive.c.v = 0.5f - std::asin(clamp_unit((normal_c.y + 1.0f) * 0.5f) * 2.0f - 1.0f) / kPi;
+            primitive.a.u = 0.5f * (env_a.x + 1.0f);
+            primitive.a.v = 0.5f * (env_a.y + 1.0f);
+            primitive.b.u = 0.5f * (env_b.x + 1.0f);
+            primitive.b.v = 0.5f * (env_b.y + 1.0f);
+            primitive.c.u = 0.5f * (env_c.x + 1.0f);
+            primitive.c.v = 0.5f * (env_c.y + 1.0f);
             primitive.texture = &env_texture_;
             primitive.depth = (depth_a + depth_b + depth_c) / 3.0f;
             primitive.additive = false;
