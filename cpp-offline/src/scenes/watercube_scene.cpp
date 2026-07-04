@@ -48,6 +48,18 @@ struct WatercubePrimitive {
     bool additive;
 };
 
+struct WatercubeMatrix3 {
+    float m00;
+    float m01;
+    float m02;
+    float m10;
+    float m11;
+    float m12;
+    float m20;
+    float m21;
+    float m22;
+};
+
 std::string trim(const std::string& text) {
     std::string::size_type begin = 0;
     while (begin < text.size() && static_cast<unsigned char>(text[begin]) <= 32U) {
@@ -176,6 +188,94 @@ Scene3dVec3 rotate_euler(const Scene3dVec3& value, float rotate_x, float rotate_
     return result;
 }
 
+WatercubeMatrix3 identity_matrix3() {
+    WatercubeMatrix3 matrix;
+    matrix.m00 = 1.0f;
+    matrix.m01 = 0.0f;
+    matrix.m02 = 0.0f;
+    matrix.m10 = 0.0f;
+    matrix.m11 = 1.0f;
+    matrix.m12 = 0.0f;
+    matrix.m20 = 0.0f;
+    matrix.m21 = 0.0f;
+    matrix.m22 = 1.0f;
+    return matrix;
+}
+
+void matrix_rotate_x_in_place(WatercubeMatrix3* matrix, float angle) {
+    const float sine = std::sin(angle);
+    const float cosine = std::cos(angle);
+
+    float value0 = matrix->m01 * cosine - sine * matrix->m02;
+    float value1 = matrix->m02 * cosine + sine * matrix->m01;
+    matrix->m01 = value0;
+    matrix->m02 = value1;
+
+    value0 = matrix->m11 * cosine - sine * matrix->m12;
+    value1 = matrix->m12 * cosine + sine * matrix->m11;
+    matrix->m11 = value0;
+    matrix->m12 = value1;
+
+    value0 = matrix->m21 * cosine - sine * matrix->m22;
+    value1 = matrix->m22 * cosine + sine * matrix->m21;
+    matrix->m21 = value0;
+    matrix->m22 = value1;
+}
+
+void matrix_rotate_y_in_place(WatercubeMatrix3* matrix, float angle) {
+    const float sine = std::sin(angle);
+    const float cosine = std::cos(angle);
+
+    float value0 = matrix->m00 * cosine + sine * matrix->m02;
+    float value1 = matrix->m02 * cosine - sine * matrix->m00;
+    matrix->m00 = value0;
+    matrix->m02 = value1;
+
+    value0 = matrix->m10 * cosine + sine * matrix->m12;
+    value1 = matrix->m12 * cosine - sine * matrix->m10;
+    matrix->m10 = value0;
+    matrix->m12 = value1;
+
+    value0 = matrix->m20 * cosine + sine * matrix->m22;
+    value1 = matrix->m22 * cosine - sine * matrix->m20;
+    matrix->m20 = value0;
+    matrix->m22 = value1;
+}
+
+void matrix_rotate_z_in_place(WatercubeMatrix3* matrix, float angle) {
+    const float sine = std::sin(angle);
+    const float cosine = std::cos(angle);
+
+    float value0 = matrix->m00 * cosine - sine * matrix->m01;
+    float value1 = matrix->m01 * cosine + sine * matrix->m00;
+    matrix->m00 = value0;
+    matrix->m01 = value1;
+
+    value0 = matrix->m10 * cosine - sine * matrix->m11;
+    value1 = matrix->m11 * cosine + sine * matrix->m10;
+    matrix->m10 = value0;
+    matrix->m11 = value1;
+
+    value0 = matrix->m20 * cosine - sine * matrix->m21;
+    value1 = matrix->m21 * cosine + sine * matrix->m20;
+    matrix->m20 = value0;
+    matrix->m21 = value1;
+}
+
+WatercubeMatrix3 build_rotation_matrix(float angle_x, float angle_y, float angle_z) {
+    WatercubeMatrix3 matrix = identity_matrix3();
+    matrix_rotate_x_in_place(&matrix, angle_x);
+    matrix_rotate_y_in_place(&matrix, angle_y);
+    matrix_rotate_z_in_place(&matrix, angle_z);
+    return matrix;
+}
+
+Scene3dVec3 transform_matrix3(const WatercubeMatrix3& matrix, const Scene3dVec3& value) {
+    return make_vec3(matrix.m00 * value.x + matrix.m10 * value.y + matrix.m20 * value.z,
+                     matrix.m01 * value.x + matrix.m11 * value.y + matrix.m21 * value.z,
+                     matrix.m02 * value.x + matrix.m12 * value.y + matrix.m22 * value.z);
+}
+
 void build_textured_mesh_normals(WatercubeTexturedMesh* mesh) {
     if (mesh == NULL) {
         return;
@@ -206,9 +306,23 @@ void build_igu_normals(WatercubeIguMesh* mesh) {
         return;
     }
 
-    mesh->normals.resize(mesh->vertices.size());
-    for (std::size_t index = 0; index < mesh->vertices.size(); ++index) {
-        mesh->normals[index] = normalize(mesh->vertices[index]);
+    mesh->normals.assign(mesh->vertices.size(), make_vec3(0.0f, 0.0f, 0.0f));
+    for (std::size_t index = 0; index < mesh->triangles.size(); ++index) {
+        const Scene3dTriangle& triangle = mesh->triangles[index];
+        const Scene3dVec3& a = mesh->vertices[static_cast<std::size_t>(triangle.a)];
+        const Scene3dVec3& b = mesh->vertices[static_cast<std::size_t>(triangle.b)];
+        const Scene3dVec3& c = mesh->vertices[static_cast<std::size_t>(triangle.c)];
+        const Scene3dVec3 normal = normalize(cross(subtract(b, a), subtract(c, a)));
+        mesh->normals[static_cast<std::size_t>(triangle.a)] =
+            add(mesh->normals[static_cast<std::size_t>(triangle.a)], normal);
+        mesh->normals[static_cast<std::size_t>(triangle.b)] =
+            add(mesh->normals[static_cast<std::size_t>(triangle.b)], normal);
+        mesh->normals[static_cast<std::size_t>(triangle.c)] =
+            add(mesh->normals[static_cast<std::size_t>(triangle.c)], normal);
+    }
+
+    for (std::size_t index = 0; index < mesh->normals.size(); ++index) {
+        mesh->normals[index] = normalize(mesh->normals[index]);
     }
 }
 
@@ -862,26 +976,21 @@ void WatercubeScene::render(RgbSurface& surface, float scene_time_seconds, float
         const float rotate_z = static_cast<float>(simulation_tick_count_) * 0.07f;
         const Scene3dVec3 translation = make_vec3(0.0f, 0.0f, translate_z);
         const float object_scale = 0.45f;
+        const WatercubeMatrix3 rotation_matrix = build_rotation_matrix(rotate_x, 0.0f, rotate_z);
 
         for (std::size_t triangle_index = 0; triangle_index < mesh.triangles.size(); ++triangle_index) {
             const Scene3dTriangle& triangle = mesh.triangles[triangle_index];
             const Scene3dVec3 local_a =
-                scale(rotate_euler(mesh.vertices[static_cast<std::size_t>(triangle.a)],
-                                   rotate_x,
-                                   0.0f,
-                                   rotate_z),
+                scale(transform_matrix3(rotation_matrix,
+                                        mesh.vertices[static_cast<std::size_t>(triangle.a)]),
                       object_scale);
             const Scene3dVec3 local_b =
-                scale(rotate_euler(mesh.vertices[static_cast<std::size_t>(triangle.b)],
-                                   rotate_x,
-                                   0.0f,
-                                   rotate_z),
+                scale(transform_matrix3(rotation_matrix,
+                                        mesh.vertices[static_cast<std::size_t>(triangle.b)]),
                       object_scale);
             const Scene3dVec3 local_c =
-                scale(rotate_euler(mesh.vertices[static_cast<std::size_t>(triangle.c)],
-                                   rotate_x,
-                                   0.0f,
-                                   rotate_z),
+                scale(transform_matrix3(rotation_matrix,
+                                        mesh.vertices[static_cast<std::size_t>(triangle.c)]),
                       object_scale);
             const Scene3dVec3 world_a = add(local_a, translation);
             const Scene3dVec3 world_b = add(local_b, translation);
@@ -902,23 +1011,17 @@ void WatercubeScene::render(RgbSurface& surface, float scene_time_seconds, float
                 continue;
             }
 
-            // Java's auto-envmap path projects the rotated normalized vertex directions
-            // directly onto the object's local matrix axes rather than using spherical UVs.
+            // Match MeshObject.KKAMaja: transform the smoothed vertex normal by the object's
+            // local rotation matrix, then project its X/Y components into [0,1] UV space.
             const Scene3dVec3 env_a =
-                normalize(rotate_euler(mesh.normals[static_cast<std::size_t>(triangle.a)],
-                                       rotate_x,
-                                       0.0f,
-                                       rotate_z));
+                normalize(transform_matrix3(rotation_matrix,
+                                            mesh.normals[static_cast<std::size_t>(triangle.a)]));
             const Scene3dVec3 env_b =
-                normalize(rotate_euler(mesh.normals[static_cast<std::size_t>(triangle.b)],
-                                       rotate_x,
-                                       0.0f,
-                                       rotate_z));
+                normalize(transform_matrix3(rotation_matrix,
+                                            mesh.normals[static_cast<std::size_t>(triangle.b)]));
             const Scene3dVec3 env_c =
-                normalize(rotate_euler(mesh.normals[static_cast<std::size_t>(triangle.c)],
-                                       rotate_x,
-                                       0.0f,
-                                       rotate_z));
+                normalize(transform_matrix3(rotation_matrix,
+                                            mesh.normals[static_cast<std::size_t>(triangle.c)]));
 
             primitive.a.depth = depth_a;
             primitive.b.depth = depth_b;
