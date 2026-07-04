@@ -25,6 +25,7 @@ add_executable(forward-export
     src/render/rgb_surface.cpp
     src/render/tga_writer.cpp
     src/scenes/domina_routine.cpp
+    src/scenes/feta_scene.cpp
     src/scenes/kukot_scene.cpp
     src/scenes/maku_scene.cpp
     src/scenes/mute95_scene.cpp
