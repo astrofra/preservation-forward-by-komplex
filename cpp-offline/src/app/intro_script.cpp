@@ -117,7 +117,7 @@ const char* const kFetaScriptLines[] = {
     "go 21",
     "_1520 msg feta blackfeta",
     "_1530 msg feta blackmuna",
-    "_1600 shutdown"
+    "_1600 show uppol"
 };
 
 std::string trim(const std::string& value) {

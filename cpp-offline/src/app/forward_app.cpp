@@ -111,6 +111,7 @@ ForwardApp::ForwardApp(const ExportConfig& config)
       maku_scene_(),
       watercube_scene_(),
       feta_scene_(),
+      uppol_routine_(),
       scene_(),
       active_renderable_(ActiveRenderable::none),
       active_name_(),
@@ -190,6 +191,8 @@ int ForwardApp::run() {
             process_watercube_script(frame_sample_index);
         } else if (is_feta_sequence()) {
             process_feta_script(frame_sample_index);
+        } else if (is_uppol_sequence()) {
+            process_uppol_script(frame_sample_index);
         }
 
         frame_buffer_.clear(0);
@@ -213,7 +216,15 @@ int ForwardApp::run() {
                 feta_scene_.render(frame_buffer_,
                                    static_cast<float>(demo_time_seconds - active_start_seconds_),
                                    delta_seconds);
+            } else if (active_renderable_ == ActiveRenderable::routine) {
+                uppol_routine_.render(frame_buffer_,
+                                      static_cast<float>(demo_time_seconds - active_start_seconds_),
+                                      delta_seconds);
             }
+        } else if (is_uppol_sequence()) {
+            uppol_routine_.render(frame_buffer_,
+                                  static_cast<float>(demo_time_seconds - active_start_seconds_),
+                                  delta_seconds);
         } else {
             const float scene_time_seconds = static_cast<float>(demo_time_seconds);
             scene_.render(frame_buffer_, scene_time_seconds, delta_seconds);
@@ -263,6 +274,9 @@ int ForwardApp::run() {
         watercube_scene_.dispose();
     } else if (is_feta_sequence()) {
         feta_scene_.dispose();
+        uppol_routine_.dispose();
+    } else if (is_uppol_sequence()) {
+        uppol_routine_.dispose();
     } else {
         scene_.dispose();
     }
@@ -305,10 +319,11 @@ bool ForwardApp::resolve_export_span(std::string* error_message) {
         return true;
     }
     if (!is_intro_sequence() && !is_saari_sequence() && !is_kukot_sequence() &&
-        !is_maku_sequence() && !is_watercube_sequence() && !is_feta_sequence()) {
+        !is_maku_sequence() && !is_watercube_sequence() && !is_feta_sequence() &&
+        !is_uppol_sequence()) {
         if (error_message != NULL) {
             *error_message =
-                "--until-song-position is currently supported for intro, saari, kukot, maku, watercube, and feta";
+                "--until-song-position is currently supported for intro, saari, kukot, maku, watercube, feta, and uppol";
         }
         return false;
     }
@@ -348,7 +363,8 @@ bool ForwardApp::prepare_sequence_audio(std::string* error_message) {
     current_song_position_ = 0U;
 
     if (!is_intro_sequence() && !is_saari_sequence() && !is_kukot_sequence() &&
-        !is_maku_sequence() && !is_watercube_sequence() && !is_feta_sequence()) {
+        !is_maku_sequence() && !is_watercube_sequence() && !is_feta_sequence() &&
+        !is_uppol_sequence()) {
         return true;
     }
 
@@ -409,7 +425,12 @@ bool ForwardApp::write_log(std::string* error_message) const {
         stream << "intro_frames_per_row=" << config_.intro_frames_per_row << '\n';
         stream << "intro_rows_per_order=" << config_.intro_rows_per_order << '\n';
         stream << "scene=feta\n";
-        stream << "note=first autonomous feta packed-surface pass with direct fetus/babyenv/kosmusp/flare1 asset loading, indexed halo feedback, blackfeta/blackmuna split darkening, and native jarnomix.xm playback sliced from song position 0x1230; backdrop orientation and exact env-map parity may still need tightening\n";
+        stream << "note=feta scene window with native jarnomix.xm playback sliced from song position 0x1230 and scripted handoff to uppol at 0x1600; feta still uses the packed-surface direct-asset pass while uppol reuses the original indexed phorward.gif path plus Java-derived credit bitmaps\n";
+    } else if (is_uppol_sequence()) {
+        stream << "intro_frames_per_row=" << config_.intro_frames_per_row << '\n';
+        stream << "intro_rows_per_order=" << config_.intro_rows_per_order << '\n';
+        stream << "scene=uppol\n";
+        stream << "note=uppol direct indexed phorward.gif pass with Java-derived fixed credit bitmaps, audio sliced from jarnomix.xm song position 0x1600, and non-interactive visual-only link lines\n";
     } else {
         stream << "scene=" << scene_.script_name() << '\n';
         stream << "note=placeholder scene plus silent wav until the real Java systems are ported\n";
@@ -422,7 +443,8 @@ bool ForwardApp::write_sequence_audio(WavWriter* wav_writer, std::string* error_
         static_cast<std::size_t>(timeline_.total_samples_for_frames(config_.frame_count));
 
     if (!is_intro_sequence() && !is_saari_sequence() && !is_kukot_sequence() &&
-        !is_maku_sequence() && !is_watercube_sequence() && !is_feta_sequence()) {
+        !is_maku_sequence() && !is_watercube_sequence() && !is_feta_sequence() &&
+        !is_uppol_sequence()) {
         return wav_writer->write_silence(total_sample_frames, error_message);
     }
 
@@ -464,6 +486,10 @@ bool ForwardApp::is_watercube_sequence() const {
 
 bool ForwardApp::is_feta_sequence() const {
     return config_.sequence_name == "feta";
+}
+
+bool ForwardApp::is_uppol_sequence() const {
+    return config_.sequence_name == "uppol";
 }
 
 bool ForwardApp::initialize_sequence(std::string* error_message) {
@@ -596,8 +622,36 @@ bool ForwardApp::initialize_sequence(std::string* error_message) {
             }
             return false;
         }
+        uppol_routine_.init();
+        if (!uppol_routine_.is_ready()) {
+            if (error_message != NULL) {
+                *error_message = uppol_routine_.error_message();
+            }
+            return false;
+        }
         active_renderable_ = ActiveRenderable::none;
         active_name_.clear();
+        active_start_seconds_ = 0.0;
+        return true;
+    }
+
+    if (is_uppol_sequence()) {
+        if (config_.width != 512 || config_.height != 256) {
+            if (error_message != NULL) {
+                *error_message = "uppol sequence currently requires native 512x256 output";
+            }
+            return false;
+        }
+        uppol_routine_.init();
+        if (!uppol_routine_.is_ready()) {
+            if (error_message != NULL) {
+                *error_message = uppol_routine_.error_message();
+            }
+            return false;
+        }
+        uppol_routine_.on_show();
+        active_renderable_ = ActiveRenderable::routine;
+        active_name_ = uppol_routine_.script_name();
         active_start_seconds_ = 0.0;
         return true;
     }
@@ -758,6 +812,20 @@ void ForwardApp::process_feta_script(std::uint64_t sample_index) {
     }
 }
 
+void ForwardApp::process_uppol_script(std::uint64_t sample_index) {
+    if (!is_uppol_sequence()) {
+        return;
+    }
+
+    while (next_song_position_event_index_ < sequence_audio_render_.song_positions.size() &&
+           sequence_audio_render_.song_positions[next_song_position_event_index_].sample_index <= sample_index) {
+        const SongPositionEvent& event =
+            sequence_audio_render_.song_positions[next_song_position_event_index_];
+        current_song_position_ = event.song_position_hex;
+        ++next_song_position_event_index_;
+    }
+}
+
 void ForwardApp::execute_script_command(const ScriptCommand& command, double demo_time_seconds) {
     if (command.verb == "init") {
         return;
@@ -788,6 +856,8 @@ void ForwardApp::execute_script_command(const ScriptCommand& command, double dem
             show_scene(command.target, demo_time_seconds);
         } else if (command.target == "feta") {
             show_scene(command.target, demo_time_seconds);
+        } else if (command.target == "uppol") {
+            show_routine(command.target, demo_time_seconds);
         } else if (command.target == "domina") {
             show_routine(command.target, demo_time_seconds);
         }
@@ -850,11 +920,13 @@ void ForwardApp::show_scene(const std::string& scene_name, double demo_time_seco
 }
 
 void ForwardApp::show_routine(const std::string& routine_name, double demo_time_seconds) {
-    if (routine_name != "domina") {
+    if (routine_name == "domina") {
+        domina_routine_.on_show();
+    } else if (routine_name == "uppol") {
+        uppol_routine_.on_show();
+    } else {
         return;
     }
-
-    domina_routine_.on_show();
     active_renderable_ = ActiveRenderable::routine;
     active_name_ = routine_name;
     active_start_seconds_ = demo_time_seconds;
@@ -935,6 +1007,10 @@ std::string ForwardApp::next_script_time_hex(unsigned int frame_index) const {
         }
 
         return feta_script_.next_position_hex(next_script_index_);
+    }
+
+    if (is_uppol_sequence()) {
+        return std::string();
     }
 
     if (!is_intro_sequence()) {

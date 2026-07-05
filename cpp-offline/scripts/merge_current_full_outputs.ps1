@@ -12,6 +12,7 @@ param(
     [string]$MakuDir = "",
     [string]$WatercubeDir = "",
     [string]$FetaDir = "",
+    [string]$UppolDir = "",
 
     [int]$Fps = 50,
     [int]$SampleRate = 22050
@@ -243,6 +244,9 @@ if (-not [string]::IsNullOrWhiteSpace($WatercubeDir)) {
 if (-not [string]::IsNullOrWhiteSpace($FetaDir)) {
     $segments += [PSCustomObject]@{ Name = "feta"; Dir = $FetaDir }
 }
+if (-not [string]::IsNullOrWhiteSpace($UppolDir)) {
+    $segments += [PSCustomObject]@{ Name = "uppol"; Dir = $UppolDir }
+}
 
 $segmentRows = @{}
 foreach ($segment in $segments) {
@@ -355,7 +359,7 @@ $logLines = @(
     "sequence=current-full",
     "segments=$segmentNames",
     "frames=$frameIndex",
-    "note=merged wrapper output for all currently ported non-placeholder sequences through feta"
+    "note=merged wrapper output for all currently ported non-placeholder sequences through uppol"
 )
 [System.Collections.Generic.List[string]]$frameLines = @()
 foreach ($segment in $segments) {

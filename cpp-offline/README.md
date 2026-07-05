@@ -170,7 +170,7 @@ The Windows wrapper uses the PowerShell merge script, and the POSIX wrapper uses
 That wrapper:
 
 - configures and builds `forward-export`
-- resolves segment lengths from native XM song positions, then exports the complete current intro window through `0x1024` plus a short post-roll, followed by the current `saari` window through `0x0700`, the current `kukot` window through `0x0D00`, the current `maku` window through `0x1000`, and the current `watercube` window through `0x1300`
+- resolves segment lengths from native XM song positions, then exports the complete current intro window through `0x1024` plus a short post-roll, followed by the current `saari` window through `0x0700`, the current `kukot` window through `0x0D00`, the current `maku` window through `0x1000`, the current `watercube` window through `0x1300`, the current `feta` window through `0x1600`, and a standalone `uppol` credits tail
 - writes outputs under `cpp-offline/output-full-current`
 - muxes `forward_full_current_master.mkv` and `forward_full_current_h264.mp4` when `ffmpeg` is available
 

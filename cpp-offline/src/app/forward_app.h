@@ -16,6 +16,7 @@
 #include "scenes/mute95_scene.h"
 #include "scenes/placeholder_scene.h"
 #include "scenes/saari_scene.h"
+#include "scenes/uppol_routine.h"
 #include "scenes/watercube_scene.h"
 
 namespace forward_offline {
@@ -44,6 +45,7 @@ private:
     bool is_maku_sequence() const;
     bool is_watercube_sequence() const;
     bool is_feta_sequence() const;
+    bool is_uppol_sequence() const;
     bool initialize_sequence(std::string* error_message);
     void process_intro_script(std::uint64_t sample_index);
     void process_saari_script(std::uint64_t sample_index);
@@ -51,6 +53,7 @@ private:
     void process_maku_script(std::uint64_t sample_index);
     void process_watercube_script(std::uint64_t sample_index);
     void process_feta_script(std::uint64_t sample_index);
+    void process_uppol_script(std::uint64_t sample_index);
     std::string song_position_string(unsigned int song_position) const;
     void execute_script_command(const ScriptCommand& command, double demo_time_seconds);
     void show_scene(const std::string& scene_name, double demo_time_seconds);
@@ -75,6 +78,7 @@ private:
     MakuScene maku_scene_;
     WatercubeScene watercube_scene_;
     FetaScene feta_scene_;
+    UppolRoutine uppol_routine_;
     PlaceholderScene scene_;
     ActiveRenderable active_renderable_;
     std::string active_name_;
