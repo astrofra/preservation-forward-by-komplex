@@ -31,7 +31,7 @@ Current limitation:
 - `mute95` and `domina` are now structured as real C++ scene/routine ports with the Java message names and timing flow
 - `mute95` now loads the original JPEG/GIF assets directly at runtime through vendored `stb_image` plus native GIF palette handling
 - the current `mute95` render is already very close to the Java reference capture, with remaining drift concentrated around the central blue halo / horizontal band during the title phase
-- the intro zoom-noise path may still be slightly oversaturated; we do not currently have a reliable capture of the original Java runtime to confirm whether that saturation is correct
+- `mute95` now keeps the blurred background cloud on a stable intensity envelope instead of letting the C++ port re-feed it into a late-sequence glow runaway; this matches the current Java baseline and the 2026 Power Mac G5 ground-truth screenshots more closely
 - `domina` now loads `images/phorward.gif` directly as an indexed GIF and follows the Java `512x3840 -> 512x256` frame-strip scroll path
 - `domina` late-frame comparisons are still influenced by the synthetic song-position transport, so the remaining drift there is not yet a pure scene-renderer verdict
 - `intro` now renders native `kuninga.xm` audio and `saari` now renders native `jarnomix.xm` audio directly in C++, with no Java intermediation
@@ -173,6 +173,37 @@ That wrapper:
 - resolves segment lengths from native XM song positions, then exports the complete current intro window through `0x1024` plus a short post-roll, followed by the current `saari` window through `0x0700`, the current `kukot` window through `0x0D00`, the current `maku` window through `0x1000`, the current `watercube` window through `0x1300`, the current `feta` window through `0x1600`, and a standalone `uppol` credits tail
 - writes outputs under `cpp-offline/output-full-current`
 - muxes `forward_full_current_master.mkv` and `forward_full_current_h264.mp4` when `ffmpeg` is available
+
+## Standalone Release Packaging
+
+From the repository root:
+
+```powershell
+package_forward_cpp_offline.bat
+```
+
+This builds the `Release` exporter, stages a standalone package under:
+
+```text
+cpp-offline/dist/forward-cpp-offline-win64
+```
+
+and also writes a zip archive next to it:
+
+```text
+cpp-offline/dist/forward-cpp-offline-win64.zip
+```
+
+The packaged folder includes:
+
+- `forward-export.exe`
+- `render_forward_full.bat`
+- `scripts/merge_current_full_outputs.ps1`
+- `scripts/mux_master.bat`
+- `scripts/mux_h264.bat`
+- `original/forward/...` with the original asset tree
+
+The package is self-contained for the current C++ offline workflow: run `render_forward_full.bat` from the package root and it writes the offline export under `output/` by default.
 
 ## Immediate Next Porting Steps
 

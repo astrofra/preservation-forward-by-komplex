@@ -95,8 +95,11 @@ void Mute95Scene::render(RgbSurface& surface, float scene_time_seconds, float de
     phase_ticks_ = static_cast<int>(desktop_phase_ticks_);
     apply_warp(scale);
     apply_noise(scene_time_seconds, delta_seconds);
+    // Java's amAJAkk() already performs an internal buffer swap, and
+    // Mute95Scene.render() follows it with a second explicit swap. The net
+    // effect is that the displayed/source buffer identity stays stable, which
+    // prevents the background from re-feeding itself into a runaway glow.
     blend_buffers();
-    swap_buffers();
     render_indexed_to_rgb(surface);
     render_credit_overlay(surface, scene_time_seconds);
 }
@@ -176,10 +179,6 @@ void Mute95Scene::apply_warp(float scale) {
 }
 
 void Mute95Scene::apply_noise(float scene_time_seconds, float delta_seconds) {
-    // This zoom-noise accumulation may still oversaturate the intro compared
-    // with the original Java release. We do not currently have a reliable
-    // reference capture of that original runtime, so keep this path under
-    // review instead of treating the current saturation as final.
     const int max_value =
         static_cast<int>(std::min(scene_time_seconds * 1.8f + 22.0f, 255.0f));
     const int pixel_count = kWidth * kHeight;
@@ -201,10 +200,6 @@ void Mute95Scene::blend_buffers() {
         active_pixels_[index] = static_cast<std::uint8_t>(
             (static_cast<int>(passive_pixels_[index]) + static_cast<int>(active_pixels_[index])) >> 1);
     }
-}
-
-void Mute95Scene::swap_buffers() {
-    active_pixels_.swap(passive_pixels_);
 }
 
 void Mute95Scene::render_indexed_to_rgb(RgbSurface& surface) const {

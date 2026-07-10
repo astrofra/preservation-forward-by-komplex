@@ -36,7 +36,6 @@ private:
     void apply_warp(float scale);
     void apply_noise(float scene_time_seconds, float delta_seconds);
     void blend_buffers();
-    void swap_buffers();
     void render_indexed_to_rgb(RgbSurface& surface) const;
     void render_credit_overlay(RgbSurface& surface, float scene_time_seconds);
     void blend_credit_region(RgbSurface& surface,
