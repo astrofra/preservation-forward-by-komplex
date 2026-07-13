@@ -1,2 +1,5 @@
 - Original prod : https://www.pouet.net/prod.php?which=889
 - Native harness (first C++ step) : `port/`
+- Root helper scripts:
+  - `build_release64.bat` builds the Windows x64 release with XM playback enabled by default
+  - `prepare_release64.bat` assembles a redistributable package in `dist\forward-native-win64`

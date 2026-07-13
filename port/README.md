@@ -15,7 +15,11 @@ cmake --build build -j
 
 ## Build (Windows 10/11, MSVC)
 
-`SDL2` is auto-fetched by CMake when not already installed.
+`SDL2` and `libxmp` are resolved automatically by default:
+
+- local package/toolchain first
+- official source fetch as fallback when the dependency is missing
+- MSVC runtime linked statically on Windows (`/MT`, `/MTd`)
 
 ```powershell
 cd port
@@ -23,7 +27,7 @@ cmake -S . -B build -A x64 -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release
 ```
 
-## Optional: enable XM audio on Windows (vcpkg)
+## Optional: prefer vcpkg packages on Windows
 
 ```powershell
 cd port
@@ -35,7 +39,22 @@ cmake -S . -B build -A x64 `
 cmake --build build --config Release
 ```
 
-`libxmp` is optional. If it is not found, the app still builds and runs, but XM music playback is disabled.
+If you explicitly disable `FORWARD_FETCH_LIBXMP` and no local `libxmp` package is found, the app still builds and runs, but XM music playback is disabled.
+
+## Prepare Release Package
+
+From the repository root:
+
+```powershell
+.\prepare_release64.bat
+```
+
+This produces a redistributable folder in `dist\forward-native-win64\` with:
+
+- `forward_native.exe`
+- original demo assets under `original\forward\`
+
+By default, the package does not embed the MSVC/UCRT runtime DLLs, because the Windows build now links the MSVC runtime statically. If you want to revert to the dynamic runtime model and package those DLLs, configure with `-DFORWARD_MSVC_STATIC_RUNTIME=OFF -DFORWARD_INSTALL_MSVC_RUNTIME=ON`.
 
 ## Run
 

@@ -12,9 +12,13 @@ set "TOOLCHAIN_FILE="
 
 if not exist "%SRC_DIR%\CMakeLists.txt" (
   call :fail "Could not find %SRC_DIR%\CMakeLists.txt." 1
+  exit /b 1
 )
 
-call :require_tool cmake.exe CMake || call :fail "CMake [cmake.exe] is required but was not found in PATH." 1
+call :require_tool cmake.exe CMake || (
+  call :fail "CMake [cmake.exe] is required but was not found in PATH." 1
+  exit /b 1
+)
 
 if defined CMAKE_TOOLCHAIN_FILE (
   if exist "%CMAKE_TOOLCHAIN_FILE%" (
@@ -43,56 +47,35 @@ if defined TOOLCHAIN_FILE (
     -DCMAKE_BUILD_TYPE=Release ^
     -DFORWARD_FETCH_SDL2=ON ^
     -DFORWARD_ENABLE_XM_AUDIO=ON ^
+    -DFORWARD_FETCH_LIBXMP=ON ^
     -DCMAKE_TOOLCHAIN_FILE="%TOOLCHAIN_FILE%"
 ) else (
   cmake -S "%SRC_DIR%" -B "%BUILD_DIR%" -G "Visual Studio 17 2022" -A x64 ^
     -DCMAKE_BUILD_TYPE=Release ^
     -DFORWARD_FETCH_SDL2=ON ^
-    -DFORWARD_ENABLE_XM_AUDIO=ON
+    -DFORWARD_ENABLE_XM_AUDIO=ON ^
+    -DFORWARD_FETCH_LIBXMP=ON
 )
 if errorlevel 1 (
   call :fail "CMake configure failed." 1
+  exit /b 1
 )
 
 echo [INFO] Building Release...
 cmake --build "%BUILD_DIR%" --config Release -- /m
 if errorlevel 1 (
   call :fail "Build failed." 1
+  exit /b 1
 )
 
 if not exist "%EXE_PATH%" (
   call :fail "Build completed, but executable was not found at %EXE_PATH%." 2
+  exit /b 2
 )
 
-if exist "%EXE_DIR%\SDL2.dll" (
-  echo [INFO] SDL2.dll already present next to executable.
-  goto :done
-)
-
-if exist "%BUILD_DIR%\_deps\sdl2_external-build\Release\SDL2.dll" (
-  copy /y "%BUILD_DIR%\_deps\sdl2_external-build\Release\SDL2.dll" "%EXE_DIR%\SDL2.dll" >nul
-  if errorlevel 1 (
-    call :fail "Failed to stage SDL2.dll from fetched SDL build output." 1
-  )
-  echo [INFO] Staged SDL2.dll from fetched SDL build output.
-  goto :done
-)
-
-for /r "%BUILD_DIR%" %%F in (SDL2.dll) do (
-  copy /y "%%~fF" "%EXE_DIR%\SDL2.dll" >nul
-  if errorlevel 1 (
-    call :fail "Failed to stage SDL2.dll from %%~fF." 1
-  )
-  echo [INFO] Staged SDL2.dll from "%%~fF".
-  goto :done
-)
-
-echo [INFO] SDL2.dll was not found under "%BUILD_DIR%". This is expected if SDL2 is statically linked.
-
-:done
 echo [OK] Build complete.
 echo [OK] Executable: "%EXE_PATH%"
-echo [INFO] If libxmp is not installed, XM audio is disabled at runtime.
+echo [INFO] Use prepare_release64.bat to assemble a redistributable package under dist\.
 exit /b 0
 
 :require_tool

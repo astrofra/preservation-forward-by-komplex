@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.21)
 project(forward_native_harness LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -20,6 +20,23 @@ endif()
 option(FORWARD_FETCH_SDL2
        "Fetch SDL2 from source if no system package is found"
        ${FORWARD_FETCH_SDL2_DEFAULT})
+option(FORWARD_FETCH_LIBXMP
+       "Fetch libxmp from official source if no system package is found"
+       ON)
+option(FORWARD_MSVC_STATIC_RUNTIME
+       "Link the MSVC runtime statically (/MT, /MTd)"
+       ON)
+option(FORWARD_INSTALL_MSVC_RUNTIME
+       "Install MSVC/UCRT runtime DLLs into the release package"
+       OFF)
+
+if(MSVC AND FORWARD_MSVC_STATIC_RUNTIME)
+  set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+
+if(FORWARD_FETCH_SDL2 OR FORWARD_FETCH_LIBXMP)
+  include(FetchContent)
+endif()
 
 find_package(SDL2 QUIET CONFIG)
 if(NOT TARGET SDL2::SDL2 AND NOT SDL2_FOUND)
@@ -45,7 +62,6 @@ if(NOT TARGET SDL2::SDL2)
 endif()
 
 if(NOT TARGET SDL2::SDL2 AND FORWARD_FETCH_SDL2)
-  include(FetchContent)
   set(SDL_SHARED OFF CACHE BOOL "" FORCE)
   set(SDL_STATIC ON CACHE BOOL "" FORCE)
   set(SDL_TEST OFF CACHE BOOL "" FORCE)
@@ -75,12 +91,19 @@ endif()
 
 set(XMP_LINK_TARGET "")
 set(FORWARD_HAS_LIBXMP FALSE)
+set(FORWARD_LIBXMP_FETCHED FALSE)
 
 if(FORWARD_ENABLE_XM_AUDIO)
   find_package(libxmp QUIET CONFIG)
   find_package(xmp QUIET CONFIG)
 
-  foreach(candidate_target IN ITEMS xmp::xmp libxmp::xmp XMP::xmp unofficial::libxmp::xmp)
+  foreach(candidate_target IN ITEMS
+      xmp::xmp
+      libxmp::xmp
+      XMP::xmp
+      unofficial::libxmp::xmp
+      libxmp::xmp_static
+      libxmp::xmp_shared)
     if(TARGET ${candidate_target})
       set(XMP_LINK_TARGET ${candidate_target})
       set(FORWARD_HAS_LIBXMP TRUE)
@@ -110,9 +133,73 @@ if(FORWARD_ENABLE_XM_AUDIO)
       set(FORWARD_HAS_LIBXMP TRUE)
     endif()
   endif()
+
+  if(NOT FORWARD_HAS_LIBXMP AND FORWARD_FETCH_LIBXMP)
+    foreach(var_name IN ITEMS BUILD_SHARED BUILD_STATIC BUILD_LITE WITH_UNIT_TESTS)
+      if(DEFINED CACHE{${var_name}})
+        set(FORWARD_LIBXMP_${var_name}_WAS_DEFINED TRUE)
+        set(FORWARD_LIBXMP_${var_name}_SAVED "${${var_name}}")
+      else()
+        set(FORWARD_LIBXMP_${var_name}_WAS_DEFINED FALSE)
+      endif()
+    endforeach()
+
+    set(BUILD_SHARED OFF CACHE BOOL "Build libXMP shared library" FORCE)
+    set(BUILD_STATIC ON CACHE BOOL "Build libXMP static library" FORCE)
+    set(BUILD_LITE OFF CACHE BOOL "Build libXMP-lite library" FORCE)
+    set(WITH_UNIT_TESTS OFF CACHE BOOL "Enable unit testing" FORCE)
+
+    FetchContent_Declare(
+      libxmp_external
+      URL https://github.com/libxmp/libxmp/releases/download/libxmp-4.6.0/libxmp-4.6.0.tar.gz
+      URL_HASH SHA256=2d3c45fe523b50907e89e60f9a3b7f4cc9aab83ec9dbba7743eaffbcdcb35ea6
+      DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    )
+
+    FetchContent_GetProperties(libxmp_external)
+    if(NOT libxmp_external_POPULATED)
+      if(POLICY CMP0169)
+        cmake_policy(PUSH)
+        cmake_policy(SET CMP0169 OLD)
+      endif()
+      FetchContent_Populate(libxmp_external)
+      if(POLICY CMP0169)
+        cmake_policy(POP)
+      endif()
+      add_subdirectory("${libxmp_external_SOURCE_DIR}" "${libxmp_external_BINARY_DIR}" EXCLUDE_FROM_ALL)
+    endif()
+
+    foreach(candidate_target IN ITEMS
+        libxmp::xmp_static
+        xmp_static
+        libxmp::xmp_shared
+        xmp_shared
+        XMP_IF)
+      if(TARGET ${candidate_target})
+        set(XMP_LINK_TARGET ${candidate_target})
+        set(FORWARD_HAS_LIBXMP TRUE)
+        set(FORWARD_LIBXMP_FETCHED TRUE)
+        break()
+      endif()
+    endforeach()
+
+    foreach(var_name IN ITEMS BUILD_SHARED BUILD_STATIC BUILD_LITE WITH_UNIT_TESTS)
+      if(FORWARD_LIBXMP_${var_name}_WAS_DEFINED)
+        set(${var_name} "${FORWARD_LIBXMP_${var_name}_SAVED}" CACHE BOOL "" FORCE)
+      else()
+        unset(${var_name} CACHE)
+      endif()
+    endforeach()
+  endif()
 endif()
 
-if(NOT FORWARD_HAS_LIBXMP)
+if(FORWARD_HAS_LIBXMP)
+  if(FORWARD_LIBXMP_FETCHED)
+    message(STATUS "libxmp: using fetched source build.")
+  else()
+    message(STATUS "libxmp: found local dependency.")
+  endif()
+else()
   message(STATUS "libxmp not found: XM music playback will be disabled at runtime.")
 endif()
 
@@ -146,4 +233,29 @@ endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
   target_compile_options(forward_native PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+install(TARGETS forward_native
+  RUNTIME DESTINATION .
+)
+
+set(FORWARD_ASSET_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../original/forward")
+install(DIRECTORY
+  "${FORWARD_ASSET_ROOT}/asses"
+  "${FORWARD_ASSET_ROOT}/images"
+  "${FORWARD_ASSET_ROOT}/meshes"
+  "${FORWARD_ASSET_ROOT}/mods"
+  DESTINATION "original/forward"
+)
+install(FILES
+  "${FORWARD_ASSET_ROOT}/README.TXT"
+  "${FORWARD_ASSET_ROOT}/version.txt"
+  DESTINATION "original/forward"
+)
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/README.md" DESTINATION .)
+
+if(MSVC AND FORWARD_INSTALL_MSVC_RUNTIME)
+  set(CMAKE_INSTALL_UCRT_LIBRARIES TRUE)
+  set(CMAKE_INSTALL_SYSTEM_RUNTIME_DESTINATION .)
+  include(InstallRequiredSystemLibraries)
 endif()
