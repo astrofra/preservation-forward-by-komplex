@@ -4,6 +4,7 @@
 #include "app/forward_app.h"
 #include "app/saari_capture.h"
 #include "app/maku_capture.h"
+#include "app/feta_capture.h"
 
 int main(int argc, char** argv) {
     forward_offline::ExportConfig config;
@@ -22,6 +23,9 @@ int main(int argc, char** argv) {
     }
     if (config.sequence_name == "maku-gsplat") {
         return forward_offline::export_maku_capture(config);
+    }
+    if (config.sequence_name == "feta-gsplat") {
+        return forward_offline::export_feta_capture(config);
     }
     forward_offline::ForwardApp app(config);
     return app.run();

@@ -9,8 +9,19 @@
 #include "core/java_random.h"
 #include "scenes/scene.h"
 #include "scenes/scene3d_shared.h"
+#include "scenes/capture_types.h"
 
 namespace forward_offline {
+
+CaptureCamera make_feta_capture_camera(const Scene3dVec3& position, const Scene3dVec3& target,
+                                      int width, int height, float horizontal_fov);
+
+struct FetaCaptureBounds {
+    Scene3dVec3 center;
+    float fetus_radius;
+    float enclosing_radius;
+    float particle_world_size;
+};
 
 struct FetaParticle {
     Scene3dVec3 local_position;
@@ -36,7 +47,13 @@ public:
     bool is_ready() const;
     const std::string& error_message() const;
 
+    void render_capture(RgbSurface& surface, const CaptureCamera& camera, float frozen_time,
+                        std::vector<int>* surface_ids);
+    FetaCaptureBounds capture_geometry(float frozen_time, std::vector<CapturePoint>* points) const;
+
 private:
+    void render_view(RgbSurface& surface, const CaptureCamera& camera, float scene_time_seconds,
+                     bool capture, std::vector<int>* surface_ids);
     bool load_assets();
     bool load_igu_mesh(const std::string& path,
                        FetaIguMesh* mesh,

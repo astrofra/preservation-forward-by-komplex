@@ -8,3 +8,4 @@
 /tests/*
 !/tests/test_saari_capture.py
 !/tests/test_maku_capture.py
+!/tests/test_feta_capture.py

@@ -90,6 +90,7 @@ ExportConfig::ExportConfig()
       sequence_name("intro"),
       gsplat_time(30.0f),
       gsplat_radius(0.0f),
+      gsplat_end_radius(0.0f),
       gsplat_fov(80.0f),
       gsplat_height_fraction(0.25f),
       gsplat_validation_every(10),
@@ -98,7 +99,9 @@ ExportConfig::ExportConfig()
 
 ParseStatus parse_export_config(int argc, char** argv, ExportConfig& config, std::ostream& stream) {
     bool gsplat_option = false, explicit_width = false, explicit_height = false, explicit_frames = false;
-    bool saari_option = false, maku_option = false;
+    bool path_option = false, static_option = false, fov_option = false, height_option = false;
+    bool end_radius_option = false;
+    bool explicit_time = false;
     for (int index = 1; index < argc; ++index) {
         const std::string arg(argv[index]);
 
@@ -157,7 +160,7 @@ ParseStatus parse_export_config(int argc, char** argv, ExportConfig& config, std
         } else if (arg == "--sequence") {
             config.sequence_name = value;
         } else if (arg == "--gsplat-time" || arg == "--gsplat-radius" || arg == "--gsplat-fov" ||
-                   arg == "--gsplat-height-fraction") {
+                   arg == "--gsplat-height-fraction" || arg == "--gsplat-end-radius") {
             char* end = NULL;
             errno = 0;
             const double number = std::strtod(value.c_str(), &end);
@@ -171,16 +174,22 @@ ParseStatus parse_export_config(int argc, char** argv, ExportConfig& config, std
                 stream << "invalid value for " << arg << ": " << value << '\n';
                 return ParseStatus::error;
             }
-            if (arg == "--gsplat-time") config.gsplat_time = static_cast<float>(number);
+            if (arg == "--gsplat-time") {
+                config.gsplat_time = static_cast<float>(number);
+                explicit_time = true;
+            }
             else if (arg == "--gsplat-radius") config.gsplat_radius = static_cast<float>(number);
+            else if (arg == "--gsplat-end-radius") config.gsplat_end_radius = static_cast<float>(number);
             else if (arg == "--gsplat-fov") config.gsplat_fov = static_cast<float>(number);
             else config.gsplat_height_fraction = static_cast<float>(number);
-            if (arg == "--gsplat-fov" || arg == "--gsplat-height-fraction") maku_option = true;
-            else saari_option = true;
+            if (arg == "--gsplat-fov") fov_option = true;
+            else if (arg == "--gsplat-height-fraction") height_option = true;
+            else if (arg == "--gsplat-end-radius") end_radius_option = true;
+            else static_option = true;
             gsplat_option = true;
         } else if (arg == "--gsplat-camera-path") {
             config.gsplat_camera_path = value;
-            saari_option = true;
+            path_option = true;
             gsplat_option = true;
         } else if (arg == "--gsplat-validation-every") {
             if (!parse_nonnegative_int(value, &parsed) || parsed == 1) {
@@ -224,12 +233,16 @@ ParseStatus parse_export_config(int argc, char** argv, ExportConfig& config, std
 
     const bool saari_capture = config.sequence_name == "saari-gsplat";
     const bool maku_capture = config.sequence_name == "maku-gsplat";
-    if ((gsplat_option && !saari_capture && !maku_capture) ||
-        (saari_option && !saari_capture) || (maku_option && !maku_capture)) {
-        stream << "GSplat options require their capture sequence: time/radius/camera-path for saari-gsplat, fov/height-fraction for maku-gsplat, validation-every for either\n";
+    const bool feta_capture = config.sequence_name == "feta-gsplat";
+    if ((gsplat_option && !saari_capture && !maku_capture && !feta_capture) ||
+        ((static_option || path_option) && !saari_capture && !feta_capture) ||
+        (fov_option && !maku_capture && !feta_capture) || (height_option && !maku_capture) ||
+        (end_radius_option && !feta_capture)) {
+        stream << "GSplat options: time/radius/camera-path for Saari or Feta, fov for Maku or Feta, height-fraction for Maku, end-radius for Feta, validation-every for all capture modes\n";
         return ParseStatus::error;
     }
-    if (saari_capture || maku_capture) {
+    if (saari_capture || maku_capture || feta_capture) {
+        if (feta_capture && !explicit_time) config.gsplat_time = 0.0f;
         if (!explicit_width) config.width = 1024;
         if (!explicit_height) config.height = maku_capture ? 512 : 768;
         if (!explicit_frames) config.frame_count = 300;
@@ -257,14 +270,16 @@ void print_usage(std::ostream& stream) {
         << "  --height <pixels>     Frame height (default: 256)\n"
         << "  --fps <rate>          Video frame rate (default: 50)\n"
         << "  --sample-rate <hz>    Audio sample rate (default: 22050)\n"
-        << "  --sequence <name>     Export sequence: intro|saari|saari-gsplat|kukot|maku|maku-gsplat|watercube|feta|uppol|bootstrap\n"
+        << "  --sequence <name>     Export sequence: intro|saari|saari-gsplat|kukot|maku|maku-gsplat|watercube|feta|feta-gsplat|uppol|bootstrap\n"
         << "                        (default: intro)\n"
         << "  saari-gsplat defaults: 300 PNG views at 1024x768, hemisphere + meditate focus\n"
         << "  maku-gsplat defaults: 300 views per path at 1024x512, original + raised H/4 (600 PNGs)\n"
-        << "  --gsplat-fov <deg>    Maku horizontal FOV, 10..120 degrees (default: 80)\n"
+        << "  feta-gsplat defaults: 300 views at 1024x768, progressive inward orbit, frozen time 0, no temporal effects\n"
+        << "  --gsplat-fov <deg>    Maku/Feta horizontal FOV, 10..120 degrees (default: 80)\n"
         << "  --gsplat-height-fraction <f>  Maku second path: vertical offset f * terrain height, 0..1 (default: 0.25; 0 disables)\n"
-        << "  --gsplat-time <s>     Frozen Saari scene time (default: 30)\n"
-        << "  --gsplat-radius <r>   Hemisphere radius, 0 = automatic enclosure (default: 0)\n"
+        << "  --gsplat-time <s>     Frozen scene time (Saari: 30, Feta: 0)\n"
+        << "  --gsplat-radius <r>   Saari hemisphere/Feta starting radius, 0 = automatic (default: 0)\n"
+        << "  --gsplat-end-radius <r>  Feta final radius, 0 = auto-frame fetus (default: 0)\n"
         << "  --gsplat-camera-path <csv>  Replay/edit exported camera_path.csv (overrides view count)\n"
         << "  --gsplat-validation-every <n>  Hold out every nth view; 0 disables (default: 10)\n"
         << "  --until-song-position <hex>\n"

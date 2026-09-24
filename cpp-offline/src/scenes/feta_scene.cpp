@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdio>
 #include <fstream>
+#include <limits>
 #include <sstream>
 
 namespace forward_offline {
@@ -23,16 +24,7 @@ const std::uint32_t kPackedAverageMask = 0x0FF3FCFFU;
 const std::uint32_t kSignedPixelMask = 0x80000000U;
 const std::uint32_t kPackedGrayUnit = 0x00100401U;
 
-struct FetaCameraState {
-    Scene3dVec3 position;
-    Scene3dVec3 target;
-    Scene3dVec3 forward;
-    Scene3dVec3 right;
-    Scene3dVec3 up;
-    float focal_length;
-    float half_width;
-    float half_height;
-};
+typedef CaptureCamera FetaCameraState;
 
 struct FetaProjectedVertex {
     float x;
@@ -47,6 +39,7 @@ struct FetaTrianglePrimitive {
     FetaProjectedVertex b;
     FetaProjectedVertex c;
     float depth;
+    int surface_id;
 };
 
 struct FetaSpritePrimitive {
@@ -54,6 +47,7 @@ struct FetaSpritePrimitive {
     float center_y;
     float depth;
     float size;
+    int surface_id;
 };
 
 enum FetaPrimitiveType {
@@ -167,7 +161,8 @@ Scene3dVec3 rotate_z(const Scene3dVec3& value, float angle) {
 }
 
 FetaCameraState make_camera_state(const Scene3dVec3& position,
-                                  const Scene3dVec3& target) {
+                                  const Scene3dVec3& target, int width = kSurfaceWidth,
+                                  int height = kSurfaceHeight, float fov = kFieldOfView) {
     const Scene3dVec3 forward = normalize(subtract(target, position));
     const Scene3dVec3 world_up = make_vec3(0.0f, 0.0f, 1.0f);
     Scene3dVec3 right = normalize(cross(world_up, forward));
@@ -182,9 +177,9 @@ FetaCameraState make_camera_state(const Scene3dVec3& position,
     camera.forward = forward;
     camera.right = right;
     camera.up = up;
-    camera.half_width = static_cast<float>(kSurfaceWidth) * 0.5f;
-    camera.half_height = static_cast<float>(kSurfaceHeight) * 0.5f;
-    camera.focal_length = camera.half_width / std::tan(kFieldOfView * 0.5f);
+    camera.half_width = static_cast<float>(width) * 0.5f;
+    camera.half_height = static_cast<float>(height) * 0.5f;
+    camera.focal_length = camera.half_width / std::tan(fov * 0.5f);
     return camera;
 }
 
@@ -192,12 +187,12 @@ bool project_point(const FetaCameraState& camera,
                    const Scene3dVec3& world_position,
                    float* screen_x,
                    float* screen_y,
-                   float* depth) {
+                   float* depth, float far_plane = kFarPlane) {
     const Scene3dVec3 relative = subtract(world_position, camera.position);
     const float view_x = dot(relative, camera.right);
     const float view_y = dot(relative, camera.up);
     const float view_z = dot(relative, camera.forward);
-    if (view_z <= kNearPlane || view_z >= kFarPlane) {
+    if (view_z <= kNearPlane || view_z >= far_plane) {
         return false;
     }
 
@@ -260,13 +255,13 @@ std::uint32_t sample_packed_wrapped(const PackedRgbAsset& asset, float u, float 
 
 void render_backdrop(const FetaCameraState& camera,
                      const PackedRgbAsset& texture,
-                     std::vector<std::uint32_t>* destination) {
-    if (destination == NULL || static_cast<int>(destination->size()) != kSurfaceWidth * kSurfaceHeight) {
+                     std::vector<std::uint32_t>* destination, int width, int height) {
+    if (destination == NULL || static_cast<int>(destination->size()) != width * height) {
         return;
     }
 
-    for (int y = 0; y < kSurfaceHeight; ++y) {
-        for (int x = 0; x < kSurfaceWidth; ++x) {
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
             const float ndc_x =
                 (static_cast<float>(x) + 0.5f - camera.half_width) / camera.focal_length;
             const float ndc_y =
@@ -293,7 +288,7 @@ void render_backdrop(const FetaCameraState& camera,
             const float base_v = 0.5f * (projected_y + 1.0f);
             const float u = (ray.z < 0.0f) ? (base_u * 0.5f) : (0.5f + base_u * 0.5f);
             const float v = base_v;
-            (*destination)[static_cast<std::size_t>(y) * static_cast<std::size_t>(kSurfaceWidth) +
+            (*destination)[static_cast<std::size_t>(y) * static_cast<std::size_t>(width) +
                            static_cast<std::size_t>(x)] =
                 sample_packed_clamped(texture, u, v);
         }
@@ -302,7 +297,8 @@ void render_backdrop(const FetaCameraState& camera,
 
 void rasterize_triangle(std::vector<std::uint32_t>* surface,
                         const FetaTrianglePrimitive& primitive,
-                        const PackedRgbAsset& texture) {
+                        const PackedRgbAsset& texture, int width, int height,
+                        std::vector<int>* surface_ids) {
     if (surface == NULL) {
         return;
     }
@@ -311,10 +307,10 @@ void rasterize_triangle(std::vector<std::uint32_t>* surface,
     const float max_x = std::ceil(std::max(primitive.a.x, std::max(primitive.b.x, primitive.c.x)));
     const float min_y = std::floor(std::min(primitive.a.y, std::min(primitive.b.y, primitive.c.y)));
     const float max_y = std::ceil(std::max(primitive.a.y, std::max(primitive.b.y, primitive.c.y)));
-    const int start_x = clamp_int(static_cast<int>(min_x), 0, kSurfaceWidth - 1);
-    const int end_x = clamp_int(static_cast<int>(max_x), 0, kSurfaceWidth - 1);
-    const int start_y = clamp_int(static_cast<int>(min_y), 0, kSurfaceHeight - 1);
-    const int end_y = clamp_int(static_cast<int>(max_y), 0, kSurfaceHeight - 1);
+    const int start_x = clamp_int(static_cast<int>(min_x), 0, width - 1);
+    const int end_x = clamp_int(static_cast<int>(max_x), 0, width - 1);
+    const int start_y = clamp_int(static_cast<int>(min_y), 0, height - 1);
+    const int end_y = clamp_int(static_cast<int>(max_y), 0, height - 1);
 
     const float denominator =
         ((primitive.b.y - primitive.c.y) * (primitive.a.x - primitive.c.x)) +
@@ -341,9 +337,11 @@ void rasterize_triangle(std::vector<std::uint32_t>* surface,
 
             const float u = w0 * primitive.a.u + w1 * primitive.b.u + w2 * primitive.c.u;
             const float v = w0 * primitive.a.v + w1 * primitive.b.v + w2 * primitive.c.v;
-            (*surface)[static_cast<std::size_t>(y) * static_cast<std::size_t>(kSurfaceWidth) +
+            (*surface)[static_cast<std::size_t>(y) * static_cast<std::size_t>(width) +
                        static_cast<std::size_t>(x)] =
                 sample_packed_clamped(texture, u, v);
+            if (surface_ids != NULL)
+                (*surface_ids)[static_cast<std::size_t>(y) * width + x] = primitive.surface_id;
         }
     }
 }
@@ -352,7 +350,8 @@ void draw_additive_sprite(std::vector<std::uint32_t>* surface,
                           const PackedRgbAsset& asset,
                           float center_x,
                           float center_y,
-                          float size) {
+                          float size, int width, int height,
+                          std::vector<int>* surface_ids, int surface_id) {
     if (surface == NULL || asset.width <= 0 || asset.height <= 0) {
         return;
     }
@@ -380,11 +379,11 @@ void draw_additive_sprite(std::vector<std::uint32_t>* surface,
         source_offset_y = -start_y;
         start_y = 0;
     }
-    if (start_x + clipped_width > kSurfaceWidth) {
-        clipped_width = kSurfaceWidth - start_x;
+    if (start_x + clipped_width > width) {
+        clipped_width = width - start_x;
     }
-    if (start_y + clipped_height > kSurfaceHeight) {
-        clipped_height = kSurfaceHeight - start_y;
+    if (start_y + clipped_height > height) {
+        clipped_height = height - start_y;
     }
     if (clipped_width <= 0 || clipped_height <= 0) {
         return;
@@ -397,7 +396,7 @@ void draw_additive_sprite(std::vector<std::uint32_t>* surface,
 
     for (int row = 0; row < clipped_height; ++row) {
         std::size_t destination_index =
-            static_cast<std::size_t>(start_y + row) * static_cast<std::size_t>(kSurfaceWidth) +
+            static_cast<std::size_t>(start_y + row) * static_cast<std::size_t>(width) +
             static_cast<std::size_t>(start_x);
         int source_index_fp =
             source_x_fp_origin + ((source_y_fp & ~1023) * asset.width);
@@ -406,6 +405,9 @@ void draw_additive_sprite(std::vector<std::uint32_t>* surface,
                 asset.packed_pixels[static_cast<std::size_t>(source_index_fp >> 10)];
             (*surface)[destination_index] =
                 add_packed_saturate((*surface)[destination_index], sample);
+            // Only nonblack additive contributions replace visibility ownership.
+            if (surface_ids != NULL && (sample & kPackedAverageMask) != 0U)
+                (*surface_ids)[destination_index] = surface_id;
             ++destination_index;
             source_index_fp += step_x;
         }
@@ -466,6 +468,11 @@ void build_igu_normals(FetaIguMesh* mesh) {
 
 }  // namespace
 
+CaptureCamera make_feta_capture_camera(const Scene3dVec3& position, const Scene3dVec3& target,
+                                       int width, int height, float horizontal_fov) {
+    return make_camera_state(position, target, width, height, horizontal_fov);
+}
+
 FetaScene::FetaScene()
     : backdrop_texture_(),
       env_texture_(),
@@ -522,11 +529,30 @@ void FetaScene::render(RgbSurface& surface, float scene_time_seconds, float delt
     camera_position = rotate_x(camera_position, std::sin(scene_time_seconds / 10.0f));
     camera_position = rotate_z(camera_position, scene_time_seconds / 4.0f);
     const FetaCameraState camera = make_camera_state(camera_position, make_vec3(0.0f, 0.0f, 0.0f));
+    render_view(surface, camera, scene_time_seconds, false, NULL);
+}
+
+void FetaScene::render_capture(RgbSurface& surface, const CaptureCamera& camera, float frozen_time,
+                               std::vector<int>* surface_ids) {
+    surface_ids->assign(surface.pixels().size(), 0);
+    render_view(surface, camera, frozen_time, true, surface_ids);
+}
+
+void FetaScene::render_view(RgbSurface& surface, const CaptureCamera& camera, float scene_time_seconds,
+                            bool capture, std::vector<int>* surface_ids) {
+    surface.clear(0U);
+    if (!ready_) return;
+    const float far_plane = capture ? std::numeric_limits<float>::infinity() : kFarPlane;
+    // The native sprite has size 20/depth pixels at the native focal length.
+    // Scale with focal length to keep its world size unchanged at any resolution/FOV.
+    const float native_focal = (kSurfaceWidth * 0.5f) / std::tan(kFieldOfView * 0.5f);
+    const float sprite_scale = capture ? kParticleSizeScale * (camera.focal_length / native_focal)
+                                      : kParticleSizeScale;
 
     std::vector<std::uint32_t> frame_packed(
-        static_cast<std::size_t>(kSurfaceWidth) * static_cast<std::size_t>(kSurfaceHeight),
+        static_cast<std::size_t>(surface.width()) * static_cast<std::size_t>(surface.height()),
         0U);
-    render_backdrop(camera, backdrop_texture_, &frame_packed);
+    render_backdrop(camera, backdrop_texture_, &frame_packed, surface.width(), surface.height());
 
     std::vector<FetaRenderPrimitive> primitives;
     primitives.reserve(fetus_mesh_.triangles.size() + particles_.size());
@@ -549,9 +575,10 @@ void FetaScene::render(RgbSurface& surface, float scene_time_seconds, float delt
         }
 
         FetaTrianglePrimitive primitive;
-        if (!project_point(camera, world_a, &primitive.a.x, &primitive.a.y, &primitive.a.depth) ||
-            !project_point(camera, world_b, &primitive.b.x, &primitive.b.y, &primitive.b.depth) ||
-            !project_point(camera, world_c, &primitive.c.x, &primitive.c.y, &primitive.c.depth)) {
+        primitive.surface_id = static_cast<int>(triangle_index) + 1;
+        if (!project_point(camera, world_a, &primitive.a.x, &primitive.a.y, &primitive.a.depth, far_plane) ||
+            !project_point(camera, world_b, &primitive.b.x, &primitive.b.y, &primitive.b.depth, far_plane) ||
+            !project_point(camera, world_c, &primitive.c.x, &primitive.c.y, &primitive.c.depth, far_plane)) {
             continue;
         }
 
@@ -579,7 +606,7 @@ void FetaScene::render(RgbSurface& surface, float scene_time_seconds, float delt
         float screen_x = 0.0f;
         float screen_y = 0.0f;
         float depth = 0.0f;
-        if (!project_point(camera, world_position, &screen_x, &screen_y, &depth)) {
+        if (!project_point(camera, world_position, &screen_x, &screen_y, &depth, far_plane)) {
             continue;
         }
 
@@ -589,7 +616,8 @@ void FetaScene::render(RgbSurface& surface, float scene_time_seconds, float delt
         primitive.sprite.center_x = screen_x;
         primitive.sprite.center_y = screen_y;
         primitive.sprite.depth = depth;
-        primitive.sprite.size = kParticleSizeScale / depth;
+        primitive.sprite.size = sprite_scale / depth;
+        primitive.sprite.surface_id = 1000000 + static_cast<int>(index);
         primitives.push_back(primitive);
     }
 
@@ -601,20 +629,66 @@ void FetaScene::render(RgbSurface& surface, float scene_time_seconds, float delt
 
     for (std::size_t index = 0; index < primitives.size(); ++index) {
         if (primitives[index].type == kFetaPrimitiveTriangle) {
-            rasterize_triangle(&frame_packed, primitives[index].triangle, env_texture_);
+            rasterize_triangle(&frame_packed, primitives[index].triangle, env_texture_,
+                                surface.width(), surface.height(), surface_ids);
         } else {
             draw_additive_sprite(&frame_packed,
                                  flare_texture_,
                                  primitives[index].sprite.center_x,
                                  primitives[index].sprite.center_y,
-                                 primitives[index].sprite.size);
+                                 primitives[index].sprite.size, surface.width(), surface.height(),
+                                 surface_ids, primitives[index].sprite.surface_id);
         }
     }
 
-    apply_feedback_composite(&frame_packed, scene_time_seconds);
-    apply_temporal_average(&frame_packed, frame_history_);
-    frame_history_ = frame_packed;
+    if (!capture) {
+        apply_feedback_composite(&frame_packed, scene_time_seconds);
+        apply_temporal_average(&frame_packed, frame_history_);
+        frame_history_ = frame_packed;
+    }
     convert_to_rgb_surface(frame_packed, surface);
+}
+
+FetaCaptureBounds FetaScene::capture_geometry(float frozen_time, std::vector<CapturePoint>* points) const {
+    points->clear();
+    FetaCaptureBounds bounds = {};
+    if (fetus_mesh_.vertices.empty()) return bounds;
+    Scene3dVec3 minimum = fetus_mesh_.vertices[0], maximum = minimum;
+    for (std::size_t i = 1; i < fetus_mesh_.vertices.size(); ++i) {
+        const Scene3dVec3& v = fetus_mesh_.vertices[i];
+        minimum.x = std::min(minimum.x, v.x); maximum.x = std::max(maximum.x, v.x);
+        minimum.y = std::min(minimum.y, v.y); maximum.y = std::max(maximum.y, v.y);
+        minimum.z = std::min(minimum.z, v.z); maximum.z = std::max(maximum.z, v.z);
+    }
+    bounds.center = scale(add(minimum, maximum), kFetusScale * 0.5f);
+    bounds.particle_world_size = kParticleSizeScale / ((kSurfaceWidth * 0.5f) / std::tan(kFieldOfView * 0.5f));
+    for (std::size_t i = 0; i < fetus_mesh_.vertices.size(); ++i)
+        bounds.fetus_radius = std::max(bounds.fetus_radius,
+            std::sqrt(length_sq(subtract(scale(fetus_mesh_.vertices[i], kFetusScale), bounds.center))));
+    bounds.enclosing_radius = bounds.fetus_radius;
+    const float weights[4][3] = {{1.0f/3, 1.0f/3, 1.0f/3},
+                               {0.6f, 0.2f, 0.2f}, {0.2f, 0.6f, 0.2f}, {0.2f, 0.2f, 0.6f}};
+    for (std::size_t i = 0; i < fetus_mesh_.triangles.size(); ++i) {
+        const Scene3dTriangle& t = fetus_mesh_.triangles[i];
+        const Scene3dVec3 a = scale(fetus_mesh_.vertices[t.a], kFetusScale);
+        const Scene3dVec3 b = scale(fetus_mesh_.vertices[t.b], kFetusScale);
+        const Scene3dVec3 c = scale(fetus_mesh_.vertices[t.c], kFetusScale);
+        for (int j = 0; j < 4; ++j) {
+            CapturePoint p;
+            p.position = add(add(scale(a, weights[j][0]), scale(b, weights[j][1])), scale(c, weights[j][2]));
+            p.surface_id = static_cast<int>(i) + 1;
+            points->push_back(p);
+        }
+    }
+    for (std::size_t i = 0; i < particles_.size(); ++i) {
+        CapturePoint p;
+        p.position = rotate_z(particles_[i].local_position, -frozen_time / 2.0f);
+        p.surface_id = 1000000 + static_cast<int>(i);
+        points->push_back(p);
+        bounds.enclosing_radius = std::max(bounds.enclosing_radius,
+            std::sqrt(length_sq(subtract(p.position, bounds.center))) + bounds.particle_world_size * std::sqrt(0.5f));
+    }
+    return bounds;
 }
 
 void FetaScene::handle_message(const std::string& message, float scene_time_seconds) {

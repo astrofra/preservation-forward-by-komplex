@@ -8,6 +8,7 @@ This directory contains the first usable milestone of the `documentation/forward
 - Java-style intro script player for `mute95 -> domina -> filmbox`
 - first autonomous `saari` 3D pass with script-row shock events
 - `saari-gsplat`: static PNG / COLMAP capture on an enclosing hemisphere, with a meditate focus
+- `feta-gsplat`: progressive inward PNG / COLMAP orbit, frozen fetus and particle centers, camera-facing sprites
 - first autonomous `kukot` 3D pass with sliced `jarnomix.xm` playback from `0x0700`
 - first autonomous `maku` terrain pass with sliced `jarnomix.xm` playback from `0x0D00`
 - first autonomous `watercube` mixed 3D / packed-surface pass with sliced `jarnomix.xm` playback from `0x1000`
@@ -195,7 +196,7 @@ same reflected-X coordinate convention. `camera_path.csv` retains Saari's first
 eight columns, followed by `scene_time_seconds`, `track_time_seconds` and
 `roll_radians` (zero in the original Maku script), `pass` (`original` or `raised`)
 and `height_offset` in native world units. This CSV documents the capture;
-CSV replay, frozen Saari time and hemisphere radius options apply only to Saari.
+CSV replay and frozen-time/radius options are supported by Saari and Feta, not Maku.
 `manifest.csv` associates every pose with its PNG. `capture.json` records FOV,
 duration, terrain height bounds, offset, passes, split, point counts, original
 script segments and completion status.
@@ -206,6 +207,69 @@ isolation, sampling independence, vertical translation with unchanged orientatio
 shared tracks between passes, original-pass parity, FOV overrides and invalid input. A native Maku
 before/after comparison also covers 40 frames at one-second intervals, WAV and
 manifest. See [Maku capture notes](../documentation/forward-maku-gsplat-capture.md).
+
+### Feta Gaussian Splatting capture
+
+```powershell
+cpp-offline/build/Release/forward-export.exe --sequence feta-gsplat --output cpp-offline/output-feta-gsplat-progressive
+```
+
+Defaults: **300 PNG views at 1024x768**, horizontal FOV **80 degrees**, frozen
+scene-local time **0 s**. The camera targets the center of the fetus mesh's bounds
+and **approaches continuously while orbiting**, from about **15.85 to 5.98 world
+units**. The initial framing includes all particles; the final framing fits the
+whole fetus, using both horizontal and vertical FOV. The path makes 10.5 turns
+with three elevation cycles between the two hemispheres, so close views also
+cover the top, sides and bottom. Radius decreases smoothly throughout the path,
+without separate fixed-distance passes. There is no sea-plane constraint.
+
+The fetus mesh stays fixed and the particle cloud's rotation is evaluated at the
+same frozen time for every image. Temporal averaging (motion blur), feedback and
+scripted fades are disabled. Particles retain the original additive flare texture
+and are drawn as screen-aligned square sprites: they face every capture camera.
+Their pixel size scales with focal length and inverse depth, preserving their
+native world size at other resolutions/FOVs. The original environment mapping
+remains view-dependent. Capture lifts the native far clipping distance so a larger
+orbit does not silently remove geometry.
+
+The apparent surrounding sphere is actually a **directional panorama**, not a
+finite mesh. It is rendered in the PNGs, but contributes no fictitious background
+points. The sparse cloud contains visible fetus surface samples and frozen
+particle centers observed in at least two training views. Nonblack sprite pixels
+participate in visibility checks; blank corners do not hide the underlying mesh.
+
+Options: `--frames`, `--width`, `--height`, `--gsplat-time`, `--gsplat-fov`,
+`--gsplat-radius`, `--gsplat-end-radius`, `--gsplat-validation-every` and
+`--gsplat-camera-path`. Use a fresh output directory. Radius `0` chooses automatic
+framing. An explicit starting radius must enclose the fetus and particles; an
+explicit final radius must enclose the fetus and cannot exceed the starting
+radius. Both require a 0.5-unit margin. Close cameras may enter the particle
+cloud. Equal starting/final radii give a constant-distance orbit.
+
+CSV replay uses Saari's eight columns (`px,py,pz,tx,ty,tz,hfov_degrees,group`),
+with groups `progressive`, `sphere` or `custom`. Variable radii and legacy
+origin-centered spheres are accepted, as are exact pole cameras. Cameras must
+stay outside the fetus enclosure with the same margin. CSV poses/FOVs replace
+the generated path and its radius/FOV options. Reuse the same resolution and
+frozen time for identical images. FPS does not advance time.
+
+The output layout and coordinate conversion match Saari and Maku: **import only
+`images/` and the three COLMAP text files in `sparse/` together in Postshot**.
+There are 270 training views and 30 held-out views in `validation/` by default.
+`particles.csv` additionally records all 300 frozen native world centers and their
+world-space sprite size. Its `point3D_id` identifies the candidate seed; that ID
+can be absent from `points3D.txt` when it has insufficient visible observations.
+`capture.json` records the orbit center, actual starting/final/minimum/maximum
+radii, geometry bounds, path kind, frozen time, counts and completion status.
+
+The Feta CTest checks PNG integrity, native/COLMAP projection agreement,
+reciprocal tracks, particle coordinates, progressive approach, hemisphere coverage
+at different distances, complete mesh framing, exact reversed CSV replay,
+legacy CSVs, repeated views, frozen-time changes, pole cameras and input validation.
+The native `feta` renderer's 35-frame comparison, WAV and manifest remained
+byte-identical. Reconstruction quality still needs assessment in Postshot,
+particularly for the directional background and additive particles.
+See [Feta capture notes](../documentation/forward-feta-gsplat-capture.md).
 
 ### Demo sequence exports
 
