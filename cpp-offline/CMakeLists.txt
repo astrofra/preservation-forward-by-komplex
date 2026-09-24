@@ -20,6 +20,7 @@ add_executable(forward-export
     src/app/forward_app.cpp
     src/app/intro_script.cpp
     src/app/manifest_writer.cpp
+    src/app/saari_capture.cpp
     src/app/song_position_transport.cpp
     src/assets/normalized_asset_loader.cpp
     src/assets/original_asset_loader.cpp
@@ -32,6 +33,7 @@ add_executable(forward-export
     src/render/indexed_surface.cpp
     src/render/rgb_surface.cpp
     src/render/tga_writer.cpp
+    src/render/png_writer.cpp
     src/scenes/domina_routine.cpp
     src/scenes/feta_scene.cpp
     src/scenes/kukot_scene.cpp
@@ -46,8 +48,29 @@ add_executable(forward-export
 
 target_include_directories(forward-export PRIVATE src third_party)
 
+find_package(Git QUIET)
+if(GIT_FOUND)
+    execute_process(COMMAND "${GIT_EXECUTABLE}" describe --always --dirty
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+        OUTPUT_VARIABLE FORWARD_SOURCE_REVISION OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET)
+    if(FORWARD_SOURCE_REVISION)
+        target_compile_definitions(forward-export PRIVATE FORWARD_SOURCE_REVISION="${FORWARD_SOURCE_REVISION}")
+    endif()
+endif()
+
 if(MSVC)
     target_compile_options(forward-export PRIVATE /W4 /EHsc)
 else()
     target_compile_options(forward-export PRIVATE -Wall -Wextra -pedantic)
+endif()
+
+include(CTest)
+if(BUILD_TESTING)
+    find_package(Python3 COMPONENTS Interpreter QUIET)
+    if(Python3_Interpreter_FOUND)
+        add_test(NAME saari-gsplat-export
+            COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_saari_capture.py"
+                    "$<TARGET_FILE:forward-export>" "${CMAKE_CURRENT_SOURCE_DIR}/..")
+    endif()
 endif()

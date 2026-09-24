@@ -2,3 +2,7 @@
 /output/
 /output-smoke/
 /output-*/
+/dist/
+/output-full-current/
+/output-saari-gsplat/
+/tests/

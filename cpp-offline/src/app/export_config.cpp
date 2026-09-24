@@ -1,6 +1,8 @@
 #include "app/export_config.h"
 
 #include <cstdlib>
+#include <cmath>
+#include <cerrno>
 #include <limits>
 #include <ostream>
 #include <string>
@@ -85,10 +87,15 @@ ExportConfig::ExportConfig()
       end_song_position_hex(0U),
       post_roll_frames(0),
       write_log(true),
-      sequence_name("intro") {
+      sequence_name("intro"),
+      gsplat_time(30.0f),
+      gsplat_radius(0.0f),
+      gsplat_validation_every(10),
+      gsplat_camera_path() {
 }
 
 ParseStatus parse_export_config(int argc, char** argv, ExportConfig& config, std::ostream& stream) {
+    bool gsplat_option = false, explicit_width = false, explicit_height = false, explicit_frames = false;
     for (int index = 1; index < argc; ++index) {
         const std::string arg(argv[index]);
 
@@ -117,18 +124,21 @@ ParseStatus parse_export_config(int argc, char** argv, ExportConfig& config, std
                 return ParseStatus::error;
             }
             config.frame_count = parsed;
+            explicit_frames = true;
         } else if (arg == "--width") {
             if (!parse_positive_int(value, &parsed)) {
                 stream << "invalid width: " << value << '\n';
                 return ParseStatus::error;
             }
             config.width = parsed;
+            explicit_width = true;
         } else if (arg == "--height") {
             if (!parse_positive_int(value, &parsed)) {
                 stream << "invalid height: " << value << '\n';
                 return ParseStatus::error;
             }
             config.height = parsed;
+            explicit_height = true;
         } else if (arg == "--fps") {
             if (!parse_positive_int(value, &parsed)) {
                 stream << "invalid fps: " << value << '\n';
@@ -143,6 +153,29 @@ ParseStatus parse_export_config(int argc, char** argv, ExportConfig& config, std
             config.sample_rate = parsed;
         } else if (arg == "--sequence") {
             config.sequence_name = value;
+        } else if (arg == "--gsplat-time" || arg == "--gsplat-radius") {
+            char* end = NULL;
+            errno = 0;
+            const double number = std::strtod(value.c_str(), &end);
+            const double maximum = arg == "--gsplat-time" ? 86400.0 : 2000.0;
+            if (value.empty() || end == value.c_str() || *end != '\0' || errno == ERANGE ||
+                !std::isfinite(number) || number < 0.0 || number > maximum) {
+                stream << "invalid value for " << arg << ": " << value << '\n';
+                return ParseStatus::error;
+            }
+            if (arg == "--gsplat-time") config.gsplat_time = static_cast<float>(number);
+            else config.gsplat_radius = static_cast<float>(number);
+            gsplat_option = true;
+        } else if (arg == "--gsplat-camera-path") {
+            config.gsplat_camera_path = value;
+            gsplat_option = true;
+        } else if (arg == "--gsplat-validation-every") {
+            if (!parse_nonnegative_int(value, &parsed) || parsed == 1) {
+                stream << "validation interval must be 0 (disabled) or at least 2\n";
+                return ParseStatus::error;
+            }
+            config.gsplat_validation_every = parsed;
+            gsplat_option = true;
         } else if (arg == "--until-song-position") {
             unsigned int parsed_hex = 0U;
             if (!parse_hex_u32(value, &parsed_hex)) {
@@ -176,7 +209,21 @@ ParseStatus parse_export_config(int argc, char** argv, ExportConfig& config, std
         }
     }
 
-    if (config.sample_rate % config.fps != 0) {
+    if (gsplat_option && config.sequence_name != "saari-gsplat") {
+        stream << "--gsplat-* options require --sequence saari-gsplat\n";
+        return ParseStatus::error;
+    }
+    if (config.sequence_name == "saari-gsplat") {
+        if (!explicit_width) config.width = 1024;
+        if (!explicit_height) config.height = 768;
+        if (!explicit_frames) config.frame_count = 300;
+        if (config.width < 16 || config.height < 16 || config.width > 4096 || config.height > 4096 ||
+            config.frame_count < 12 || config.frame_count > 5000 ||
+            config.has_end_song_position || config.post_roll_frames != 0) {
+            stream << "saari-gsplat requires dimensions 16..4096, frames 12..5000 and no song timeline\n";
+            return ParseStatus::error;
+        }
+    } else if (config.sample_rate % config.fps != 0) {
         stream << "sample rate must be divisible by fps for exact sync: "
                << config.sample_rate << " / " << config.fps << '\n';
         return ParseStatus::error;
@@ -194,8 +241,13 @@ void print_usage(std::ostream& stream) {
         << "  --height <pixels>     Frame height (default: 256)\n"
         << "  --fps <rate>          Video frame rate (default: 50)\n"
         << "  --sample-rate <hz>    Audio sample rate (default: 22050)\n"
-        << "  --sequence <name>     Export sequence: intro|saari|kukot|maku|watercube|feta|uppol|bootstrap\n"
+        << "  --sequence <name>     Export sequence: intro|saari|saari-gsplat|kukot|maku|watercube|feta|uppol|bootstrap\n"
         << "                        (default: intro)\n"
+        << "  saari-gsplat defaults: 300 PNG views at 1024x768, hemisphere + meditate focus\n"
+        << "  --gsplat-time <s>     Frozen Saari scene time (default: 30)\n"
+        << "  --gsplat-radius <r>   Hemisphere radius, 0 = automatic enclosure (default: 0)\n"
+        << "  --gsplat-camera-path <csv>  Replay/edit exported camera_path.csv (overrides view count)\n"
+        << "  --gsplat-validation-every <n>  Hold out every nth view; 0 disables (default: 10)\n"
         << "  --until-song-position <hex>\n"
         << "                        Resolve frame count from the native XM timeline\n"
         << "  --post-roll-frames <n>\n"

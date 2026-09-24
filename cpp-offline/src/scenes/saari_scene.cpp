@@ -32,16 +32,7 @@ const float kBackdropUvRotation = 0.7853982f;
 const float kSaariFogNear = 100.0f;
 const float kSaariMaxFadeFactor = 255.0f / 256.0f;
 
-struct CameraState {
-    SaariVec3 position;
-    SaariVec3 target;
-    SaariVec3 forward;
-    SaariVec3 right;
-    SaariVec3 up;
-    float focal_length;
-    float half_width;
-    float half_height;
-};
+typedef SaariCaptureCamera CameraState;
 
 struct ScreenVertex {
     float x;
@@ -84,6 +75,7 @@ struct SaariPrimitive {
     const std::vector<std::uint8_t>* reflective_palette_mask;
     SaariCompositeMode composite_mode;
     float sort_key;
+    int surface_id;
 };
 
 struct SaariMatrix3 {
@@ -1083,7 +1075,8 @@ void rasterize_saari_triangle(RgbSurface& surface,
                               const IndexedAsset& index_texture,
                               const std::vector<std::uint32_t>& ramp_pixels,
                               const std::vector<std::uint8_t>* reflective_palette_mask,
-                              SaariCompositeMode composite_mode) {
+                              SaariCompositeMode composite_mode,
+                              std::vector<int>* surface_ids, int surface_id) {
     (void)depth_buffer;
     const float min_x = std::floor(std::min(a.x, std::min(b.x, c.x)));
     const float max_x = std::ceil(std::max(a.x, std::max(b.x, c.x)));
@@ -1124,6 +1117,9 @@ void rasterize_saari_triangle(RgbSurface& surface,
 
             if (composite_mode == kSaariCompositeOpaque) {
                 pixels[pixel_index] = color;
+                if (surface_ids != NULL) {
+                    (*surface_ids)[pixel_index] = surface_id;
+                }
                 if (reflection_mask_buffer != NULL) {
                     (*reflection_mask_buffer)[pixel_index] =
                         (reflective_palette_mask != NULL)
@@ -1133,6 +1129,10 @@ void rasterize_saari_triangle(RgbSurface& surface,
             } else if (reflection_mask_buffer != NULL && (*reflection_mask_buffer)[pixel_index] != 0U) {
                 pixels[pixel_index] = add_rgb_saturate(pixels[pixel_index], color);
                 (*reflection_mask_buffer)[pixel_index] = 0U;
+                if (surface_ids != NULL) {
+                    // Composited reflections have no single opaque correspondence.
+                    (*surface_ids)[pixel_index] = 0;
+                }
             }
         }
     }
@@ -1146,7 +1146,8 @@ void rasterize_saari_polygon(RgbSurface& surface,
                              const IndexedAsset& index_texture,
                              const std::vector<std::uint32_t>& ramp_pixels,
                              const std::vector<std::uint8_t>* reflective_palette_mask,
-                             SaariCompositeMode composite_mode) {
+                             SaariCompositeMode composite_mode,
+                             std::vector<int>* surface_ids, int surface_id) {
     if (polygon.size() < 3U) {
         return;
     }
@@ -1167,7 +1168,7 @@ void rasterize_saari_polygon(RgbSurface& surface,
                                  index_texture,
                                  ramp_pixels,
                                  reflective_palette_mask,
-                                 composite_mode);
+                                 composite_mode, surface_ids, surface_id);
     }
 }
 
@@ -1177,7 +1178,7 @@ void emit_saari_primitive(std::vector<SaariPrimitive>* primitives,
                           const std::vector<std::uint32_t>& ramp_pixels,
                           const std::vector<std::uint8_t>* reflective_palette_mask,
                           SaariCompositeMode composite_mode,
-                          float sort_key) {
+                          float sort_key, int surface_id) {
     if (primitives == NULL || polygon.size() < 3U) {
         return;
     }
@@ -1189,13 +1190,15 @@ void emit_saari_primitive(std::vector<SaariPrimitive>* primitives,
     primitive.reflective_palette_mask = reflective_palette_mask;
     primitive.composite_mode = composite_mode;
     primitive.sort_key = sort_key;
+    primitive.surface_id = surface_id;
     primitives->push_back(primitive);
 }
 
 void render_saari_primitives(RgbSurface& surface,
                              std::vector<std::uint8_t>* reflection_mask_buffer,
                              const CameraState& camera,
-                             std::vector<SaariPrimitive>* primitives) {
+                             std::vector<SaariPrimitive>* primitives,
+                             std::vector<int>* surface_ids) {
     if (primitives == NULL || primitives->empty()) {
         return;
     }
@@ -1216,7 +1219,7 @@ void render_saari_primitives(RgbSurface& surface,
                                 *primitive.index_texture,
                                 *primitive.ramp_pixels,
                                 primitive.reflective_palette_mask,
-                                primitive.composite_mode);
+                                primitive.composite_mode, surface_ids, primitive.surface_id);
     }
 }
 
@@ -1328,9 +1331,9 @@ void render_terrain(std::vector<SaariPrimitive>* primitives,
     const int terrain_height = height_asset.height;
     const float cell_size = 200.0f / static_cast<float>(terrain_width);
 
-    const float tan_half_fov = std::tan(kCameraFieldOfView * 0.5f);
+    const float tan_half_fov = camera.half_width / camera.focal_length;
     const float far_half_width = kCameraFarPlane * tan_half_fov;
-    const float far_half_height = far_half_width * static_cast<float>(kSurfaceHeight) / static_cast<float>(kSurfaceWidth);
+    const float far_half_height = far_half_width * camera.half_height / camera.half_width;
     const SaariVec3 frustum_corners[4] = {
         add(scale(camera.forward, kCameraFarPlane),
             add(scale(camera.right, -far_half_width), scale(camera.up, far_half_height))),
@@ -1359,10 +1362,10 @@ void render_terrain(std::vector<SaariPrimitive>* primitives,
     // where the finite terrain patch ends before the apparent sea horizon.
     for (int sample_row = 0; sample_row < 7; ++sample_row) {
         const float row_lerp = static_cast<float>(sample_row) / 6.0f;
-        const float screen_y = lerp(0.5f, static_cast<float>(kSurfaceHeight) - 0.5f, row_lerp);
+        const float screen_y = lerp(0.5f, camera.half_height * 2.0f - 0.5f, row_lerp);
         for (int sample_column = 0; sample_column < 9; ++sample_column) {
             const float column_lerp = static_cast<float>(sample_column) / 8.0f;
-            const float screen_x = lerp(0.5f, static_cast<float>(kSurfaceWidth) - 0.5f, column_lerp);
+            const float screen_x = lerp(0.5f, camera.half_width * 2.0f - 0.5f, column_lerp);
             const SaariVec3 ray = camera_ray_direction(camera, screen_x, screen_y);
             if (std::fabs(ray.z) <= 1.0e-6f) {
                 continue;
@@ -1524,7 +1527,11 @@ void render_terrain(std::vector<SaariPrimitive>* primitives,
                                      ramp_pixels,
                                      triangle_mask,
                                      reflection_pass ? kSaariCompositeReflectAdd : kSaariCompositeOpaque,
-                                     sort_key);
+                                     sort_key,
+                                     !reflection_pass && !is_water_triangle
+                                         ? 1 + ((start_grid_y + row + half_height) * terrain_width +
+                                                start_grid_x + column + half_width) * 2 + triangle_index
+                                         : 0);
             }
         }
     }
@@ -1651,7 +1658,9 @@ void render_env_mesh(std::vector<SaariPrimitive>* primitives,
                              reflection_pass ? black_ramp : white_ramp,
                              NULL,
                              reflection_pass ? kSaariCompositeReflectAdd : kSaariCompositeOpaque,
-                             sort_key);
+                             sort_key,
+                             reflection_pass ? 0 : (camera_locked_env ? 20000 : 10000) +
+                                                       static_cast<int>(triangle_index));
     }
 }
 
@@ -1722,6 +1731,42 @@ void SaariScene::render(RgbSurface& surface, float scene_time_seconds, float del
         camera.position.z = 0.3f;
     }
 
+    render_view(surface, camera, scene_time_seconds, NULL);
+    if (shock_amount_ > 0.0f) {
+        if (shock_decay_ > 0.0f) {
+            shock_amount_ -= shock_decay_ * delta_seconds;
+            if (shock_amount_ < 0.0f) {
+                shock_amount_ = 0.0f;
+            }
+        }
+        const int line_count = static_cast<int>(shock_amount_ * static_cast<float>(surface.height()) / 100.0f);
+        apply_shock(surface, line_count);
+    }
+}
+
+SaariCaptureCamera make_saari_capture_camera(const SaariVec3& position,
+    const SaariVec3& target, int width, int height, float horizontal_fov) {
+    CameraState camera = make_camera_state(position, target);
+    camera.half_width = static_cast<float>(width) * 0.5f;
+    camera.half_height = static_cast<float>(height) * 0.5f;
+    camera.focal_length = camera.half_width / std::tan(horizontal_fov * 0.5f);
+    return camera;
+}
+
+void SaariScene::render_capture(RgbSurface& surface, const SaariCaptureCamera& camera,
+                               float frozen_time, std::vector<int>* surface_ids) {
+    surface.clear(0);
+    if (surface_ids != NULL) {
+        surface_ids->assign(surface.pixels().size(), 0);
+    }
+    if (ready_) {
+        render_view(surface, camera, frozen_time, surface_ids);
+    }
+}
+
+void SaariScene::render_view(RgbSurface& surface, const SaariCaptureCamera& camera,
+                            float scene_time_seconds, std::vector<int>* surface_ids) {
+    const float track_tick = scene_time_seconds * kSceneTimeScale * kTrackTickScale;
     draw_background(surface, camera, backdrop_asset_);
 
     std::vector<std::uint8_t> reflection_mask_buffer(
@@ -1800,17 +1845,71 @@ void SaariScene::render(RgbSurface& surface, float scene_time_seconds, float del
                     true,
                     true,
                     true);
-    render_saari_primitives(surface, &reflection_mask_buffer, camera, &primitives);
+    render_saari_primitives(surface, &reflection_mask_buffer, camera, &primitives, surface_ids);
+}
 
-    if (shock_amount_ > 0.0f) {
-        if (shock_decay_ > 0.0f) {
-            shock_amount_ -= shock_decay_ * delta_seconds;
-            if (shock_amount_ < 0.0f) {
-                shock_amount_ = 0.0f;
+void SaariScene::capture_geometry(float frozen_time, std::vector<SaariCapturePoint>* points,
+                                  SaariVec3* bounds_min, SaariVec3* bounds_max,
+                                  SaariVec3* meditate_center) const {
+    points->clear();
+    *bounds_min = make_vec3(FLT_MAX, FLT_MAX, FLT_MAX);
+    *bounds_max = make_vec3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+    *meditate_center = meditate_position_;
+    const auto sample_triangle = [&](const SaariVec3& a, const SaariVec3& b,
+                                     const SaariVec3& c, int id, int divisions) {
+        const SaariVec3 vertices[] = {a, b, c};
+        for (int k = 0; k < 3; ++k) {
+            bounds_min->x = std::min(bounds_min->x, vertices[k].x);
+            bounds_min->y = std::min(bounds_min->y, vertices[k].y);
+            bounds_min->z = std::min(bounds_min->z, vertices[k].z);
+            bounds_max->x = std::max(bounds_max->x, vertices[k].x);
+            bounds_max->y = std::max(bounds_max->y, vertices[k].y);
+            bounds_max->z = std::max(bounds_max->z, vertices[k].z);
+        }
+        // Interior samples avoid ambiguous ownership along triangle edges.
+        for (int i = 0; i < divisions; ++i) {
+            for (int j = 0; j < divisions - i; ++j) {
+                const float u = (static_cast<float>(i) + 1.0f / 3.0f) / divisions;
+                const float v = (static_cast<float>(j) + 1.0f / 3.0f) / divisions;
+                SaariCapturePoint point;
+                point.position = add(scale(a, 1.0f - u - v), add(scale(b, u), scale(c, v)));
+                point.surface_id = id;
+                points->push_back(point);
             }
         }
-        const int line_count = static_cast<int>(shock_amount_ * static_cast<float>(surface.height()) / 100.0f);
-        apply_shock(surface, line_count);
+    };
+    const int width = height_asset_.width, height = height_asset_.height;
+    const float cell = 200.0f / static_cast<float>(width);
+    const auto terrain_vertex = [&](int x, int y) {
+        return make_vec3((x - width / 2) * cell, (y - height / 2) * cell,
+            sample_height_value(height_asset_, x, height - 1 - y) * kTerrainHeightScale);
+    };
+    for (int y = 0; y + 1 < height; ++y) {
+        for (int x = 0; x + 1 < width; ++x) {
+            const SaariVec3 a = terrain_vertex(x, y), b = terrain_vertex(x + 1, y);
+            const SaariVec3 c = terrain_vertex(x, y + 1), d = terrain_vertex(x + 1, y + 1);
+            if (std::max(std::max(a.z, b.z), std::max(c.z, d.z)) <= 0.0f) {
+                continue; // Do not seed flat water or virtual reflections.
+            }
+            sample_triangle(a, d, b, 1 + (y * width + x) * 2, 8);
+            sample_triangle(d, a, c, 2 + (y * width + x) * 2, 8);
+        }
+    }
+    const SaariVec3 klunssi_position = forward_offline::sample_track(
+        klunssi_track_, frozen_time * kSceneTimeScale * kTrackTickScale);
+    for (int object = 0; object < 2; ++object) {
+        const SaariStaticMesh& mesh = object == 0 ? klunssi_mesh_ : meditate_mesh_;
+        const SaariVec3 translation = object == 0 ? klunssi_position : meditate_position_;
+        const SaariMatrix3 rotation = object == 0
+            ? build_saari_rotation_matrix(frozen_time / 3.0f, frozen_time * 2.0f / 3.0f, frozen_time)
+            : build_saari_rotation_matrix(0.0f, 0.0f, 3.14159265f);
+        for (std::size_t i = 0; i < mesh.triangles.size(); ++i) {
+            const SaariTriangle& t = mesh.triangles[i];
+            sample_triangle(add(transform_matrix3(rotation, mesh.vertices[t.a]), translation),
+                            add(transform_matrix3(rotation, mesh.vertices[t.b]), translation),
+                            add(transform_matrix3(rotation, mesh.vertices[t.c]), translation),
+                            (object == 0 ? 10000 : 20000) + static_cast<int>(i), 3);
+        }
     }
 }
 

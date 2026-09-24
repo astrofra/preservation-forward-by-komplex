@@ -7,6 +7,7 @@ This directory contains the first usable milestone of the `documentation/forward
 - deterministic `50 fps` / `22050 Hz` offline timeline
 - Java-style intro script player for `mute95 -> domina -> filmbox`
 - first autonomous `saari` 3D pass with script-row shock events
+- `saari-gsplat`: static PNG / COLMAP capture on an enclosing hemisphere, with a meditate focus
 - first autonomous `kukot` 3D pass with sliced `jarnomix.xm` playback from `0x0700`
 - first autonomous `maku` terrain pass with sliced `jarnomix.xm` playback from `0x0D00`
 - first autonomous `watercube` mixed 3D / packed-surface pass with sliced `jarnomix.xm` playback from `0x1000`
@@ -70,6 +71,86 @@ cmake --build cpp-offline/build
 ```
 
 ## Run
+
+### Saari Gaussian Splatting capture
+
+Run from the repository root after building. Windows / Visual Studio:
+
+```powershell
+cpp-offline/build/Release/forward-export.exe --sequence saari-gsplat --output cpp-offline/output-saari-gsplat
+```
+
+On a single-configuration CMake build, use `cpp-offline/build/forward-export`.
+The output directory must not already exist. The entire export runs in C++11;
+Python, ffmpeg, COLMAP and Postshot are not runtime dependencies.
+
+Defaults: **300 PNG images at 1024x768**, frozen Saari local time **30 s**.
+The camera moves on a hemisphere enclosing the land and frozen objects, at least
+2 world units above the sea plane. Most views cover the island; a connecting pass
+and a narrower 35-degree field of view cover meditate. The general pass uses the
+original 1.4-radian horizontal field of view. Klunssi's translation, rotation and
+reflection are frozen together; scripted shocks are disabled. Textures, fog and
+reflection composition retain their original behavior.
+
+| Option | Meaning |
+| --- | --- |
+| `--frames 300` | Total generated views, including held-out validation images (12..5000) |
+| `--width 1024 --height 768` | Actual raster resolution, not image upscaling (16..4096 each) |
+| `--gsplat-time 30` | Frozen scene-local time in seconds |
+| `--gsplat-radius 0` | Auto-enclose scene geometry; positive values override the radius and must enclose the scene |
+| `--gsplat-validation-every 10` | Keep every tenth view outside training; `0` uses all views for training |
+| `--gsplat-camera-path path.csv` | Replay an edited `camera_path.csv`; row count replaces `--frames` |
+
+The export writes:
+
+- `images/`: training PNGs (270 with the defaults).
+- `sparse/cameras.txt`, `images.txt`, `points3D.txt`: COLMAP text model, with exact
+  intrinsics/poses and colored surface samples observed in at least two training views.
+- `validation/images/` and `validation/sparse/`: held-out views and their model;
+  their pixels do not contribute to training-point colors or point selection.
+- `camera_path.csv`: native positions, targets, horizontal FOV in degrees and view groups.
+- `manifest.csv`: image IDs, paths, groups, split, frozen time and camera IDs.
+- `capture.json`: completed-export marker, enclosure parameters, counts, coordinate
+  conversion and source revision at CMake configure time (including a dirty marker).
+- `IMPORT.txt`: import instructions.
+
+For Postshot, import **only `images/` and the three files in `sparse/` together**.
+Keep `validation/` out of training; do not import the whole output root.
+COLMAP coordinates reflect native world X (`x_export=-x_native`); world Z remains
+up. Quaternions and translations are world-to-camera transforms. The sparse cloud
+uses the same conversion. The optional owner buffer follows actual painter and
+reflection-compositing order; points on hidden surfaces, the sky and composited
+reflection pixels are excluded. Point colors average training observations.
+
+CSV replay requires the same frozen time and resolution to reproduce images.
+Camera positions must remain on the same hemisphere around the computed center;
+with radius 0, the first CSV position determines its radius. CSV columns are
+`px,py,pz,tx,ty,tz,hfov_degrees,group`; valid groups are `island`, `bridge`, `meditate`
+and `custom`. The loader rejects underwater positions, vertical look directions,
+nonfinite numbers, FOVs outside 10..120 degrees and radii that do not enclose the scene.
+
+Validation:
+
+```powershell
+ctest --test-dir cpp-offline/build -C Release --output-on-failure
+```
+
+CTest uses an optional Python 3 **test-only** script with no third-party modules.
+It checks PNG chunks/decompression, COLMAP reprojection, native camera conventions,
+reciprocal point tracks, held-out isolation, exact CSV replay, static-scene
+determinism and invalid inputs. Before/after captures of 50 original Saari frames
+at one-second intervals, plus their WAV and manifest, matched byte for byte on
+2026-09-24. Visual checks covered island and meditate views.
+
+The installed Postshot v1.0.116 CLI detected the 33 training images in the smoke
+dataset, then required a Studio license. A completed Postshot import/training run
+has **not** been validated. Use the GUI to check the generated model. Exact poses
+do not remove the original affine-texture and reflection inconsistencies.
+
+Design and preservation rationale:
+[Saari capture approach](../documentation/forward-saari-gsplat-capture-approach.md).
+
+### Demo sequence exports
 
 ```powershell
 cpp-offline/build/forward-export --output cpp-offline/output --frames 250

@@ -22,6 +22,10 @@ struct ExportConfig {
     int post_roll_frames;
     bool write_log;
     std::string sequence_name;
+    float gsplat_time;
+    float gsplat_radius;
+    int gsplat_validation_every;
+    std::string gsplat_camera_path;
 };
 
 enum class ParseStatus {

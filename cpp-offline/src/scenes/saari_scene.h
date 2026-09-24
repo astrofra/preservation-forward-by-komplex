@@ -18,6 +18,19 @@ typedef Scene3dTrackSample SaariTrackSample;
 typedef Scene3dRotationSample SaariRotationSample;
 typedef Scene3dStaticMesh SaariStaticMesh;
 
+struct SaariCaptureCamera {
+    SaariVec3 position, target, forward, right, up;
+    float focal_length, half_width, half_height;
+};
+
+struct SaariCapturePoint {
+    SaariVec3 position;
+    int surface_id;
+};
+
+SaariCaptureCamera make_saari_capture_camera(const SaariVec3& position,
+    const SaariVec3& target, int width, int height, float horizontal_fov);
+
 class SaariScene : public Scene {
 public:
     SaariScene();
@@ -31,7 +44,17 @@ public:
     bool is_ready() const;
     const std::string& error_message() const;
 
+    // Static scene, explicit camera, and optional final opaque surface IDs.
+    // IDs follow painter/compositing order, not a replacement z-buffer.
+    void render_capture(RgbSurface& surface, const SaariCaptureCamera& camera,
+                        float frozen_time, std::vector<int>* surface_ids);
+    void capture_geometry(float frozen_time, std::vector<SaariCapturePoint>* points,
+                          SaariVec3* bounds_min, SaariVec3* bounds_max,
+                          SaariVec3* meditate_center) const;
+
 private:
+    void render_view(RgbSurface& surface, const SaariCaptureCamera& camera,
+                     float scene_time_seconds, std::vector<int>* surface_ids);
     bool load_assets();
     bool load_ase_scene();
     void build_shock_tables(int max_gray_value);

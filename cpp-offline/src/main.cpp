@@ -2,6 +2,7 @@
 
 #include "app/export_config.h"
 #include "app/forward_app.h"
+#include "app/saari_capture.h"
 
 int main(int argc, char** argv) {
     forward_offline::ExportConfig config;
@@ -15,6 +16,9 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    if (config.sequence_name == "saari-gsplat") {
+        return forward_offline::export_saari_capture(config);
+    }
     forward_offline::ForwardApp app(config);
     return app.run();
 }
