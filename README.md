@@ -10,6 +10,21 @@ Forward Java demo, rebuilt from the bytecode, adapted to a more recent JDK and p
 
 ![preview](img/shot_007.png)
 
+## Browser and native C++ player
+
+The independent [cpp-wasm project](cpp-wasm/README.md) runs the demo at 512x256
+using SDL2 and WebAssembly/Web Audio. It includes an HTML entry page inspired by
+the original release, an audio-driven timeline, and pause/restart controls.
+`cpp-offline/` remains the unchanged reference exporter.
+
+On Windows, build with `cpp-wasm\build_web.bat`, then run
+`python cpp-wasm/serve.py` and open `http://127.0.0.1:8080/`.
+See the project README for the Emscripten prerequisite and native player commands.
+
+To build a ready-to-upload website and ZIP on Windows, run
+`package_forward_wasm.bat`. Outputs are `cpp-wasm/dist/forward-web/` and
+`cpp-wasm/dist/forward-web.zip`; upload the folder contents to your web host.
+
 ## What Has Been Modernized
 
 - removed the `Applet` dependency in favor of an AWT desktop host

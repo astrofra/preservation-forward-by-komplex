@@ -1,3 +1,7 @@
 /java-desktop/build
 .DS_Store
 __pycache__
+/.local/
+/build/
+/cpp-wasm/build*/
+/cpp-wasm/dist/
