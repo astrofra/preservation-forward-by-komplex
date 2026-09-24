@@ -5,6 +5,7 @@
 #include <array>
 #include <map>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "assets/original_asset_loader.h"
@@ -37,6 +38,7 @@ public:
 
     CaptureCamera capture_camera(float track_time_seconds, int width, int height,
                                  float horizontal_fov) const;
+    std::pair<float, float> capture_height_range() const;
     void render_capture(RgbSurface& surface, const CaptureCamera& camera,
                         std::vector<int>* surface_ids, MakuCaptureGeometry* geometry) const;
 

@@ -86,24 +86,33 @@ int run_capture(const ExportConfig& config) {
     MakuScene scene;
     scene.init();
     if (!scene.is_ready()) throw std::runtime_error(scene.error_message());
+    const std::pair<float, float> height_range = scene.capture_height_range();
+    const float height_offset = (height_range.second - height_range.first) * config.gsplat_height_fraction;
+    const int pass_count = height_offset > 0.0f ? 2 : 1;
+    const int view_count = config.frame_count * pass_count;
     int end_sample = 0;
     const std::vector<Segment> segments = camera_segments(&end_sample);
     const double duration = double(end_sample) / kTimelineRate;
     make_directory(join_path(config.output_dir, "images"));
     std::ofstream path = output_file(join_path(config.output_dir, "camera_path.csv"));
     std::ofstream manifest = output_file(join_path(config.output_dir, "manifest.csv"));
-    path << "px,py,pz,tx,ty,tz,hfov_degrees,group,scene_time_seconds,track_time_seconds,roll_radians\n";
-    manifest << "image_id,file,split,group,scene_time_seconds,camera_id\n";
+    path << "px,py,pz,tx,ty,tz,hfov_degrees,group,scene_time_seconds,track_time_seconds,roll_radians,pass,height_offset\n";
+    manifest << "image_id,file,split,group,scene_time_seconds,camera_id,pass,height_offset\n";
     std::vector<View> views;
     std::vector<Point> points;
     MakuCaptureGeometry geometry;
     RgbSurface surface(config.width, config.height);
     std::vector<int> owners;
     std::size_t segment_index = 0, validation_count = 0;
-    std::cout << "Maku gsplat: " << config.frame_count << " views over " << duration
-              << " s, original scripted camera path, horizontal FOV " << config.gsplat_fov << " degrees\n";
-    for (int i = 0; i < config.frame_count; ++i) {
-        const int sample = static_cast<int>(static_cast<std::int64_t>(i) * end_sample / config.frame_count);
+    std::cout << "Maku gsplat: " << view_count << " views (" << config.frame_count << " per path) over " << duration
+              << " s, horizontal FOV " << config.gsplat_fov << " degrees, raised offset " << height_offset << "\n";
+    for (int i = 0; i < view_count; ++i) {
+        const int path_index = i % config.frame_count;
+        const bool raised = i >= config.frame_count;
+        const char* const pass_name = raised ? "raised" : "original";
+        const float offset = raised ? height_offset : 0.0f;
+        if (path_index == 0) segment_index = 0;
+        const int sample = static_cast<int>(static_cast<std::int64_t>(path_index) * end_sample / config.frame_count);
         const double time = double(sample) / kTimelineRate;
         while (segment_index + 1 < segments.size() && segments[segment_index + 1].start_sample <= sample)
             ++segment_index;
@@ -117,8 +126,12 @@ int run_capture(const ExportConfig& config) {
         view.group = group.str();
         view.camera = scene.capture_camera(track_time, config.width, config.height,
                                            static_cast<float>(view.fov * kPi / 180.0));
+        // Translate both endpoints; retain the original basis exactly, including
+        // its float rounding, so only the camera altitude changes.
+        view.camera.position.z += offset;
+        view.camera.target.z += offset;
         view.camera_id = 1;
-        view.validation = config.gsplat_validation_every > 0 && (i+1) % config.gsplat_validation_every == 0;
+        view.validation = config.gsplat_validation_every > 0 && (path_index+1) % config.gsplat_validation_every == 0;
         make_pose(&view);
         std::ostringstream filename;
         filename << "frame_" << std::setfill('0') << std::setw(6) << i << ".png";
@@ -137,13 +150,14 @@ int run_capture(const ExportConfig& config) {
         const Scene3dVec3& p = view.camera.position;
         const Scene3dVec3& t = view.camera.target;
         path << p.x << ',' << p.y << ',' << p.z << ',' << t.x << ',' << t.y << ',' << t.z
-             << ',' << view.fov << ',' << view.group << ',' << time << ',' << track_time << ",0\n";
+             << ',' << view.fov << ',' << view.group << ',' << time << ',' << track_time << ",0,"
+             << pass_name << ',' << offset << '\n';
         manifest << i+1 << ',' << subdir << '/' << view.filename << ','
                  << (view.validation ? "validation" : "train") << ',' << view.group << ','
-                 << time << ',' << view.camera_id << '\n';
+                 << time << ',' << view.camera_id << ',' << pass_name << ',' << offset << '\n';
         views.push_back(view);
-        if ((i+1) % 10 == 0 || i+1 == config.frame_count)
-            std::cout << "\rRendered " << i+1 << '/' << config.frame_count << std::flush;
+        if ((i+1) % 10 == 0 || i+1 == view_count)
+            std::cout << "\rRendered " << i+1 << '/' << view_count << std::flush;
     }
     finish(path); finish(manifest);
     const std::size_t count = write_model(join_path(config.output_dir, "sparse"), config, views, points, false);
@@ -155,9 +169,13 @@ int run_capture(const ExportConfig& config) {
            << "Postshot: import ONLY images/ together with the three files in sparse/.\n"
            << "Keep validation/ separate from training. Do not import the entire dataset root.\n"
            << "Original ASE path and XM-scripted cuts/speeds, sampled over the whole scene.\n"
+           << "Paths: " << pass_count << "; views per path: " << config.frame_count
+           << "; raised offset: " << height_offset << " native Z units.\n"
+           << "Both paths share images/ and one sparse/ model; no separate import or alignment.\n"
+           << "The raised path translates both camera and target; orientation and fog are preserved.\n"
            << "Original fog and affine terrain textures retained; feedback and shocks disabled.\n"
            << "PNG resolution is rendered directly; no upscaling. No hemisphere pass.\n"
-           << "camera_path.csv records native positions, targets, FOV and timeline (not a replay input).\n"
+           << "camera_path.csv records native positions, targets, FOV, timeline, pass and height_offset (not a replay input).\n"
            << "COLMAP world mirrors native X; Z remains up. Poses are world-to-camera.\n"
            << "Points sample unwrapped terrain triangles, visible in at least two training views.\n"
            << "Visibility follows actual painter order; seed points beyond depth 200 are excluded.\n"
@@ -169,13 +187,20 @@ int run_capture(const ExportConfig& config) {
             << "  \"source_revision\": \"" << FORWARD_SOURCE_REVISION << "\",\n"
             << "  \"width\": " << config.width << ", \"height\": " << config.height << ",\n"
             << "  \"hfov_degrees\": " << config.gsplat_fov << ",\n"
+            << "  \"terrain_z_min\": " << height_range.first << ", \"terrain_z_max\": " << height_range.second << ",\n"
+            << "  \"height_offset_fraction\": " << config.gsplat_height_fraction
+            << ", \"height_offset\": " << height_offset << ",\n"
+            << "  \"views_per_pass\": " << config.frame_count << ",\n"
             << "  \"duration_seconds\": " << duration << ", \"timeline_sample_rate\": " << kTimelineRate << ",\n"
             << "  \"view_count\": " << views.size() << ", \"validation_views\": " << validation_count << ",\n"
             << "  \"validation_every\": " << config.gsplat_validation_every << ", \"points\": " << count << ",\n"
             << "  \"world_conversion\": \"COLMAP = diag(-1,1,1) * native; world Z up\",\n"
             << "  \"effects\": \"original fog and affine textures; feedback and shocks disabled\",\n"
             << "  \"path\": \"original ASE and XM script, 0x0D00 inclusive to 0x1000 exclusive\",\n"
-            << "  \"segments\": [\n";
+            << "  \"passes\": [{\"name\": \"original\", \"height_offset\": 0}";
+    if (pass_count == 2)
+        summary << ", {\"name\": \"raised\", \"height_offset\": " << height_offset << "}";
+    summary << "],\n  \"segments\": [\n";
     for (std::size_t i = 0; i < segments.size(); ++i) {
         const Segment& s = segments[i];
         summary << "    {\"song_position\": " << s.song_position << ", \"start_sample\": " << s.start_sample

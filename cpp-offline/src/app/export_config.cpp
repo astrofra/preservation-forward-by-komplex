@@ -91,6 +91,7 @@ ExportConfig::ExportConfig()
       gsplat_time(30.0f),
       gsplat_radius(0.0f),
       gsplat_fov(80.0f),
+      gsplat_height_fraction(0.25f),
       gsplat_validation_every(10),
       gsplat_camera_path() {
 }
@@ -155,11 +156,15 @@ ParseStatus parse_export_config(int argc, char** argv, ExportConfig& config, std
             config.sample_rate = parsed;
         } else if (arg == "--sequence") {
             config.sequence_name = value;
-        } else if (arg == "--gsplat-time" || arg == "--gsplat-radius" || arg == "--gsplat-fov") {
+        } else if (arg == "--gsplat-time" || arg == "--gsplat-radius" || arg == "--gsplat-fov" ||
+                   arg == "--gsplat-height-fraction") {
             char* end = NULL;
             errno = 0;
             const double number = std::strtod(value.c_str(), &end);
-            const double maximum = arg == "--gsplat-time" ? 86400.0 : (arg == "--gsplat-fov" ? 120.0 : 2000.0);
+            double maximum = 2000.0;
+            if (arg == "--gsplat-time") maximum = 86400.0;
+            else if (arg == "--gsplat-fov") maximum = 120.0;
+            else if (arg == "--gsplat-height-fraction") maximum = 1.0;
             const double minimum = arg == "--gsplat-fov" ? 10.0 : 0.0;
             if (value.empty() || end == value.c_str() || *end != '\0' || errno == ERANGE ||
                 !std::isfinite(number) || number < minimum || number > maximum) {
@@ -168,8 +173,9 @@ ParseStatus parse_export_config(int argc, char** argv, ExportConfig& config, std
             }
             if (arg == "--gsplat-time") config.gsplat_time = static_cast<float>(number);
             else if (arg == "--gsplat-radius") config.gsplat_radius = static_cast<float>(number);
-            else config.gsplat_fov = static_cast<float>(number);
-            if (arg == "--gsplat-fov") maku_option = true;
+            else if (arg == "--gsplat-fov") config.gsplat_fov = static_cast<float>(number);
+            else config.gsplat_height_fraction = static_cast<float>(number);
+            if (arg == "--gsplat-fov" || arg == "--gsplat-height-fraction") maku_option = true;
             else saari_option = true;
             gsplat_option = true;
         } else if (arg == "--gsplat-camera-path") {
@@ -220,7 +226,7 @@ ParseStatus parse_export_config(int argc, char** argv, ExportConfig& config, std
     const bool maku_capture = config.sequence_name == "maku-gsplat";
     if ((gsplat_option && !saari_capture && !maku_capture) ||
         (saari_option && !saari_capture) || (maku_option && !maku_capture)) {
-        stream << "GSplat options require their capture sequence: time/radius/camera-path for saari-gsplat, fov for maku-gsplat, validation-every for either\n";
+        stream << "GSplat options require their capture sequence: time/radius/camera-path for saari-gsplat, fov/height-fraction for maku-gsplat, validation-every for either\n";
         return ParseStatus::error;
     }
     if (saari_capture || maku_capture) {
@@ -254,8 +260,9 @@ void print_usage(std::ostream& stream) {
         << "  --sequence <name>     Export sequence: intro|saari|saari-gsplat|kukot|maku|maku-gsplat|watercube|feta|uppol|bootstrap\n"
         << "                        (default: intro)\n"
         << "  saari-gsplat defaults: 300 PNG views at 1024x768, hemisphere + meditate focus\n"
-        << "  maku-gsplat defaults: 300 PNG views at 1024x512, original scripted path (0x0D00..0x1000)\n"
+        << "  maku-gsplat defaults: 300 views per path at 1024x512, original + raised H/4 (600 PNGs)\n"
         << "  --gsplat-fov <deg>    Maku horizontal FOV, 10..120 degrees (default: 80)\n"
+        << "  --gsplat-height-fraction <f>  Maku second path: vertical offset f * terrain height, 0..1 (default: 0.25; 0 disables)\n"
         << "  --gsplat-time <s>     Frozen Saari scene time (default: 30)\n"
         << "  --gsplat-radius <r>   Hemisphere radius, 0 = automatic enclosure (default: 0)\n"
         << "  --gsplat-camera-path <csv>  Replay/edit exported camera_path.csv (overrides view count)\n"

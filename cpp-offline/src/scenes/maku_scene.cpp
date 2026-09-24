@@ -754,6 +754,18 @@ CaptureCamera MakuScene::capture_camera(float track_time_seconds, int width, int
                              width, height, horizontal_fov);
 }
 
+std::pair<float, float> MakuScene::capture_height_range() const {
+    if (height_asset_.pixels.empty()) return std::make_pair(0.0f, 0.0f);
+    float minimum = static_cast<float>(height_asset_.palette_red[height_asset_.pixels.front()]) * kHeightScale;
+    float maximum = minimum;
+    for (std::size_t i = 1; i < height_asset_.pixels.size(); ++i) {
+        const float height = static_cast<float>(height_asset_.palette_red[height_asset_.pixels[i]]) * kHeightScale;
+        minimum = std::min(minimum, height);
+        maximum = std::max(maximum, height);
+    }
+    return std::make_pair(minimum, maximum);
+}
+
 void MakuScene::render_capture(RgbSurface& surface, const CaptureCamera& camera,
                                std::vector<int>* surface_ids, MakuCaptureGeometry* geometry) const {
     surface.clear(0x00FFFFFFU);

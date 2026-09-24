@@ -153,14 +153,24 @@ Design and preservation rationale:
 ### Maku Gaussian Splatting capture
 
 ```powershell
-cpp-offline/build/Release/forward-export.exe --sequence maku-gsplat --output cpp-offline/output-maku-gsplat
+cpp-offline/build/Release/forward-export.exe --sequence maku-gsplat --output cpp-offline/output-maku-gsplat-h4
 ```
 
-Defaults: **300 PNG views at 1024x512**, horizontal FOV **80 degrees** (the demo
+Defaults: **300 views per path, 600 PNGs total, at 1024x512**, horizontal FOV **80 degrees** (the demo
 uses 1.2 radians, about 68.75 degrees). The original 2:1 aspect ratio is retained.
 `--gsplat-fov 90` changes the horizontal FOV; valid values are 10..120 degrees.
-`--frames`, `--width`, `--height` and `--gsplat-validation-every` work as for Saari.
+`--frames` sets the number of views **per path** (12..5000); dimensions work as for Saari.
 Use a new output directory for each dataset.
+
+The original path is followed by a second pass raised by **H/4**, where H is the
+terrain's vertical extent, measured from the used heightmap samples with the
+renderer's height scale. For the original assets H is about 351.14 units, so the
+offset is **87.785 units**. Both camera and target move upward; orientation, FOV,
+sampling times and fog are preserved. Both paths share `images/` and one COLMAP
+model in `sparse/`, with unique image IDs and a common world/point cloud.
+`--gsplat-height-fraction 0` exports only the original path; the default is `0.25`
+and the accepted range is 0..1. `--gsplat-validation-every` holds out the same
+sample indices in each pass.
 
 The exporter samples the **whole original Maku camera sequence**, from XM position
 `0x0D00` inclusive to `0x1000` exclusive (about 24.407 seconds). It retains the
@@ -179,18 +189,21 @@ Fog and the original affine texture mapping can still limit reconstruction quali
 
 Output and Postshot import are the same as for Saari: **import `images/` together
 with `sparse/cameras.txt`, `sparse/images.txt` and `sparse/points3D.txt`**. There are
-270 training views and 30 held-out views by default. `validation/` stays separate.
+540 training views and 60 held-out views by default. `validation/` stays separate.
 The shared COLMAP writer exports exact intrinsics, world-to-camera poses and the
 same reflected-X coordinate convention. `camera_path.csv` retains Saari's first
 eight columns, followed by `scene_time_seconds`, `track_time_seconds` and
-`roll_radians` (zero in the original Maku script). This CSV documents the capture;
+`roll_radians` (zero in the original Maku script), `pass` (`original` or `raised`)
+and `height_offset` in native world units. This CSV documents the capture;
 CSV replay, frozen Saari time and hemisphere radius options apply only to Saari.
 `manifest.csv` associates every pose with its PNG. `capture.json` records FOV,
-duration, split, point counts, original script segments and completion status.
+duration, terrain height bounds, offset, passes, split, point counts, original
+script segments and completion status.
 
 The Maku CTest checks source ASE positions/targets, script timing and cuts, PNGs,
 intrinsics, camera handedness, reprojections, reciprocal point tracks, validation
-isolation, sampling independence, FOV overrides and invalid input. A native Maku
+isolation, sampling independence, vertical translation with unchanged orientation,
+shared tracks between passes, original-pass parity, FOV overrides and invalid input. A native Maku
 before/after comparison also covers 40 frames at one-second intervals, WAV and
 manifest. See [Maku capture notes](../documentation/forward-maku-gsplat-capture.md).
 

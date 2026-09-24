@@ -45,6 +45,16 @@ def verify_dataset(root, workspace):
     assert len(manifest) == len(path) == meta['view_count']
     assert meta['points'] > 100 and meta['hfov_degrees'] == 80
     assert meta['width'] == 320 and meta['height'] == 160
+    per_pass = meta['views_per_pass']
+    assert meta['view_count'] == 2 * per_pass
+    assert meta['height_offset_fraction'] == 0.25
+    # Extrema of used heightmap samples, scaled by the renderer's 1.94.
+    assert abs(meta['terrain_z_min'] - 110.58) < 1e-4
+    assert abs(meta['terrain_z_max'] - 461.72) < 1e-4
+    offset = meta['height_offset']
+    assert abs(offset - 87.785) < 1e-4
+    assert abs(offset - (meta['terrain_z_max']-meta['terrain_z_min'])/4) < 1e-5
+    assert meta['passes'] == [dict(name='original', height_offset=0), dict(name='raised', height_offset=offset)]
     # Reference positions resolved from the original XM/script at 22050 Hz.
     assert meta['segments'] == [
         dict(song_position=0xd00, start_sample=0, track_offset_seconds=160.5, speed=-3),
@@ -59,7 +69,19 @@ def verify_dataset(root, workspace):
     for i, (row, pose) in enumerate(zip(manifest, path)):
         time = float(pose['scene_time_seconds'])
         assert time == float(row['scene_time_seconds'])
-        assert abs(time-(i*538170//len(path))/22050) < 1e-10
+        assert abs(time-((i % per_pass)*538170//per_pass)/22050) < 1e-10
+        pass_name = 'original' if i < per_pass else 'raised'
+        height_offset = 0 if i < per_pass else offset
+        assert pose['pass'] == row['pass'] == pass_name
+        assert float(pose['height_offset']) == float(row['height_offset']) == height_offset
+        if i >= per_pass:
+            original = path[i-per_pass]
+            assert row['split'] == manifest[i-per_pass]['split']
+            for key in ('px', 'py', 'tx', 'ty', 'hfov_degrees', 'group', 'scene_time_seconds',
+                        'track_time_seconds', 'roll_radians'):
+                assert pose[key] == original[key]
+            for key in ('pz', 'tz'):
+                assert abs(float(pose[key])-float(original[key])-offset) < 1e-4
         segment = next(s for s in reversed(meta['segments']) if s['start_sample']/22050 <= time)
         expected_time = (time-segment['start_sample']/22050)*segment['speed']+segment['track_offset_seconds']
         assert abs(float(pose['track_time_seconds'])-expected_time) < 3e-5
@@ -68,6 +90,7 @@ def verify_dataset(root, workspace):
         assert float(pose['hfov_degrees']) == 80 and float(pose['roll_radians']) == 0
         for name, keys in [('Camera01', ('px', 'py', 'pz')), ('Camera01.Target', ('tx', 'ty', 'tz'))]:
             expected = spline(tracks[name], expected_time)
+            expected[2] += height_offset
             actual = list(map(lambda key: float(pose[key]), keys))
             assert math.dist(expected, actual) < 0.003, (i, name, expected, actual)
         read_png(root/row['file'], meta['width'], meta['height'])
@@ -88,8 +111,11 @@ def verify_dataset(root, workspace):
             assert (prefix/'images'/view['name']).exists()
             source = path[image_id-1]
             center = [float(source[k]) for k in ('px', 'py', 'pz')]
-            target = [float(source[k]) for k in ('tx', 'ty', 'tz')]
-            forward = normalize([a-b for a, b in zip(target, center)])
+            # The raised camera retains the original basis. Recomputing it
+            # from translated float endpoints introduces cancellation error.
+            basis_source = path[(image_id-1) % per_pass]
+            forward = normalize([float(basis_source[a])-float(basis_source[b])
+                                 for a, b in zip(('tx', 'ty', 'tz'), ('px', 'py', 'pz'))])
             right = normalize(cross((0, 0, 1), forward))
             up = cross(forward, right)
             rotation, translation = view['rotation'], view['translation']
@@ -112,13 +138,23 @@ def verify_dataset(root, workspace):
                 native_y = cy-fy*dot(relative, up)/dot(relative, forward)
                 assert math.hypot(native_x-x, native_y-y) < 0.001
                 assert 0 <= x < width and 0 <= y < height
-            assert view['observations'], f'No initialization points for image {image_id}'
+            if source['pass'] == 'original':
+                assert view['observations'], f'No initialization points for original image {image_id}'
         for point_id, (_, track) in points.items():
             assert len({image for image, _ in track}) == len(track)
             for image, observation in track:
                 assert images[image]['observations'][observation][2] == point_id
     assert not split_ids[0] & split_ids[1]
     assert len(split_ids[1]) == meta['validation_views']
+    # One COLMAP model/world must connect both paths through shared terrain points.
+    _, images, points = read_model(root/'sparse')
+    assert sum(bool(v['observations']) for i, v in images.items() if i > per_pass) > per_pass / 3
+    assert any(any(i <= per_pass for i, _ in track) and any(i > per_pass for i, _ in track)
+               for _, track in points.values())
+    _, all_images, _ = read_model(root/'validation/sparse')
+    all_images.update(images)
+    for i in range(1, per_pass+1):
+        assert all_images[i]['rotation'] == all_images[i+per_pass]['rotation']
     print(f'Validated {len(path)} Maku views, {meta["points"]} points; reprojection {max_error:.3g} px')
 
 
@@ -136,6 +172,18 @@ def main():
         first, denser = base/'first', base/'denser'
         run(first)
         verify_dataset(first, workspace)
+        # Disabling the extra pass reproduces the original pass, with identical
+        # pixels and camera CSV rows; H is a terrain extent, not a camera extent.
+        original = base/'original'
+        run(original, '--gsplat-height-fraction', '0')
+        original_rows = rows(original/'manifest.csv')
+        original_path = rows(original/'camera_path.csv')
+        assert original_path == rows(first/'camera_path.csv')[:60]
+        for a, b in zip(rows(first/'manifest.csv'), original_rows):
+            assert (first/a['file']).read_bytes() == (original/b['file']).read_bytes()
+        original_meta = json.loads((original/'capture.json').read_text())
+        assert original_meta['view_count'] == 60 and original_meta['height_offset'] == 0
+        assert original_meta['passes'] == [dict(name='original', height_offset=0)]
         # Same poses must render identical PNGs regardless of earlier captures,
         # sampling density, validation split, FPS and audio flags.
         run(denser, '--frames', '120', '--gsplat-validation-every', '0', '--fps', '29', '--sample-rate', '48000')
@@ -158,11 +206,14 @@ def main():
         run(first, success=False)
         for arguments in [('--gsplat-fov', 'nan'), ('--gsplat-fov', '0'), ('--gsplat-fov', '121'),
                           ('--gsplat-fov', 'inf'), ('--gsplat-radius', '10'), ('--gsplat-time', '30'),
+                          ('--gsplat-height-fraction', '-0.25'), ('--gsplat-height-fraction', '1.01'),
+                          ('--gsplat-height-fraction', 'nan'), ('--gsplat-height-fraction', 'inf'),
                           ('--gsplat-camera-path', str(first/'camera_path.csv')),
                           ('--gsplat-validation-every', '1'), ('--width', '4097'), ('--frames', '1'),
                           ('--until-song-position', '0x1000'), ('--post-roll-frames', '1'),
                           ('--sequence', 'maku', '--gsplat-fov', '80'),
-                          ('--sequence', 'saari-gsplat', '--gsplat-fov', '80')]:
+                          ('--sequence', 'saari-gsplat', '--gsplat-fov', '80'),
+                          ('--sequence', 'saari-gsplat', '--gsplat-height-fraction', '0.25')]:
             output = base/'invalid'
             run(output, *arguments, success=False)
             assert not output.exists()
