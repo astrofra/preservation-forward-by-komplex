@@ -31,22 +31,8 @@ const std::uint32_t kPackedBlendMask = 0x01F07C1FU;
 const std::uint64_t kShockSeed = 195ULL;
 const std::uint64_t kShockFrameSeed = 1337ULL;
 
-struct MakuVec3 {
-    float x;
-    float y;
-    float z;
-};
-
-struct MakuCameraState {
-    MakuVec3 position;
-    MakuVec3 target;
-    MakuVec3 forward;
-    MakuVec3 right;
-    MakuVec3 up;
-    float focal_length;
-    float half_width;
-    float half_height;
-};
+typedef Scene3dVec3 MakuVec3;
+typedef CaptureCamera MakuCameraState;
 
 struct MakuClipVertex {
     float view_x;
@@ -68,6 +54,7 @@ struct MakuScreenVertex {
 struct MakuPrimitive {
     std::vector<MakuClipVertex> polygon;
     float sort_key;
+    int surface_id;
 };
 
 int clamp_int(int value, int minimum, int maximum) {
@@ -178,7 +165,8 @@ int wrap_index(int value, int modulus) {
 
 MakuCameraState make_camera_state(const MakuVec3& position,
                                   const MakuVec3& target,
-                                  float roll_angle) {
+                                  float roll_angle, int width = kSurfaceWidth,
+                                  int height = kSurfaceHeight, float fov = kFieldOfView) {
     const MakuVec3 forward = normalize(subtract(target, position));
     const MakuVec3 world_up = make_vec3(0.0f, 0.0f, 1.0f);
     MakuVec3 right = normalize(cross(world_up, forward));
@@ -202,9 +190,9 @@ MakuCameraState make_camera_state(const MakuVec3& position,
     camera.forward = forward;
     camera.right = right;
     camera.up = up;
-    camera.half_width = static_cast<float>(kSurfaceWidth) * 0.5f;
-    camera.half_height = static_cast<float>(kSurfaceHeight) * 0.5f;
-    camera.focal_length = camera.half_width / std::tan(kFieldOfView * 0.5f);
+    camera.half_width = static_cast<float>(width) * 0.5f;
+    camera.half_height = static_cast<float>(height) * 0.5f;
+    camera.focal_length = camera.half_width / std::tan(fov * 0.5f);
     return camera;
 }
 
@@ -332,7 +320,8 @@ void rasterize_affine_triangle(RgbSurface& surface,
                                const IndexedAsset& terrain_asset,
                                const MakuScreenVertex& a,
                                const MakuScreenVertex& b,
-                               const MakuScreenVertex& c) {
+                               const MakuScreenVertex& c,
+                               std::vector<int>* surface_ids, int surface_id) {
     const float min_x = std::floor(std::min(a.x, std::min(b.x, c.x)));
     const float max_x = std::ceil(std::max(a.x, std::max(b.x, c.x)));
     const float min_y = std::floor(std::min(a.y, std::min(b.y, c.y)));
@@ -371,6 +360,9 @@ void rasterize_affine_triangle(RgbSurface& surface,
             pixels[static_cast<std::size_t>(y) * static_cast<std::size_t>(surface.width()) +
                    static_cast<std::size_t>(x)] =
                 sample_maku_ramp(ramp_surface, terrain_asset, u, v, fade);
+            if (surface_ids != NULL) {
+                (*surface_ids)[static_cast<std::size_t>(y) * surface.width() + x] = surface_id;
+            }
         }
     }
 }
@@ -379,7 +371,8 @@ void rasterize_polygon(RgbSurface& surface,
                        const PackedRgbAsset& ramp_surface,
                        const IndexedAsset& terrain_asset,
                        const MakuCameraState& camera,
-                       const std::vector<MakuClipVertex>& polygon) {
+                       const std::vector<MakuClipVertex>& polygon,
+                       std::vector<int>* surface_ids, int surface_id) {
     if (polygon.size() < 3U) {
         return;
     }
@@ -397,7 +390,7 @@ void rasterize_polygon(RgbSurface& surface,
                                   terrain_asset,
                                   base,
                                   projected[index],
-                                  projected[index + 1U]);
+                                  projected[index + 1U], surface_ids, surface_id);
     }
 }
 
@@ -405,7 +398,9 @@ void render_maku_terrain(RgbSurface& surface,
                          const MakuCameraState& camera,
                          const IndexedAsset& height_asset,
                          const IndexedAsset& terrain_asset,
-                         const PackedRgbAsset& ramp_surface) {
+                         const PackedRgbAsset& ramp_surface,
+                         std::vector<int>* surface_ids = NULL,
+                         MakuCaptureGeometry* geometry = NULL) {
     if (height_asset.width <= 1 || height_asset.height <= 1) {
         return;
     }
@@ -415,10 +410,12 @@ void render_maku_terrain(RgbSurface& surface,
     const int half_width = terrain_width / 2;
     const int half_height = terrain_height / 2;
     const float cell_size = 200.0f / static_cast<float>(terrain_width);
-    const float tan_half_fov = std::tan(kFieldOfView * 0.5f);
+    const float tan_half_fov = surface_ids != NULL ? camera.half_width / camera.focal_length
+                                                  : std::tan(kFieldOfView * 0.5f);
     const float far_half_width = kFarPlane * tan_half_fov;
     const float far_half_height =
-        far_half_width * static_cast<float>(kSurfaceHeight) / static_cast<float>(kSurfaceWidth);
+        surface_ids != NULL ? far_half_width * camera.half_height / camera.half_width
+                            : far_half_width * static_cast<float>(kSurfaceHeight) / static_cast<float>(kSurfaceWidth);
 
     const MakuVec3 frustum_corners[4] = {
         add(scale(camera.forward, kFarPlane),
@@ -531,6 +528,7 @@ void render_maku_terrain(RgbSurface& surface,
                 }
 
                 MakuPrimitive primitive;
+                primitive.surface_id = 0;
                 primitive.sort_key =
                     (view_z[static_cast<std::size_t>(ia)] +
                      view_z[static_cast<std::size_t>(ib)] +
@@ -556,6 +554,27 @@ void render_maku_terrain(RgbSurface& surface,
                                                              fade_values[static_cast<std::size_t>(ic)]));
                 clip_polygon_against_near_plane(&primitive.polygon);
                 if (primitive.polygon.size() >= 3U) {
+                    if (geometry != NULL) {
+                        const std::array<int, 3> key = {{start_grid_x + column,
+                                                       start_grid_y + row, triangle_index}};
+                        std::map<std::array<int, 3>, int>::const_iterator found = geometry->triangle_ids.find(key);
+                        if (found == geometry->triangle_ids.end()) {
+                            primitive.surface_id = static_cast<int>(geometry->triangle_ids.size()) + 1;
+                            geometry->triangle_ids.insert(std::make_pair(key, primitive.surface_id));
+                            const float weights[4][3] = {{1.0f/3, 1.0f/3, 1.0f/3},
+                                {0.6f, 0.2f, 0.2f}, {0.2f, 0.6f, 0.2f}, {0.2f, 0.2f, 0.6f}};
+                            for (int sample = 0; sample < 4; ++sample) {
+                                CapturePoint point;
+                                point.position = add(add(scale(world_a, weights[sample][0]),
+                                                         scale(world_b, weights[sample][1])),
+                                                         scale(world_c, weights[sample][2]));
+                                point.surface_id = primitive.surface_id;
+                                geometry->points.push_back(point);
+                            }
+                        } else {
+                            primitive.surface_id = found->second;
+                        }
+                    }
                     primitives.push_back(primitive);
                 }
             }
@@ -573,7 +592,7 @@ void render_maku_terrain(RgbSurface& surface,
                           ramp_surface,
                           terrain_asset,
                           camera,
-                          primitives[index].polygon);
+                          primitives[index].polygon, surface_ids, primitives[index].surface_id);
     }
 }
 
@@ -725,6 +744,22 @@ void MakuScene::render(RgbSurface& surface, float scene_time_seconds, float delt
         apply_average_feedback(surface, frame_history_);
     }
     frame_history_ = surface.pixels();
+}
+
+CaptureCamera MakuScene::capture_camera(float track_time_seconds, int width, int height,
+                                        float horizontal_fov) const {
+    const float tick = track_time_seconds * kTrackTickScale;
+    return make_camera_state(sample_track(camera_track_, tick),
+                             sample_track(camera_target_track_, tick), 0.0f,
+                             width, height, horizontal_fov);
+}
+
+void MakuScene::render_capture(RgbSurface& surface, const CaptureCamera& camera,
+                               std::vector<int>* surface_ids, MakuCaptureGeometry* geometry) const {
+    surface.clear(0x00FFFFFFU);
+    surface_ids->assign(surface.pixels().size(), 0);
+    if (ready_) render_maku_terrain(surface, camera, height_asset_, terrain_asset_, terrain_surface_,
+                                    surface_ids, geometry);
 }
 
 void MakuScene::handle_message(const std::string& message, float scene_time_seconds) {

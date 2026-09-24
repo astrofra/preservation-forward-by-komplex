@@ -9,6 +9,7 @@
 #include "core/java_random.h"
 #include "scenes/scene.h"
 #include "scenes/scene3d_shared.h"
+#include "scenes/capture_types.h"
 
 namespace forward_offline {
 
@@ -18,15 +19,8 @@ typedef Scene3dTrackSample SaariTrackSample;
 typedef Scene3dRotationSample SaariRotationSample;
 typedef Scene3dStaticMesh SaariStaticMesh;
 
-struct SaariCaptureCamera {
-    SaariVec3 position, target, forward, right, up;
-    float focal_length, half_width, half_height;
-};
-
-struct SaariCapturePoint {
-    SaariVec3 position;
-    int surface_id;
-};
+typedef CaptureCamera SaariCaptureCamera;
+typedef CapturePoint SaariCapturePoint;
 
 SaariCaptureCamera make_saari_capture_camera(const SaariVec3& position,
     const SaariVec3& target, int width, int height, float horizontal_fov);

@@ -90,12 +90,14 @@ ExportConfig::ExportConfig()
       sequence_name("intro"),
       gsplat_time(30.0f),
       gsplat_radius(0.0f),
+      gsplat_fov(80.0f),
       gsplat_validation_every(10),
       gsplat_camera_path() {
 }
 
 ParseStatus parse_export_config(int argc, char** argv, ExportConfig& config, std::ostream& stream) {
     bool gsplat_option = false, explicit_width = false, explicit_height = false, explicit_frames = false;
+    bool saari_option = false, maku_option = false;
     for (int index = 1; index < argc; ++index) {
         const std::string arg(argv[index]);
 
@@ -153,21 +155,26 @@ ParseStatus parse_export_config(int argc, char** argv, ExportConfig& config, std
             config.sample_rate = parsed;
         } else if (arg == "--sequence") {
             config.sequence_name = value;
-        } else if (arg == "--gsplat-time" || arg == "--gsplat-radius") {
+        } else if (arg == "--gsplat-time" || arg == "--gsplat-radius" || arg == "--gsplat-fov") {
             char* end = NULL;
             errno = 0;
             const double number = std::strtod(value.c_str(), &end);
-            const double maximum = arg == "--gsplat-time" ? 86400.0 : 2000.0;
+            const double maximum = arg == "--gsplat-time" ? 86400.0 : (arg == "--gsplat-fov" ? 120.0 : 2000.0);
+            const double minimum = arg == "--gsplat-fov" ? 10.0 : 0.0;
             if (value.empty() || end == value.c_str() || *end != '\0' || errno == ERANGE ||
-                !std::isfinite(number) || number < 0.0 || number > maximum) {
+                !std::isfinite(number) || number < minimum || number > maximum) {
                 stream << "invalid value for " << arg << ": " << value << '\n';
                 return ParseStatus::error;
             }
             if (arg == "--gsplat-time") config.gsplat_time = static_cast<float>(number);
-            else config.gsplat_radius = static_cast<float>(number);
+            else if (arg == "--gsplat-radius") config.gsplat_radius = static_cast<float>(number);
+            else config.gsplat_fov = static_cast<float>(number);
+            if (arg == "--gsplat-fov") maku_option = true;
+            else saari_option = true;
             gsplat_option = true;
         } else if (arg == "--gsplat-camera-path") {
             config.gsplat_camera_path = value;
+            saari_option = true;
             gsplat_option = true;
         } else if (arg == "--gsplat-validation-every") {
             if (!parse_nonnegative_int(value, &parsed) || parsed == 1) {
@@ -209,18 +216,21 @@ ParseStatus parse_export_config(int argc, char** argv, ExportConfig& config, std
         }
     }
 
-    if (gsplat_option && config.sequence_name != "saari-gsplat") {
-        stream << "--gsplat-* options require --sequence saari-gsplat\n";
+    const bool saari_capture = config.sequence_name == "saari-gsplat";
+    const bool maku_capture = config.sequence_name == "maku-gsplat";
+    if ((gsplat_option && !saari_capture && !maku_capture) ||
+        (saari_option && !saari_capture) || (maku_option && !maku_capture)) {
+        stream << "GSplat options require their capture sequence: time/radius/camera-path for saari-gsplat, fov for maku-gsplat, validation-every for either\n";
         return ParseStatus::error;
     }
-    if (config.sequence_name == "saari-gsplat") {
+    if (saari_capture || maku_capture) {
         if (!explicit_width) config.width = 1024;
-        if (!explicit_height) config.height = 768;
+        if (!explicit_height) config.height = maku_capture ? 512 : 768;
         if (!explicit_frames) config.frame_count = 300;
         if (config.width < 16 || config.height < 16 || config.width > 4096 || config.height > 4096 ||
             config.frame_count < 12 || config.frame_count > 5000 ||
             config.has_end_song_position || config.post_roll_frames != 0) {
-            stream << "saari-gsplat requires dimensions 16..4096, frames 12..5000 and no song timeline\n";
+            stream << "GSplat capture requires dimensions 16..4096, frames 12..5000 and no song timeline override\n";
             return ParseStatus::error;
         }
     } else if (config.sample_rate % config.fps != 0) {
@@ -241,9 +251,11 @@ void print_usage(std::ostream& stream) {
         << "  --height <pixels>     Frame height (default: 256)\n"
         << "  --fps <rate>          Video frame rate (default: 50)\n"
         << "  --sample-rate <hz>    Audio sample rate (default: 22050)\n"
-        << "  --sequence <name>     Export sequence: intro|saari|saari-gsplat|kukot|maku|watercube|feta|uppol|bootstrap\n"
+        << "  --sequence <name>     Export sequence: intro|saari|saari-gsplat|kukot|maku|maku-gsplat|watercube|feta|uppol|bootstrap\n"
         << "                        (default: intro)\n"
         << "  saari-gsplat defaults: 300 PNG views at 1024x768, hemisphere + meditate focus\n"
+        << "  maku-gsplat defaults: 300 PNG views at 1024x512, original scripted path (0x0D00..0x1000)\n"
+        << "  --gsplat-fov <deg>    Maku horizontal FOV, 10..120 degrees (default: 80)\n"
         << "  --gsplat-time <s>     Frozen Saari scene time (default: 30)\n"
         << "  --gsplat-radius <r>   Hemisphere radius, 0 = automatic enclosure (default: 0)\n"
         << "  --gsplat-camera-path <csv>  Replay/edit exported camera_path.csv (overrides view count)\n"

@@ -24,6 +24,7 @@ struct ExportConfig {
     std::string sequence_name;
     float gsplat_time;
     float gsplat_radius;
+    float gsplat_fov;
     int gsplat_validation_every;
     std::string gsplat_camera_path;
 };

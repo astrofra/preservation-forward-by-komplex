@@ -150,6 +150,50 @@ do not remove the original affine-texture and reflection inconsistencies.
 Design and preservation rationale:
 [Saari capture approach](../documentation/forward-saari-gsplat-capture-approach.md).
 
+### Maku Gaussian Splatting capture
+
+```powershell
+cpp-offline/build/Release/forward-export.exe --sequence maku-gsplat --output cpp-offline/output-maku-gsplat
+```
+
+Defaults: **300 PNG views at 1024x512**, horizontal FOV **80 degrees** (the demo
+uses 1.2 radians, about 68.75 degrees). The original 2:1 aspect ratio is retained.
+`--gsplat-fov 90` changes the horizontal FOV; valid values are 10..120 degrees.
+`--frames`, `--width`, `--height` and `--gsplat-validation-every` work as for Saari.
+Use a new output directory for each dataset.
+
+The exporter samples the **whole original Maku camera sequence**, from XM position
+`0x0D00` inclusive to `0x1000` exclusive (about 24.407 seconds). It retains the
+`vuori5.ase` position/target tracks and their interpolation, plus the script's five
+`go`/`speed` segments, including backwards motion and cuts. Increasing `--frames`
+increases sampling density without changing the duration or the path. There is
+no hemisphere pass. The fixed 22050 Hz XM clock resolves the original script
+timing without writing audio; `--fps` and `--sample-rate` do not affect this mode.
+
+Fog and terrain materials remain unchanged. Temporal averaging, `ksor` feedback
+and shocks are disabled for independent views: each PNG corresponds to its
+exported pose. The repeating terrain uses distinct world-space points per tile.
+Sparse seeds follow the renderer's final triangle visibility and need at least
+two training observations; points at camera depth 200 or farther are excluded.
+Fog and the original affine texture mapping can still limit reconstruction quality.
+
+Output and Postshot import are the same as for Saari: **import `images/` together
+with `sparse/cameras.txt`, `sparse/images.txt` and `sparse/points3D.txt`**. There are
+270 training views and 30 held-out views by default. `validation/` stays separate.
+The shared COLMAP writer exports exact intrinsics, world-to-camera poses and the
+same reflected-X coordinate convention. `camera_path.csv` retains Saari's first
+eight columns, followed by `scene_time_seconds`, `track_time_seconds` and
+`roll_radians` (zero in the original Maku script). This CSV documents the capture;
+CSV replay, frozen Saari time and hemisphere radius options apply only to Saari.
+`manifest.csv` associates every pose with its PNG. `capture.json` records FOV,
+duration, split, point counts, original script segments and completion status.
+
+The Maku CTest checks source ASE positions/targets, script timing and cuts, PNGs,
+intrinsics, camera handedness, reprojections, reciprocal point tracks, validation
+isolation, sampling independence, FOV overrides and invalid input. A native Maku
+before/after comparison also covers 40 frames at one-second intervals, WAV and
+manifest. See [Maku capture notes](../documentation/forward-maku-gsplat-capture.md).
+
 ### Demo sequence exports
 
 ```powershell

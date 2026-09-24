@@ -17,6 +17,8 @@ endif()
 add_executable(forward-export
     src/main.cpp
     src/app/export_config.cpp
+    src/app/capture_model.cpp
+    src/app/maku_capture.cpp
     src/app/forward_app.cpp
     src/app/intro_script.cpp
     src/app/manifest_writer.cpp
@@ -71,6 +73,9 @@ if(BUILD_TESTING)
     if(Python3_Interpreter_FOUND)
         add_test(NAME saari-gsplat-export
             COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_saari_capture.py"
+                    "$<TARGET_FILE:forward-export>" "${CMAKE_CURRENT_SOURCE_DIR}/..")
+        add_test(NAME maku-gsplat-export
+            COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_maku_capture.py"
                     "$<TARGET_FILE:forward-export>" "${CMAKE_CURRENT_SOURCE_DIR}/..")
     endif()
 endif()
