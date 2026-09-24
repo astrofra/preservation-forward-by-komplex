@@ -2,9 +2,25 @@
 
 Date : 19 septembre 2026.
 
-Statut : proposition de travail, sans implémentation. Les paramètres ci-dessous sont des hypothèses à évaluer, et non un parcours déjà optimisé ou validé.
+Statut : document de conception du 19 septembre, complété par une première implémentation le **24 septembre 2026**, dans l'exporteur offline C++ existant. Les choix de couverture restent à évaluer sur le splat obtenu ; aucune optimalité du parcours n'est revendiquée.
 
-Complément documentaire : formats d'import Postshot et COLMAP vérifiés dans leurs documentations officielles le 19 septembre 2026. Aucun import du futur jeu Saari n'a encore été testé.
+Complément documentaire : formats d'import Postshot et COLMAP vérifiés dans leurs documentations officielles les 19 et 24 septembre 2026. Le test d'import en ligne de commande a été arrêté par l'exigence d'une licence Postshot Studio ; un import complet reste à vérifier dans l'interface graphique.
+
+## Exporteur disponible dans cpp-offline
+
+Depuis la racine du dépôt, après compilation :
+
+```powershell
+cpp-offline/build/Release/forward-export.exe --sequence saari-gsplat --output cpp-offline/output-saari-gsplat
+```
+
+Le mode génère directement en C++ **300 PNG à 1024 × 768**, les caméras et le nuage initial au format COLMAP texte. Il utilise une hémisphère englobante au-dessus de la mer, klunssi figé à 30 secondes et un passage dédié à meditate. Trente vues sont réservées à la validation, dans un dossier séparé. Le répertoire de sortie doit être nouveau.
+
+Le rayon et le temps figé sont réglables ; `camera_path.csv` permet de modifier puis rejouer les prises. Le nuage provient d'échantillons de la géométrie, conservés lorsqu'ils apparaissent dans au moins deux vues d'apprentissage. La visibilité suit le tri et la composition du rendu natif. Les couleurs et la sélection des points n'utilisent pas les vues réservées. La conversion de repère décrite plus bas est implémentée et testée par reprojection.
+
+Pour Postshot, importer ensemble `images/` et les trois fichiers de `sparse/`, en laissant `validation/` hors de l'apprentissage. Le moteur ne requiert ni Python, ni ffmpeg, ni COLMAP pour produire ces fichiers.
+
+Voir le [mode d'emploi complet](../cpp-offline/README.md#saari-gaussian-splatting-capture) pour les options, les limites et les vérifications. Les sections suivantes conservent la démarche de conception et les expériences envisagées.
 
 ## Intention et point de départ
 
@@ -93,7 +109,7 @@ Même avec klunssi immobile, ces propriétés peuvent compliquer la cohérence e
 
 Si des problèmes persistent, des variantes ciblées pourront servir au diagnostic, en ne changeant qu'un facteur à la fois. Une éventuelle capture avec matériaux ou réflexions simplifiés devra être identifiée comme une variante expérimentale, avec ses écarts documentés.
 
-L'exporteur actuel impose à Saari une sortie native de **512 × 256**. Une capture à résolution supérieure serait une évolution ultérieure : elle demanderait de vérifier la projection et les calculs qui dépendent des dimensions. Agrandir les images après rendu n'ajouterait pas de détails géométriques ou de texture.
+Le parcours original de Saari conserve une sortie native de **512 × 256**. Le mode `saari-gsplat` adapte la projection et l'emprise du terrain à la résolution demandée et produit par défaut du **1024 × 768**. Il s'agit d'un rendu à cette résolution ; les textures et la géométrie source conservent leur définition originale.
 
 ## Conserver les images et leurs caméras
 
