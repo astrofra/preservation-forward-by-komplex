@@ -3,13 +3,21 @@
 (() => {
   const rate = 22050;
   const ui = Object.fromEntries(["start", "status", "progress", "player", "canvas", "pause",
-    "restart", "mute", "fullscreen", "position", "viewport"].map(id => [id, document.getElementById(id)]));
+    "restart", "mute", "fullscreen", "position", "viewport", "display-size"].map(id => [id, document.getElementById(id)]));
   let module, buffer, context, gain, source;
   let state = "loading", total = 0, heldSample = 0, lastSample = 0, startTime = 0;
   let muted = false, busy = false, pendingVisibilityPause = false;
   let clockKind = "stopped", overloads = 0, failure = "", worstFrameMs = 0;
   const yieldToBrowser = () => new Promise(resolve => setTimeout(resolve, 0));
   const engineError = () => module.UTF8ToString(module._forward_error()) || "The demo engine could not continue.";
+  function applyDisplaySize() {
+    // Presentation only: the SDL canvas and scene buffers retain their original pixels.
+    const width = Number(ui["display-size"].value);
+    if ([512, 1024, 2048].includes(width))
+      document.documentElement.style.setProperty("--display-width", `${width}px`);
+  }
+  ui["display-size"].addEventListener("change", applyDisplaySize);
+  applyDisplaySize();
 
   function setState(next, message) {
     state = next;
@@ -18,6 +26,14 @@
     ui.pause.textContent = next === "paused" ? "Resume" : "Pause";
     ui.restart.disabled = !["playing", "paused", "ended"].includes(next);
     if (message) ui.status.textContent = message;
+    const presenting = ["starting", "playing", "pausing"].includes(next);
+    document.body.classList.toggle("demo-mode", presenting);
+    if (next === "playing") ui.canvas.focus({preventScroll: true});
+    else if (["paused", "ended"].includes(next) && document.activeElement === ui.canvas) {
+      (next === "paused" ? ui.pause : ui.restart).focus({preventScroll: true});
+    }
+    if (!presenting && document.fullscreenElement === ui.viewport)
+      document.exitFullscreen().catch(() => {});
   }
 
   function fail(error) {
@@ -134,6 +150,20 @@
   ui.start.addEventListener("click", () => action(() => start()));
   ui.restart.addEventListener("click", () => action(() => start(true)));
   ui.pause.addEventListener("click", () => action(() => state === "paused" ? resume() : pause()));
+  ui.canvas.addEventListener("click", () => {
+    if (["playing", "paused"].includes(state)) action(() => state === "paused" ? resume() : pause());
+  });
+  document.addEventListener("keydown", event => {
+    if (event.repeat || event.altKey || event.ctrlKey || event.metaKey) return;
+    if (event.code === "Escape" && state === "playing") {
+      event.preventDefault();
+      action(() => pause());
+    } else if (event.code === "Space" && ["playing", "paused"].includes(state) &&
+               !event.target.closest("button, input, textarea, select, a, [contenteditable]")) {
+      event.preventDefault();
+      action(() => state === "paused" ? resume() : pause());
+    }
+  });
   ui.mute.addEventListener("click", () => {
     muted = !muted;
     if (gain) gain.gain.value = muted ? 0 : 1;
@@ -220,6 +250,7 @@
     renderedSample: module ? module._forward_rendered_sample() : 0,
     scene: module ? module.UTF8ToString(module._forward_scene()) : "", clockKind, overloads, worstFrameMs, failure,
     renderWidth: 512, renderHeight: 256, audioState: context ? context.state : "not created",
+    displayWidth: Number(ui["display-size"].value), displayHeight: Number(ui["display-size"].value) / 2,
     audioRate: context ? context.sampleRate : null});
   // Deterministic capture access is available only when explicitly requested by a test URL.
   if (new URLSearchParams(location.search).has("test")) {

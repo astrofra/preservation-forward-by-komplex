@@ -77,7 +77,7 @@ def main():
             page.locator("#start").click()
             page.wait_for_function("forwardDiagnostics().sample > 22050", timeout=15000)
             assert page.evaluate("forwardDiagnostics().audioState") == "running"
-            page.locator("#pause").click()
+            page.locator("#canvas").click()
             page.wait_for_function("forwardDiagnostics().state === 'paused'")
             held = page.evaluate("forwardDiagnostics().sample")
             page.wait_for_timeout(200)
@@ -86,6 +86,8 @@ def main():
             assert page.locator("#mute").get_attribute("aria-pressed") == "true"
             page.locator("#pause").click()
             page.wait_for_function("forwardDiagnostics().sample > " + str(held + 2205))
+            page.keyboard.press("Escape")
+            page.wait_for_function("forwardDiagnostics().state === 'paused'")
             page.locator("#restart").click()
             page.wait_for_function("forwardDiagnostics().state === 'playing' && forwardDiagnostics().sample < 22050")
             page.wait_for_timeout(200)
@@ -96,7 +98,7 @@ def main():
             page.locator("#pause").click()
             page.wait_for_function("forwardDiagnostics().state === 'playing'")
             page.wait_for_timeout(150)
-            page.locator("#pause").click()
+            page.keyboard.press("Space")
             page.wait_for_function("forwardDiagnostics().state === 'paused'")
             page.screenshot(path=str(output / "playing.png"))
             print("Canvas:", page.evaluate("({width:canvas.width,height:canvas.height,css:canvas.getBoundingClientRect().toJSON()})"), flush=True)

@@ -21,10 +21,21 @@ cpp-wasm\build_web.bat
 python cpp-wasm/serve.py
 ```
 
-Open **http://127.0.0.1:8080/**. Wait for preparation, then click **Start demo**.
+Open **http://127.0.0.1:8080/**. Select a display size of **512×256 (1×)**,
+**1024×512 (2×)**, or **2048×1024 (4×)**. Wait for preparation, then click **Start demo**.
+Playback shows only the demo, centered on a very dark gray background with a
+one-pixel gray border. The selected size fits smaller windows when necessary. Click the demo or
+press Space or Escape to pause and reveal the introduction and controls again.
 Use Pause/Resume, Restart, Mute, and Fullscreen. Leaving the tab pauses playback;
 returning requires Resume. The canvas can fit a small screen or fullscreen
 without changing its 512×256 backing resolution.
+
+These are presentation sizes, not additional internal rendering resolutions.
+The larger presets use nearest-neighbour enlargement of the original 512×256
+pixels, with no smoothing. This is a preservation decision: retain the work's
+original raster, geometry, textures, effects, and audio synchronization rather
+than reinterpret its appearance through higher-resolution rendering. The size
+can also be changed while paused, without restarting or changing the timeline.
 
 On Linux/macOS, after activating emsdk:
 

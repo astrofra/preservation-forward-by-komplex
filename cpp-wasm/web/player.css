@@ -1,4 +1,4 @@
-html { color-scheme: light; }
+html { color-scheme: light; --display-width: 512px; }
 body { margin: 0; background: #fff url("art/back.gif"); color: #000; font: 13px Arial, sans-serif; }
 main { padding: 8px; }
 .intro { display: flex; align-items: flex-start; gap: 16px; max-width: 620px; }
@@ -7,15 +7,25 @@ main { padding: 8px; }
 h1 { font-size: 15px; margin: 18px 0; }
 p { line-height: 1.4; }
 .provenance { font-size: 12px; }
+.playback-help { font-size: 12px; }
 button { font: inherit; padding: 5px 12px; color: #000; background: #eee; border: 1px solid #777; cursor: pointer; }
 button:disabled { cursor: default; opacity: .5; }
 button:focus-visible { outline: 2px solid #245; outline-offset: 3px; }
+.display-size { display: grid; gap: 4px; margin: 12px 0 0; }
+select { font: inherit; padding: 5px; color: #000; background: #fff; }
 progress { width: 100%; height: 8px; }
-#player { margin-top: 18px; width: 512px; max-width: 100%; }
+#player { margin-top: 18px; width: calc(var(--display-width) + 2px); max-width: 100%; }
 #viewport { background: #000; display: flex; align-items: center; justify-content: center; }
-canvas { width: 512px; height: auto; max-width: 100%; aspect-ratio: 2 / 1; display: block; image-rendering: pixelated; }
-#viewport:fullscreen canvas { width: min(100vw, 200vh); max-width: none; height: auto; }
+canvas { width: var(--display-width); height: auto; max-width: calc(100% - 2px); aspect-ratio: 2 / 1; display: block; image-rendering: pixelated; image-rendering: crisp-edges; border: 1px solid #303030; }
+#viewport:fullscreen canvas { width: min(calc(100vw - 2px), calc(200vh - 4px)); width: min(calc(100vw - 2px), calc(200dvh - 4px)); max-width: none; height: auto; }
 .controls { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
 #position { font-variant-numeric: tabular-nums; margin-left: auto; }
+body.demo-mode { background: #111; overflow: hidden; }
+body.demo-mode main { padding: 0; }
+body.demo-mode .intro, body.demo-mode .controls { display: none; }
+body.demo-mode #player { margin: 0; width: 100%; max-width: none; }
+body.demo-mode #viewport { height: 100vh; height: 100dvh; background: #111; }
+body.demo-mode canvas { width: min(var(--display-width), calc(100vw - 2px), calc(200vh - 4px)); width: min(var(--display-width), calc(100vw - 2px), calc(200dvh - 4px)); outline: none; }
+body.demo-mode #viewport:fullscreen canvas { width: min(calc(100vw - 2px), calc(200vh - 4px)); width: min(calc(100vw - 2px), calc(200dvh - 4px)); }
 [hidden] { display: none !important; }
 @media (max-width: 560px) { .intro { flex-direction: column; } .about { max-width: 100%; } }
