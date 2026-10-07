@@ -113,6 +113,98 @@ The detailed workflow is documented in:
 
 ## Reference Capture
 
+### Generate documentation figures
+
+The Python scripts in `documentation/tools/` assemble the source captures in
+`img/figures/` and write their PNGs to `img/figures/output/`.
+They require Python 3.10 or newer and Pillow. From the repository root:
+
+```sh
+python -m pip install -r documentation/tools/requirements.txt
+python documentation/tools/make_ground_truth_mosaic.py
+python documentation/tools/make_portage_bands.py
+python documentation/tools/make_java_reconstruction_bands.py
+python documentation/tools/make_cpp_port_bands.py
+```
+
+Each script can be run independently and replaces only its own output:
+
+| Script | Output in `img/figures/output/` |
+| --- | --- |
+| `make_ground_truth_mosaic.py` | `ground-truth-mosaic-4x3.png` |
+| `make_portage_bands.py` | `ground-truth-vs-naive-port-bands.png` |
+| `make_java_reconstruction_bands.py` | `ground-truth-vs-java-reconstruction-bands.png` |
+| `make_cpp_port_bands.py` | `ground-truth-vs-cpp-port-bands.png` |
+
+Paths are resolved relative to the scripts, so they also work when launched
+from another directory. Use `--figures-dir` and `--output` to override the
+source directory and output file, or `--help` for all options.
+
+The scripts were moved from the thesis repository's
+`obsidian/these/40_articles/JCDL/` directory. Missing naive-port and Java
+captures were copied from its `acmart-primary/figures/` directory. Java
+pairing uses the original short filenames, starting at `java_img_007694.png`;
+the older capture filenames containing timestamps sort before this starting
+point and are not used. The C++ comparison skips the two Maku references
+without corresponding C++ captures, as in the original script.
+
+Roboto Regular and Bold are included in `documentation/tools/fonts/` with their license;
+no system font installation is needed. The regenerated figures retain the
+original dimensions and image content, with slight differences in text
+rendering compared with the original macOS exports.
+
+#### Reduced comparisons for slides
+
+Three additional scripts generate three pairs (6 images), compared with ten
+pairs in the full grids. Each output keeps the original 2816 x 1124 canvas
+and its exact height/width ratio. Three references occupy the top image row,
+with their three counterparts directly below, in the same scene order across
+all three outputs. Scene names overlay the bottom-right corner of each
+capture; the reference/port labels appear once per row, overlaying the
+bottom-left corner of its first capture. Scene names use a larger 68-pixel
+font. All labels are white with a black outline; space is reserved between
+the two labels on the first capture to prevent overlap.
+The grid fills the canvas except for 8-pixel gutters. Each tile measures
+933 or 934 x 558 pixels. To fill these cells without stretching, the images
+are center-cropped horizontally (about 16% of the original width is removed,
+split equally between both sides). Both captures in each pair use the same
+crop. Watercube and Feta are omitted from this slide selection.
+
+```sh
+python documentation/tools/make_portage_bands_slides.py
+python documentation/tools/make_java_reconstruction_bands_slides.py
+python documentation/tools/make_cpp_port_bands_slides.py
+```
+
+The corresponding outputs in `img/figures/output/` are:
+
+- `reference-vs-naive-port-bands-slides.png`
+- `reference-vs-java-reconstruction-bands-slides.png`
+- `reference-vs-cpp-port-bands-slides.png`
+
+The shared selection in `documentation/tools/slide_comparisons.py` was made
+by inspecting visible differences in the naive-port grid, not by scoring
+the Java or final C++ results:
+
+| Reference | Visible difference in the naive port |
+| --- | --- |
+| `28_saari` | Missing island and different object appearance |
+| `39_kukot` | Loss of metallic shading on the foreground figure |
+| `48_maku` | White frame instead of the canyon |
+
+Java uses these exact references and its existing corresponding captures.
+C++ uses the same references except for Maku: `50_maku` paired with
+`cpp_img_011202.png` is the nearby view already used in the full C++ grid;
+there is no C++ counterpart for `48_maku`.
+
+The visible row label is now `reference` in both the full and reduced grids.
+The full grids retain their existing filenames and ten-pair selection.
+The slide scripts also accept `--figures-dir`, `--output`, `--font`,
+`--background`, and `--scale` (a positive integer resolution multiplier that
+preserves the exact canvas ratio).
+
+### Capture the running demo
+
 The desktop build can now capture itself to PNG through `key value` parameters.
 
 Example:

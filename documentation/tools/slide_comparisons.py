@@ -1,8 +1,8 @@
-"""Shared four-pair selection for the three slide comparison scripts.
+"""Shared three-pair selection for the three slide comparison scripts.
 
 The selection is visual/editorial, based on the naive-port comparison:
 Saari loses its island, Kukot loses its metallic appearance, Maku becomes
-white, and Feta changes orientation.
+white.
 Keep the same order across all three outputs. C++ uses the nearby Maku
 reference 50 because reference 48 has no corresponding C++ capture.
 """
@@ -15,14 +15,13 @@ from pathlib import Path
 import make_cpp_port_bands as cpp
 import make_java_reconstruction_bands as java
 import make_portage_bands as naive
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageOps
 
 
 SELECTED_KEYS = (
     "28_saari",
     "39_kukot",
     "48_maku",
-    "63_feta",
 )
 CPP_REFERENCE_SUBSTITUTIONS = {"48_maku": "50_maku"}
 OUTPUT_NAMES = {
@@ -38,46 +37,56 @@ PORT_LABELS = {
 
 
 def build_slide(pairs, variant, output, regular_font, bold_font, background, scale):
-    """Four aligned columns, preserving the original 2816:1124 canvas ratio."""
+    """Fill a 3 x 2 grid, preserving the original 2816:1124 canvas ratio.
+
+    Center-crop each capture to fill its cell without distortion. Both images
+    in a comparison use the same crop; only thin gutters remain uncovered.
+    """
     width, height = 2816 * scale, 1124 * scale
-    padding, gap = 24 * scale, 16 * scale
+    gap = 8 * scale
     columns = len(pairs)
-    # Even width preserves the captures' 2:1 aspect ratio exactly.
-    tile_width = 2 * ((width - 2 * padding - (columns - 1) * gap) // (2 * columns))
-    tile_height = tile_width // 2
-    row_width = columns * tile_width + (columns - 1) * gap
-    left = (width - row_width) // 2
-    heading_height, block_gap = 96 * scale, 36 * scale
-    content_height = 2 * (heading_height + tile_height) + block_gap
-    top = (height - content_height) // 2
-    label_margin, label_stroke = 18 * scale, 4 * scale
+    image_width = width - (columns - 1) * gap
+    tile_height = (height - gap) // 2
+    label_margin, label_stroke = 24 * scale, 5 * scale
     canvas = Image.new("RGBA", (width, height), background)
     draw = ImageDraw.Draw(canvas)
     scene_font = naive.fit_font(
         [pair.series for pair in pairs], regular_font,
-        max_size=54 * scale, min_size=24 * scale,
-        max_width=tile_width - 2 * label_margin, max_height=70 * scale,
+        max_size=68 * scale, min_size=24 * scale,
+        max_width=image_width // columns - 2 * label_margin, max_height=80 * scale,
         stroke_width=label_stroke,
     )
+    first_scene_width, _ = naive.text_bbox(scene_font, pairs[0].series, label_stroke)
     heading_font = naive.fit_font(
         ["reference", PORT_LABELS[variant]], bold_font,
-        max_size=72 * scale, min_size=24 * scale,
-        max_width=row_width, max_height=heading_height,
+        max_size=68 * scale, min_size=24 * scale,
+        max_width=image_width // columns - 3 * label_margin - first_scene_width,
+        max_height=90 * scale,
+        stroke_width=label_stroke,
     )
     comparison_field = {"naive": "naive_path", "java": "java_path", "cpp": "cpp_path"}[variant]
     for row, (label, field) in enumerate([
         ("reference", "gt_path"), (PORT_LABELS[variant], comparison_field),
     ]):
-        heading_y = top + row * (heading_height + tile_height + block_gap)
-        draw.text((left, heading_y), label, font=heading_font, fill="white", anchor="lt")
         for column, pair in enumerate(pairs):
-            tile = naive.load_and_scale(getattr(pair, field), (tile_width, tile_height))
-            x = left + column * (tile_width + gap)
-            y = heading_y + heading_height
+            x = column * gap + column * image_width // columns
+            tile_width = (column + 1) * image_width // columns - column * image_width // columns
+            y = row * (tile_height + gap)
+            with Image.open(getattr(pair, field)) as source:
+                tile = ImageOps.fit(
+                    source.convert("RGBA"), (tile_width, tile_height),
+                    method=Image.Resampling.LANCZOS, centering=(0.5, 0.5),
+                )
             canvas.alpha_composite(tile, (x, y))
+            if column == 0:
+                draw.text(
+                    (x + label_margin, y + tile_height - label_margin), label,
+                    font=heading_font, fill="white", anchor="lb",
+                    stroke_width=label_stroke, stroke_fill="black",
+                )
             draw.text(
-                (x + label_margin, y + tile_height - label_margin), pair.series,
-                font=scene_font, fill="white", anchor="lb",
+                (x + tile_width - label_margin, y + tile_height - label_margin), pair.series,
+                font=scene_font, fill="white", anchor="rb",
                 stroke_width=label_stroke, stroke_fill="black",
             )
 
@@ -87,7 +96,7 @@ def build_slide(pairs, variant, output, regular_font, bold_font, background, sca
 
 def main(variant: str) -> None:
     parser = argparse.ArgumentParser(
-        description="Build a slide comparison with four selected pairs (8 images)."
+        description="Build a slide comparison with three selected pairs (6 images)."
     )
     parser.add_argument("--figures-dir", type=Path, default=naive.DEFAULT_FIGURES_DIR)
     parser.add_argument(
