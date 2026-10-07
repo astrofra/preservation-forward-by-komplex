@@ -1,8 +1,8 @@
-"""Shared five-pair selection for the three slide comparison scripts.
+"""Shared four-pair selection for the three slide comparison scripts.
 
 The selection is visual/editorial, based on the naive-port comparison:
 Saari loses its island, Kukot loses its metallic appearance, Maku becomes
-white, Watercube loses the object's shading, and Feta changes orientation.
+white, and Feta changes orientation.
 Keep the same order across all three outputs. C++ uses the nearby Maku
 reference 50 because reference 48 has no corresponding C++ capture.
 """
@@ -22,7 +22,6 @@ SELECTED_KEYS = (
     "28_saari",
     "39_kukot",
     "48_maku",
-    "58_watercube",
     "63_feta",
 )
 CPP_REFERENCE_SUBSTITUTIONS = {"48_maku": "50_maku"}
@@ -39,45 +38,48 @@ PORT_LABELS = {
 
 
 def build_slide(pairs, variant, output, regular_font, bold_font, background, scale):
-    """Five aligned columns, preserving the original 2816:1124 canvas ratio."""
+    """Four aligned columns, preserving the original 2816:1124 canvas ratio."""
     width, height = 2816 * scale, 1124 * scale
-    padding, gap = 40 * scale, 20 * scale
+    padding, gap = 24 * scale, 16 * scale
+    columns = len(pairs)
     # Even width preserves the captures' 2:1 aspect ratio exactly.
-    tile_width = 2 * ((width - 2 * padding - 4 * gap) // 10)
+    tile_width = 2 * ((width - 2 * padding - (columns - 1) * gap) // (2 * columns))
     tile_height = tile_width // 2
-    row_width = 5 * tile_width + 4 * gap
+    row_width = columns * tile_width + (columns - 1) * gap
     left = (width - row_width) // 2
-    scene_height, heading_height, block_gap = 70 * scale, 80 * scale, 64 * scale
-    content_height = scene_height + 2 * (heading_height + tile_height) + block_gap
+    heading_height, block_gap = 96 * scale, 36 * scale
+    content_height = 2 * (heading_height + tile_height) + block_gap
     top = (height - content_height) // 2
+    label_margin, label_stroke = 18 * scale, 4 * scale
     canvas = Image.new("RGBA", (width, height), background)
     draw = ImageDraw.Draw(canvas)
     scene_font = naive.fit_font(
         [pair.series for pair in pairs], regular_font,
-        max_size=52 * scale, min_size=24 * scale,
-        max_width=tile_width, max_height=scene_height,
+        max_size=54 * scale, min_size=24 * scale,
+        max_width=tile_width - 2 * label_margin, max_height=70 * scale,
+        stroke_width=label_stroke,
     )
     heading_font = naive.fit_font(
         ["reference", PORT_LABELS[variant]], bold_font,
-        max_size=60 * scale, min_size=24 * scale,
+        max_size=72 * scale, min_size=24 * scale,
         max_width=row_width, max_height=heading_height,
     )
-    for column, pair in enumerate(pairs):
-        x = left + column * (tile_width + gap)
-        draw.text(
-            (x + tile_width // 2, top), pair.series,
-            font=scene_font, fill="white", anchor="mt",
-        )
-
     comparison_field = {"naive": "naive_path", "java": "java_path", "cpp": "cpp_path"}[variant]
     for row, (label, field) in enumerate([
         ("reference", "gt_path"), (PORT_LABELS[variant], comparison_field),
     ]):
-        heading_y = top + scene_height + row * (heading_height + tile_height + block_gap)
+        heading_y = top + row * (heading_height + tile_height + block_gap)
         draw.text((left, heading_y), label, font=heading_font, fill="white", anchor="lt")
         for column, pair in enumerate(pairs):
             tile = naive.load_and_scale(getattr(pair, field), (tile_width, tile_height))
-            canvas.alpha_composite(tile, (left + column * (tile_width + gap), heading_y + heading_height))
+            x = left + column * (tile_width + gap)
+            y = heading_y + heading_height
+            canvas.alpha_composite(tile, (x, y))
+            draw.text(
+                (x + label_margin, y + tile_height - label_margin), pair.series,
+                font=scene_font, fill="white", anchor="lb",
+                stroke_width=label_stroke, stroke_fill="black",
+            )
 
     output.parent.mkdir(parents=True, exist_ok=True)
     canvas.save(output)
@@ -85,7 +87,7 @@ def build_slide(pairs, variant, output, regular_font, bold_font, background, sca
 
 def main(variant: str) -> None:
     parser = argparse.ArgumentParser(
-        description="Build a slide comparison with five selected pairs (10 images)."
+        description="Build a slide comparison with four selected pairs (8 images)."
     )
     parser.add_argument("--figures-dir", type=Path, default=naive.DEFAULT_FIGURES_DIR)
     parser.add_argument(
@@ -124,6 +126,6 @@ def main(variant: str) -> None:
         selected, variant, output, regular_font, title_font,
         args.background, args.scale,
     )
-    print(f"Generated {output} with 5 pairs (10 images): {', '.join(keys)}.")
+    print(f"Generated {output} with {len(selected)} pairs ({2 * len(selected)} images): {', '.join(keys)}.")
     if variant == "cpp":
         print("Maku uses reference 50 instead of 48, as in the full C++ comparison.")
