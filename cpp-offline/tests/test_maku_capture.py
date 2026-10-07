@@ -165,7 +165,8 @@ def main():
 
         def run(output, *args, success=True):
             result = subprocess.run([str(executable), '--sequence', 'maku-gsplat', '--frames', '60',
-                                     '--width', '320', '--height', '160', '--output', str(output), *args],
+                                     '--width', '320', '--height', '160', '--gsplat-grid-scale', '0',
+                                     '--output', str(output), *args],
                                     cwd=workspace, capture_output=True, text=True)
             assert (result.returncode == 0) == success, result.stdout+result.stderr
 

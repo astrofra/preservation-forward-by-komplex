@@ -16,6 +16,9 @@
 
 namespace forward_offline {
 
+CaptureCamera make_maku_capture_camera(const Scene3dVec3& position, const Scene3dVec3& target,
+                                      int width, int height, float horizontal_fov);
+
 // Unwrapped world grid coordinates keep repeated terrain tiles distinct.
 struct MakuCaptureGeometry {
     std::map<std::array<int, 3>, int> triangle_ids;

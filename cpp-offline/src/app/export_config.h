@@ -27,6 +27,9 @@ struct ExportConfig {
     float gsplat_end_radius;
     float gsplat_fov;
     float gsplat_height_fraction;
+    float gsplat_grid_scale;
+    float gsplat_grid_spacing;
+    float gsplat_grid_clearance;
     int gsplat_validation_every;
     std::string gsplat_camera_path;
 };

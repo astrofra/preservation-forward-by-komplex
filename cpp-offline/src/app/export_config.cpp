@@ -93,6 +93,9 @@ ExportConfig::ExportConfig()
       gsplat_end_radius(0.0f),
       gsplat_fov(80.0f),
       gsplat_height_fraction(0.25f),
+      gsplat_grid_scale(1.5f),
+      gsplat_grid_spacing(75.0f),
+      gsplat_grid_clearance(0.0f),
       gsplat_validation_every(10),
       gsplat_camera_path() {
 }
@@ -101,6 +104,7 @@ ParseStatus parse_export_config(int argc, char** argv, ExportConfig& config, std
     bool gsplat_option = false, explicit_width = false, explicit_height = false, explicit_frames = false;
     bool path_option = false, static_option = false, fov_option = false, height_option = false;
     bool end_radius_option = false;
+    bool grid_option = false;
     bool explicit_time = false;
     for (int index = 1; index < argc; ++index) {
         const std::string arg(argv[index]);
@@ -160,7 +164,8 @@ ParseStatus parse_export_config(int argc, char** argv, ExportConfig& config, std
         } else if (arg == "--sequence") {
             config.sequence_name = value;
         } else if (arg == "--gsplat-time" || arg == "--gsplat-radius" || arg == "--gsplat-fov" ||
-                   arg == "--gsplat-height-fraction" || arg == "--gsplat-end-radius") {
+                   arg == "--gsplat-height-fraction" || arg == "--gsplat-end-radius" ||
+                   arg == "--gsplat-grid-scale" || arg == "--gsplat-grid-spacing" || arg == "--gsplat-grid-clearance") {
             char* end = NULL;
             errno = 0;
             const double number = std::strtod(value.c_str(), &end);
@@ -168,9 +173,12 @@ ParseStatus parse_export_config(int argc, char** argv, ExportConfig& config, std
             if (arg == "--gsplat-time") maximum = 86400.0;
             else if (arg == "--gsplat-fov") maximum = 120.0;
             else if (arg == "--gsplat-height-fraction") maximum = 1.0;
-            const double minimum = arg == "--gsplat-fov" ? 10.0 : 0.0;
+            else if (arg == "--gsplat-grid-scale") maximum = 3.0;
+            else if (arg == "--gsplat-grid-spacing" || arg == "--gsplat-grid-clearance") maximum = 1000.0;
+            const double minimum = (arg == "--gsplat-fov" || arg == "--gsplat-grid-spacing") ? 10.0 : 0.0;
             if (value.empty() || end == value.c_str() || *end != '\0' || errno == ERANGE ||
-                !std::isfinite(number) || number < minimum || number > maximum) {
+                !std::isfinite(number) || number < minimum || number > maximum ||
+                (arg == "--gsplat-grid-scale" && number > 0 && number < 1)) {
                 stream << "invalid value for " << arg << ": " << value << '\n';
                 return ParseStatus::error;
             }
@@ -181,10 +189,14 @@ ParseStatus parse_export_config(int argc, char** argv, ExportConfig& config, std
             else if (arg == "--gsplat-radius") config.gsplat_radius = static_cast<float>(number);
             else if (arg == "--gsplat-end-radius") config.gsplat_end_radius = static_cast<float>(number);
             else if (arg == "--gsplat-fov") config.gsplat_fov = static_cast<float>(number);
+            else if (arg == "--gsplat-grid-scale") config.gsplat_grid_scale = static_cast<float>(number);
+            else if (arg == "--gsplat-grid-spacing") config.gsplat_grid_spacing = static_cast<float>(number);
+            else if (arg == "--gsplat-grid-clearance") config.gsplat_grid_clearance = static_cast<float>(number);
             else config.gsplat_height_fraction = static_cast<float>(number);
             if (arg == "--gsplat-fov") fov_option = true;
             else if (arg == "--gsplat-height-fraction") height_option = true;
             else if (arg == "--gsplat-end-radius") end_radius_option = true;
+            else if (arg.compare(0, 14, "--gsplat-grid-") == 0) grid_option = true;
             else static_option = true;
             gsplat_option = true;
         } else if (arg == "--gsplat-camera-path") {
@@ -237,8 +249,8 @@ ParseStatus parse_export_config(int argc, char** argv, ExportConfig& config, std
     if ((gsplat_option && !saari_capture && !maku_capture && !feta_capture) ||
         ((static_option || path_option) && !saari_capture && !feta_capture) ||
         (fov_option && !maku_capture && !feta_capture) || (height_option && !maku_capture) ||
-        (end_radius_option && !feta_capture)) {
-        stream << "GSplat options: time/radius/camera-path for Saari or Feta, fov for Maku or Feta, height-fraction for Maku, end-radius for Feta, validation-every for all capture modes\n";
+        (end_radius_option && !feta_capture) || (grid_option && !maku_capture)) {
+        stream << "GSplat options: time/radius/camera-path for Saari or Feta, fov for Maku or Feta, height-fraction/grid-* for Maku, end-radius for Feta, validation-every for all capture modes\n";
         return ParseStatus::error;
     }
     if (saari_capture || maku_capture || feta_capture) {
@@ -273,10 +285,13 @@ void print_usage(std::ostream& stream) {
         << "  --sequence <name>     Export sequence: intro|saari|saari-gsplat|kukot|maku|maku-gsplat|watercube|feta|feta-gsplat|uppol|bootstrap\n"
         << "                        (default: intro)\n"
         << "  saari-gsplat defaults: 300 PNG views at 1024x768, hemisphere + meditate focus\n"
-        << "  maku-gsplat defaults: 300 views per path at 1024x512, original + raised H/4 (600 PNGs)\n"
+        << "  maku-gsplat defaults: 300 views per path at 1024x512, original + raised H/4 + overhead grid\n"
         << "  feta-gsplat defaults: 300 views at 1024x768, progressive inward orbit, frozen time 0, no temporal effects\n"
         << "  --gsplat-fov <deg>    Maku/Feta horizontal FOV, 10..120 degrees (default: 80)\n"
         << "  --gsplat-height-fraction <f>  Maku second path: vertical offset f * terrain height, 0..1 (default: 0.25; 0 disables)\n"
+        << "  --gsplat-grid-scale <f>  Maku grid XY extent / nominal camera bounds, 1..3 (default: 1.5; 0 disables)\n"
+        << "  --gsplat-grid-spacing <r>  Maku maximum grid spacing, 10..1000 world units (default: 75)\n"
+        << "  --gsplat-grid-clearance <r>  Maku grid height above terrain maximum, 0..1000 (default: 0 = H/8)\n"
         << "  --gsplat-time <s>     Frozen scene time (Saari: 30, Feta: 0)\n"
         << "  --gsplat-radius <r>   Saari hemisphere/Feta starting radius, 0 = automatic (default: 0)\n"
         << "  --gsplat-end-radius <r>  Feta final radius, 0 = auto-frame fetus (default: 0)\n"

@@ -81,5 +81,8 @@ if(BUILD_TESTING)
         add_test(NAME feta-gsplat-export
             COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_feta_capture.py"
                     "$<TARGET_FILE:forward-export>" "${CMAKE_CURRENT_SOURCE_DIR}/..")
+        add_test(NAME maku-gsplat-grid-export
+            COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_maku_grid_capture.py"
+                    "$<TARGET_FILE:forward-export>" "${CMAKE_CURRENT_SOURCE_DIR}/..")
     endif()
 endif()

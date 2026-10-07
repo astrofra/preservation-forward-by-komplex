@@ -746,6 +746,11 @@ void MakuScene::render(RgbSurface& surface, float scene_time_seconds, float delt
     frame_history_ = surface.pixels();
 }
 
+CaptureCamera make_maku_capture_camera(const Scene3dVec3& position, const Scene3dVec3& target,
+                                       int width, int height, float horizontal_fov) {
+    return make_camera_state(position, target, 0.0f, width, height, horizontal_fov);
+}
+
 CaptureCamera MakuScene::capture_camera(float track_time_seconds, int width, int height,
                                         float horizontal_fov) const {
     const float tick = track_time_seconds * kTrackTickScale;

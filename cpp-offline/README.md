@@ -154,10 +154,10 @@ Design and preservation rationale:
 ### Maku Gaussian Splatting capture
 
 ```powershell
-cpp-offline/build/Release/forward-export.exe --sequence maku-gsplat --output cpp-offline/output-maku-gsplat-h4
+cpp-offline/build/Release/forward-export.exe --sequence maku-gsplat --output cpp-offline/output-maku-gsplat-grid
 ```
 
-Defaults: **300 views per path, 600 PNGs total, at 1024x512**, horizontal FOV **80 degrees** (the demo
+Defaults: **300 views per path plus 1326 grid views, 1926 PNGs total, at 1024x512**, horizontal FOV **80 degrees** (the demo
 uses 1.2 radians, about 68.75 degrees). The original 2:1 aspect ratio is retained.
 `--gsplat-fov 90` changes the horizontal FOV; valid values are 10..120 degrees.
 `--frames` sets the number of views **per path** (12..5000); dimensions work as for Saari.
@@ -169,9 +169,34 @@ renderer's height scale. For the original assets H is about 351.14 units, so the
 offset is **87.785 units**. Both camera and target move upward; orientation, FOV,
 sampling times and fog are preserved. Both paths share `images/` and one COLMAP
 model in `sparse/`, with unique image IDs and a common world/point cloud.
-`--gsplat-height-fraction 0` exports only the original path; the default is `0.25`
+`--gsplat-height-fraction 0` disables the raised path; the default is `0.25`
 and the accepted range is 0..1. `--gsplat-validation-every` holds out the same
 sample indices in each pass.
+
+The third pass is a **13 x 6 overhead grid**. Its XY bounds are the nominal
+camera-position bounds enlarged to **150% in each dimension**, around the same
+center (25% of the original width added on each side). Bounds are sampled at a
+fixed 50 Hz, including both sides of script cuts and the scene endpoint. They
+do not depend on `--frames` or the raised path. The original terrain repeats by
+tiles, so the camera path defines the finite capture area.
+
+Grid stations include the rectangle edges, with spacing no greater than **75
+world units**. All stations sit at **Z = 505.6125**, which is the terrain maximum
+plus H/8 (about 43.8925 units). Each station provides 17 views: eight azimuths
+spaced by 45 degrees at 30 degrees downward, eight at 60 degrees downward, and
+one straight down. Rows traverse in alternating directions. Original fog and the
+200-unit seed-depth cutoff remain active; valleys may still be obscured.
+
+| Option | Meaning |
+| --- | --- |
+| `--gsplat-grid-scale 1.5` | Nominal camera XY bounds scale, 1..3; `0` disables the grid |
+| `--gsplat-grid-spacing 75` | Maximum station spacing in world units, 10..1000 |
+| `--gsplat-grid-clearance 0` | Height above terrain maximum, 0..1000; `0` chooses H/8 |
+
+The grid adds views independently of `--frames`; more than 10000 grid views is
+rejected before creating output. To reproduce the earlier two-path export, use
+`--gsplat-grid-scale 0`. To export only the nominal path, also use
+`--gsplat-height-fraction 0`. Holdout indices restart at the beginning of the grid.
 
 The exporter samples the **whole original Maku camera sequence**, from XM position
 `0x0D00` inclusive to `0x1000` exclusive (about 24.407 seconds). It retains the
@@ -190,23 +215,30 @@ Fog and the original affine texture mapping can still limit reconstruction quali
 
 Output and Postshot import are the same as for Saari: **import `images/` together
 with `sparse/cameras.txt`, `sparse/images.txt` and `sparse/points3D.txt`**. There are
-540 training views and 60 held-out views by default. `validation/` stays separate.
+1734 training views and 192 held-out views by default. `validation/` stays separate.
 The shared COLMAP writer exports exact intrinsics, world-to-camera poses and the
 same reflected-X coordinate convention. `camera_path.csv` retains Saari's first
 eight columns, followed by `scene_time_seconds`, `track_time_seconds` and
-`roll_radians` (zero in the original Maku script), `pass` (`original` or `raised`)
-and `height_offset` in native world units. This CSV documents the capture;
+`roll_radians` (zero), `pass` (`original`, `raised` or `grid`) and `height_offset`
+in native world units, then `grid_x`, `grid_y`, `azimuth_degrees` and
+`downward_degrees`. Grid views have static scene time 0 and empty `track_time_seconds`
+and `height_offset`; grid-specific fields are empty for path views. This CSV documents the capture;
 CSV replay and frozen-time/radius options are supported by Saari and Feta, not Maku.
 `manifest.csv` associates every pose with its PNG. `capture.json` records FOV,
 duration, terrain height bounds, offset, passes, split, point counts, original
-script segments and completion status.
+script segments and completion status. Its `grid` section records the camera
+bounds, scaled footprint, altitude, spacing, dimensions and counts, including
+points shared with the paths and training grid views with no retained points.
 
 The Maku CTest checks source ASE positions/targets, script timing and cuts, PNGs,
 intrinsics, camera handedness, reprojections, reciprocal point tracks, validation
 isolation, sampling independence, vertical translation with unchanged orientation,
 shared tracks between passes, original-pass parity, FOV overrides and invalid input. A native Maku
 before/after comparison also covers 40 frames at one-second intervals, WAV and
-manifest. See [Maku capture notes](../documentation/forward-maku-gsplat-capture.md).
+manifest. The grid CTest also checks bounds against the ASE, the 150% scale,
+station coverage, all 17 directions including nadir, shared tracks, exact
+path-image parity when enabling the grid, and grid invariance to temporal
+sampling and raised-path settings. See [Maku capture notes](../documentation/forward-maku-gsplat-capture.md).
 
 ### Feta Gaussian Splatting capture
 
