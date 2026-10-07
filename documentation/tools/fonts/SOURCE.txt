@@ -1,0 +1,8 @@
+Roboto Regular and Bold, version 2.001047 (2015).
+Source: https://github.com/googlefonts/roboto-2
+Downloaded from src/hinted/Roboto-Regular.ttf and src/hinted/Roboto-Bold.ttf
+on 2026-10-07. The upstream Apache 2.0 license is included in LICENSE.
+
+Bundled for figure generation without a system font installation.
+These fonts may render labels slightly differently from the fonts used
+for the original macOS figures.
