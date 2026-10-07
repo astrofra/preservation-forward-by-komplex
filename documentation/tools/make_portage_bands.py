@@ -336,7 +336,7 @@ def build_composite(
     title_stroke = max(2, round(tile_height * 0.01))
 
     title_font = fit_font(
-        ["ground\ntruth", "C++\nnaive\nport"],
+        ["reference", "C++\nnaive\nport"],
         title_font_path,
         max_size=max(26, round(tile_height * 0.24)),
         min_size=18,
@@ -379,7 +379,7 @@ def build_composite(
         top_y = block_top_y
         bottom_y = block_top_y + tile_height + band_gap
 
-        title_texts = (("ground\ntruth", top_y), ("C++\nnaive\nport", bottom_y))
+        title_texts = (("reference", top_y), ("C++\nnaive\nport", bottom_y))
         for title, row_y in title_texts:
             text_width, text_height = text_bbox(
                 title_font, title, stroke_width=title_stroke

@@ -241,7 +241,7 @@ def build_composite(
     title_stroke = max(2, round(tile_height * 0.01))
 
     title_font = fit_font(
-        ["ground\ntruth", "Java re-\nconstruction"],
+        ["reference", "Java re-\nconstruction"],
         title_font_path,
         max_size=max(26, round(tile_height * 0.24)),
         min_size=18,
@@ -284,7 +284,7 @@ def build_composite(
         top_y = block_top_y
         bottom_y = block_top_y + tile_height + band_gap
 
-        for title, row_y in (("ground\ntruth", top_y), ("Java re-\nconstruction", bottom_y)):
+        for title, row_y in (("reference", top_y), ("Java re-\nconstruction", bottom_y)):
             text_width, text_height = text_bbox(
                 title_font, title, stroke_width=title_stroke
             )
