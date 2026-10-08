@@ -70,6 +70,17 @@ endif()
 
 include(CTest)
 if(BUILD_TESTING)
+    add_executable(test-feta-halo
+        tests/test_feta_halo.cpp
+        src/scenes/feta_scene.cpp
+        src/scenes/scene3d_shared.cpp
+        src/assets/original_asset_loader.cpp
+        src/assets/stb_image_impl.cpp
+        src/core/java_random.cpp
+        src/render/rgb_surface.cpp)
+    target_include_directories(test-feta-halo PRIVATE src third_party)
+    add_test(NAME feta-static-halo COMMAND test-feta-halo)
+    set_tests_properties(feta-static-halo PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/..")
     find_package(Python3 COMPONENTS Interpreter QUIET)
     if(Python3_Interpreter_FOUND)
         add_test(NAME saari-gsplat-export
@@ -80,6 +91,9 @@ if(BUILD_TESTING)
                     "$<TARGET_FILE:forward-export>" "${CMAKE_CURRENT_SOURCE_DIR}/..")
         add_test(NAME feta-gsplat-export
             COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_feta_capture.py"
+                    "$<TARGET_FILE:forward-export>" "${CMAKE_CURRENT_SOURCE_DIR}/..")
+        add_test(NAME feta-octahedral-export
+            COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_feta_octahedral_capture.py"
                     "$<TARGET_FILE:forward-export>" "${CMAKE_CURRENT_SOURCE_DIR}/..")
         add_test(NAME maku-gsplat-grid-export
             COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_maku_grid_capture.py"

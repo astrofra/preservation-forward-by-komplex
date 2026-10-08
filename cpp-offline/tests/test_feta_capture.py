@@ -21,15 +21,16 @@ def verify_dataset(root):
     manifest, path = rows(root/'manifest.csv'), rows(root/'camera_path.csv')
     particles = rows(root/'particles.csv')
     assert meta['status'] == 'complete' and meta['sequence'] == 'feta-gsplat'
+    assert meta['halo'] in ('stationary_native_feedback', 'off')
     assert len(manifest) == len(path) == meta['view_count']
-    assert meta['fetus_points'] > 100 and meta['particle_points'] > 0
+    assert meta['fetus_points'] > 100 and meta['particle_points'] > 0, (meta['fetus_points'], meta['particle_points'])
     assert meta['fetus_points'] + meta['particle_points'] == meta['points']
     assert len(particles) == meta['particle_count'] == 300
     assert {int(p['particle_id']) for p in particles} == set(range(300))
     orbit_center = meta['orbit_center_native']
     assert meta['radius_min'] >= meta['fetus_radius'] + 0.5 - 1e-4
     # The sprite's native 20/depth pixel size defines a fixed world-space side.
-    assert abs(meta['particle_world_size']-20/(256/math.tan(1.9/2))) < 1e-7
+    assert abs(meta['particle_world_size']-meta.get('particle_size_scale', 1)*20/(256/math.tan(1.9/2))) < 1e-7
     particle_points = {}
     for particle in particles:
         center = list(map(float, (particle[k] for k in ('x', 'y', 'z'))))
@@ -46,10 +47,12 @@ def verify_dataset(root):
     for key, value in [('radius_start', radii[0]), ('radius_end', radii[-1]),
                        ('radius_min', min(radii)), ('radius_max', max(radii))]:
         assert abs(meta[key]-value) < 1e-8
-    if meta['path_kind'] == 'progressive':
-        assert radii[0] >= meta['enclosing_radius'] + 0.5 - 1e-4
+    if meta['path_kind'] in ('sphere', 'progressive'):
+        assert radii[0] >= meta.get('camera_framing_enclosing_radius', meta['enclosing_radius']) + 0.5 - 1e-4
         assert all(b <= a+1e-4 for a, b in zip(radii, radii[1:]))
         assert all([float(p[k]) for k in ('tx', 'ty', 'tz')] == orbit_center for p in path)
+        if meta['path_kind'] == 'sphere':
+            assert max(radii)-min(radii) < 1e-5
 
     splits, max_error = [], 0
     for split, prefix in [('train', root), ('validation', root/'validation')]:
@@ -127,16 +130,15 @@ def main():
         assert meta['particle_points'] > 100
         center = meta['orbit_center_native']
         directions = [normalize([a-b for a, b in zip(p, center)]) for p in positions]
-        assert meta['path_kind'] == 'progressive'
-        assert meta['radius_start']/meta['radius_end'] > 2
-        # Close views must cover all sides too, not just one end of a spherical spiral.
+        assert meta['path_kind'] == 'sphere'
+        assert meta['halo'] == 'stationary_native_feedback'
+        # The constant-radius trajectory must still cover all sides.
         for third in range(3):
             section = directions[third*len(directions)//3:(third+1)*len(directions)//3]
             assert len({tuple(p > 0 for p in direction) for direction in section}) == 8
             assert min(p[2] for p in section) < -0.95 and max(p[2] for p in section) > 0.95
         radii = [math.dist(p, center) for p in positions]
-        assert all(b < a for a, b in zip(radii, radii[1:]))
-        assert max(a-b for a, b in zip(radii, radii[1:])) < (radii[0]-radii[-1])*0.04
+        assert max(radii)-min(radii) < 1e-5
 
         # Bounds come from actual mesh vertices, independently of seed sampling.
         mesh = (workspace/'original/forward/meshes/fetus.igu').read_text()
@@ -162,7 +164,7 @@ def main():
                 assert abs(dot(relative, up)) < half_v*depth
         assert all(abs(float(p[k])) <= 5 for p in rows(first/'particles.csv') for k in ('x', 'y', 'z'))
 
-        # Reordering views must not change images: no animation or temporal feedback.
+        # Reordering views must not change images, including the stationary halo.
         csv_lines = (first/'camera_path.csv').read_text().splitlines()
         reverse_csv = base/'reverse.csv'
         reverse_csv.write_text('\n'.join([csv_lines[0], *reversed(csv_lines[1:])])+'\n')
@@ -173,7 +175,52 @@ def main():
             assert (first/original['file']).read_bytes() == (replay/replayed['file']).read_bytes()
         assert (first/'particles.csv').read_bytes() == (replay/'particles.csv').read_bytes()
         replay_meta = json.loads((replay/'capture.json').read_text())
-        assert replay_meta['path_kind'] == 'csv' and replay_meta['radius_start'] < replay_meta['radius_end']
+        assert replay_meta['path_kind'] == 'csv'
+        assert abs(replay_meta['radius_start']-meta['radius_end']) < 1e-8
+
+        # A/B halo comparison uses identical geometry, poses, and observations.
+        no_halo = base/'no-halo'
+        run(no_halo, '--gsplat-camera-path', str(first/'camera_path.csv'), '--gsplat-halo', 'off')
+        off_meta, _ = verify_dataset(no_halo)
+        assert off_meta['halo'] == 'off'
+        for subdir in ('sparse', 'validation/sparse'):
+            assert read_model(first/subdir) == read_model(no_halo/subdir)
+        assert all((first/row['file']).read_bytes() != (no_halo/row['file']).read_bytes()
+                   for row in original_rows)
+
+        # Particle edits share one frozen world geometry with render and COLMAP.
+        # They must not pull back auto-framed cameras or change the fetus mesh.
+        larger = base/'larger'
+        run(larger, '--gsplat-particle-size-scale', '2')
+        large_meta, large_positions = verify_dataset(larger)
+        wider = base/'wider'
+        run(wider, '--gsplat-particle-size-scale', '2', '--gsplat-particle-cloud-scale', '2')
+        wide_meta, wide_positions = verify_dataset(wider)
+        assert positions == large_positions == wide_positions
+        assert (first/'camera_path.csv').read_bytes() == (wider/'camera_path.csv').read_bytes()
+        assert large_meta['particle_world_size'] == wide_meta['particle_world_size'] == 2*meta['particle_world_size']
+        assert wide_meta['enclosing_radius'] > meta['enclosing_radius']*1.9
+        assert wide_meta['fetus_radius'] == meta['fetus_radius']
+        for original, big, wide in zip(rows(first/'particles.csv'), rows(larger/'particles.csv'), rows(wider/'particles.csv')):
+            assert original['particle_id'] == big['particle_id'] == wide['particle_id']
+            assert original['point3D_id'] == big['point3D_id'] == wide['point3D_id']
+            for axis in ('x', 'y', 'z'):
+                assert float(big[axis]) == float(original[axis])
+                assert float(wide[axis]) == 2*float(original[axis])
+        old_points = read_model(first/'sparse')[2]
+        new_points = read_model(wider/'sparse')[2]
+        particle_ids = {int(p['point3D_id']) for p in rows(wider/'particles.csv')}
+        shared_mesh = (set(old_points) & set(new_points))-particle_ids
+        assert len(shared_mesh) > 100
+        assert all(old_points[p][0] == new_points[p][0] for p in shared_mesh)
+        assert all((first/row['file']).read_bytes() != (larger/row['file']).read_bytes()
+                   and (larger/row['file']).read_bytes() != (wider/row['file']).read_bytes()
+                   for row in original_rows)
+        wide_replay = base/'wide-replay'
+        run(wide_replay, '--gsplat-camera-path', str(reverse_csv),
+            '--gsplat-particle-size-scale', '2', '--gsplat-particle-cloud-scale', '2')
+        for original, replayed in zip(reversed(original_rows), rows(wide_replay/'manifest.csv')):
+            assert (wider/original['file']).read_bytes() == (wide_replay/replayed['file']).read_bytes()
 
         duplicate_csv = base/'duplicate.csv'
         duplicate_csv.write_text('\n'.join([csv_lines[0]]+[csv_lines[1]]*12)+'\n')
@@ -209,6 +256,14 @@ def main():
         override_meta, _ = verify_dataset(override)
         assert abs(override_meta['radius_start']-20) < 1e-4
         assert abs(override_meta['radius_end']-9) < 1e-4
+        assert override_meta['path_kind'] == 'progressive'
+
+        sphere = base/'sphere'
+        run(sphere, '--gsplat-radius', '16')
+        sphere_meta, _ = verify_dataset(sphere)
+        assert sphere_meta['path_kind'] == 'sphere'
+        assert abs(sphere_meta['radius_min']-16) < 1e-4
+        assert abs(sphere_meta['radius_max']-16) < 1e-4
 
         # Legacy origin-centered constant-radius CSVs still load unchanged.
         legacy_csv = base/'legacy.csv'
@@ -222,6 +277,14 @@ def main():
                                   ('--gsplat-radius', 'inf'), ('--gsplat-fov', 'nan'),
                                   ('--gsplat-end-radius', 'nan'), ('--gsplat-end-radius', '1'),
                                   ('--gsplat-end-radius', '30'),
+                                  ('--gsplat-halo', 'maybe'),
+                                  ('--gsplat-particle-size-scale', '0'),
+                                  ('--gsplat-particle-cloud-scale', 'nan'),
+                                  ('--gsplat-particle-size-scale', '11'),
+                                  ('--gsplat-particle-cloud-scale', '-1'),
+                                  ('--sequence', 'saari-gsplat', '--gsplat-particle-size-scale', '2'),
+                                  ('--sequence', 'maku-gsplat', '--gsplat-particle-cloud-scale', '2'),
+                                  ('--sequence', 'saari-gsplat', '--gsplat-halo', 'on'),
                                   ('--sequence', 'saari-gsplat', '--gsplat-end-radius', '9'),
                                   ('--gsplat-fov', '121'), ('--gsplat-validation-every', '1'),
                                   ('--width', '4097'), ('--gsplat-height-fraction', '0.25'),
@@ -236,7 +299,7 @@ def main():
             output = base/f'invalid-path-{i}'
             run(output, '--gsplat-camera-path', str(invalid_csv), success=False)
             assert not output.exists()
-        print('Progressive approach, close-view coverage, mesh framing, frozen replay and invalid-input checks passed.')
+        print('Constant-radius sphere, halo A/B, optional approach, mesh framing and frozen replay checks passed.')
 
 
 if __name__ == '__main__':

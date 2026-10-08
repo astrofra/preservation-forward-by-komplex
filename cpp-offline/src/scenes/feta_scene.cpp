@@ -533,20 +533,22 @@ void FetaScene::render(RgbSurface& surface, float scene_time_seconds, float delt
 }
 
 void FetaScene::render_capture(RgbSurface& surface, const CaptureCamera& camera, float frozen_time,
-                               std::vector<int>* surface_ids) {
+                               std::vector<int>* surface_ids, bool halo,
+                               float particle_size_scale, float particle_cloud_scale) {
     surface_ids->assign(surface.pixels().size(), 0);
-    render_view(surface, camera, frozen_time, true, surface_ids);
+    render_view(surface, camera, frozen_time, true, surface_ids, halo, particle_size_scale, particle_cloud_scale);
 }
 
 void FetaScene::render_view(RgbSurface& surface, const CaptureCamera& camera, float scene_time_seconds,
-                            bool capture, std::vector<int>* surface_ids) {
+                            bool capture, std::vector<int>* surface_ids, bool capture_halo,
+                            float particle_size_scale, float particle_cloud_scale) {
     surface.clear(0U);
     if (!ready_) return;
     const float far_plane = capture ? std::numeric_limits<float>::infinity() : kFarPlane;
     // The native sprite has size 20/depth pixels at the native focal length.
     // Scale with focal length to keep its world size unchanged at any resolution/FOV.
     const float native_focal = (kSurfaceWidth * 0.5f) / std::tan(kFieldOfView * 0.5f);
-    const float sprite_scale = capture ? kParticleSizeScale * (camera.focal_length / native_focal)
+    const float sprite_scale = capture ? kParticleSizeScale * (camera.focal_length / native_focal) * particle_size_scale
                                       : kParticleSizeScale;
 
     std::vector<std::uint32_t> frame_packed(
@@ -602,7 +604,8 @@ void FetaScene::render_view(RgbSurface& surface, const CaptureCamera& camera, fl
 
     for (std::size_t index = 0; index < particles_.size(); ++index) {
         const Scene3dVec3 world_position =
-            rotate_z(particles_[index].local_position, -scene_time_seconds / 2.0f);
+            rotate_z(capture ? scale(particles_[index].local_position, particle_cloud_scale) :
+                              particles_[index].local_position, -scene_time_seconds / 2.0f);
         float screen_x = 0.0f;
         float screen_y = 0.0f;
         float depth = 0.0f;
@@ -641,7 +644,9 @@ void FetaScene::render_view(RgbSurface& surface, const CaptureCamera& camera, fl
         }
     }
 
-    if (!capture) {
+    if (capture && capture_halo) {
+        apply_capture_halo(&frame_packed, surface.width(), surface.height());
+    } else if (!capture) {
         apply_feedback_composite(&frame_packed, scene_time_seconds);
         apply_temporal_average(&frame_packed, frame_history_);
         frame_history_ = frame_packed;
@@ -649,7 +654,8 @@ void FetaScene::render_view(RgbSurface& surface, const CaptureCamera& camera, fl
     convert_to_rgb_surface(frame_packed, surface);
 }
 
-FetaCaptureBounds FetaScene::capture_geometry(float frozen_time, std::vector<CapturePoint>* points) const {
+FetaCaptureBounds FetaScene::capture_geometry(float frozen_time, std::vector<CapturePoint>* points,
+                                            float particle_size_scale, float particle_cloud_scale) const {
     points->clear();
     FetaCaptureBounds bounds = {};
     if (fetus_mesh_.vertices.empty()) return bounds;
@@ -661,7 +667,7 @@ FetaCaptureBounds FetaScene::capture_geometry(float frozen_time, std::vector<Cap
         minimum.z = std::min(minimum.z, v.z); maximum.z = std::max(maximum.z, v.z);
     }
     bounds.center = scale(add(minimum, maximum), kFetusScale * 0.5f);
-    bounds.particle_world_size = kParticleSizeScale / ((kSurfaceWidth * 0.5f) / std::tan(kFieldOfView * 0.5f));
+    bounds.particle_world_size = particle_size_scale * kParticleSizeScale / ((kSurfaceWidth * 0.5f) / std::tan(kFieldOfView * 0.5f));
     for (std::size_t i = 0; i < fetus_mesh_.vertices.size(); ++i)
         bounds.fetus_radius = std::max(bounds.fetus_radius,
             std::sqrt(length_sq(subtract(scale(fetus_mesh_.vertices[i], kFetusScale), bounds.center))));
@@ -682,7 +688,7 @@ FetaCaptureBounds FetaScene::capture_geometry(float frozen_time, std::vector<Cap
     }
     for (std::size_t i = 0; i < particles_.size(); ++i) {
         CapturePoint p;
-        p.position = rotate_z(particles_[i].local_position, -frozen_time / 2.0f);
+        p.position = rotate_z(scale(particles_[i].local_position, particle_cloud_scale), -frozen_time / 2.0f);
         p.surface_id = 1000000 + static_cast<int>(i);
         points->push_back(p);
         bounds.enclosing_radius = std::max(bounds.enclosing_radius,
@@ -859,6 +865,43 @@ void FetaScene::update_feedback_palette(bool black_index_255) {
             ((static_cast<std::uint32_t>(green) & 0xffU) << 10) |
             (static_cast<std::uint32_t>(blue) & 0xffU);
     }
+}
+
+void FetaScene::apply_capture_halo(std::vector<std::uint32_t>* packed_surface,
+                                  int width, int height) const {
+    // Java FetaScene.KamAJAk seeds a signed fetus mask at 255, then enlarges
+    // the previous mask by 1.1 and halves its indices before additive coloring.
+    // Solve that recurrence at a fixed camera instead of sharing image history.
+    // Seven backward samples exhaust the nonzero 8-bit tail (127..1).
+    const double inverse_scale = 1.0 / 1.100000023841858;
+    const int step = static_cast<int>(inverse_scale * 65536.0);
+    const int start_x = static_cast<int>(-(width * 0.5 * inverse_scale) * 65536.0) +
+                        static_cast<int>(width * 0.5 * 65536.0);
+    const int start_y = static_cast<int>(-(height * 0.5 * inverse_scale) * 65536.0) +
+                        static_cast<int>(height * 0.5 * 65536.0);
+    std::vector<int> source_x(width), source_y(height);
+    for (int x = 0; x < width; ++x) source_x[x] = (start_x + x * step) >> 16;
+    for (int y = 0; y < height; ++y) source_y[y] = (start_y + y * step) >> 16;
+    std::vector<unsigned char> mask(packed_surface->size());
+    for (std::size_t i = 0; i < mask.size(); ++i)
+        mask[i] = ((*packed_surface)[i] & kSignedPixelMask) != 0U;
+
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const std::size_t pixel = static_cast<std::size_t>(y) * width + x;
+            if (mask[pixel]) continue;  // The fetus itself is not tinted by its halo.
+            int sx = x, sy = y;
+            for (unsigned int value = 127; value != 0; value >>= 1) {
+                sx = source_x[sx]; sy = source_y[sy];
+                if (mask[static_cast<std::size_t>(sy) * width + sx]) {
+                    (*packed_surface)[pixel] =
+                        add_packed_saturate((*packed_surface)[pixel], feedback_palette_[value]);
+                    break;
+                }
+            }
+        }
+    }
+    // This screen-space halo adds no opaque surface ownership or fictitious seeds.
 }
 
 void FetaScene::apply_feedback_composite(std::vector<std::uint32_t>* packed_surface,

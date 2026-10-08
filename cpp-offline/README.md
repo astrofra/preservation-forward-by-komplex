@@ -8,7 +8,7 @@ This directory contains the first usable milestone of the `documentation/forward
 - Java-style intro script player for `mute95 -> domina -> filmbox`
 - first autonomous `saari` 3D pass with script-row shock events
 - `saari-gsplat`: static PNG / COLMAP capture on an enclosing hemisphere, with a meditate focus
-- `feta-gsplat`: progressive inward PNG / COLMAP orbit, frozen fetus and particle centers, camera-facing sprites
+- `feta-gsplat`: constant-radius PNG / COLMAP sphere, frozen fetus and particles, stationary native yellow halo
 - first autonomous `kukot` 3D pass with sliced `jarnomix.xm` playback from `0x0700`
 - first autonomous `maku` terrain pass with sliced `jarnomix.xm` playback from `0x0D00`
 - first autonomous `watercube` mixed 3D / packed-surface pass with sliced `jarnomix.xm` playback from `0x1000`
@@ -243,47 +243,90 @@ sampling and raised-path settings. See [Maku capture notes](../documentation/for
 ### Feta Gaussian Splatting capture
 
 ```powershell
-cpp-offline/build/Release/forward-export.exe --sequence feta-gsplat --output cpp-offline/output-feta-gsplat-progressive
+cpp-offline/build/Release/forward-export.exe --sequence feta-gsplat --output cpp-offline/output-feta-gsplat-sphere-halo
 ```
 
 Defaults: **300 PNG views at 1024x768**, horizontal FOV **80 degrees**, frozen
 scene-local time **0 s**. The camera targets the center of the fetus mesh's bounds
-and **approaches continuously while orbiting**, from about **15.85 to 5.98 world
-units**. The initial framing includes all particles; the final framing fits the
-whole fetus, using both horizontal and vertical FOV. The path makes 10.5 turns
-with three elevation cycles between the two hemispheres, so close views also
-cover the top, sides and bottom. Radius decreases smoothly throughout the path,
-without separate fixed-distance passes. There is no sea-plane constraint.
+and stays on a **constant-radius sphere**, about **15.852 world units** by default.
+Automatic framing includes the fetus and particles using both horizontal and
+vertical FOV. The path makes 10.5 turns with three elevation cycles between the
+two hemispheres, covering the top, sides and bottom. There is no sea-plane constraint.
+
+For more regular coverage, select **octahedral sampling**. This maps square-grid
+cell centers to the sphere using the supplied `octDecode` algorithm. The frame
+count must be a perfect square; without `--frames`, this mode uses **324 views
+(18x18)**. It requires a constant radius. The mapping improves this scene's
+coverage over the winding orbit, but is not an equal-area spherical mapping.
+
+The following export keeps the halo, raises resolution to **1366x1024**, and
+slightly varies the look target while retaining the octahedral camera positions:
+
+```powershell
+cpp-offline/build/Release/forward-export.exe --sequence feta-gsplat --gsplat-sampling octahedral --gsplat-target-offset 0.15 --gsplat-radius 15.852119 --width 1366 --height 1024 --output cpp-offline/output-feta-gsplat-octahedral-target015-h1024
+```
+
+`--gsplat-target-offset D` distributes targets over a disk of radius D world
+units around the mesh center, perpendicular to each center-looking camera.
+A golden-angle sequence with square-root radial spacing distributes disk area.
+With D=0.15, the aim changes by at most about **0.54 degrees**. Camera origins
+and their distance to the mesh center stay unchanged: this varies framing;
+parallax comes from the different sphere positions. Omit this option for centered
+targets. Both modes default to zero offset. The separate experimental
+`--gsplat-lateral-offset D` moves camera origins tangentially and reprojects them
+onto the sphere; the target-offset example above leaves it at zero.
 
 The fetus mesh stays fixed and the particle cloud's rotation is evaluated at the
-same frozen time for every image. Temporal averaging (motion blur), feedback and
-scripted fades are disabled. Particles retain the original additive flare texture
+same frozen time for every image. The original yellow halo is enabled by default:
+the native signed fetus mask is enlarged by 1.1, attenuated, and colored with the
+original additive palette. Capture evaluates the stationary feedback separately
+for each camera, with no history shared between views. Temporal averaging (motion
+blur) and scripted fades stay disabled. Particles retain the original additive flare texture
 and are drawn as screen-aligned square sprites: they face every capture camera.
 Their pixel size scales with focal length and inverse depth, preserving their
-native world size at other resolutions/FOVs. The original environment mapping
+world size at other resolutions/FOVs. Capture-only options
+`--gsplat-particle-size-scale S` and `--gsplat-particle-cloud-scale C` multiply
+the sprite's side length and the frozen particle centers' spread about native
+origin, respectively (both default 1, accepted range 0.1..10). Size 2 doubles
+width and height; cloud 2 expands the native cube from roughly +/-5 to +/-10
+world units, keeping the same 300 particles. Rendering, visibility, sparse seeds,
+`particles.csv` and actual geometry bounds all use the scaled geometry.
+Camera planning retains the native enclosure, so expansion does not move cameras
+farther away. The widened cloud can extend beyond the frame and surround cameras.
+The original environment mapping
 remains view-dependent. Capture lifts the native far clipping distance so a larger
 orbit does not silently remove geometry.
 
 The apparent surrounding sphere is actually a **directional panorama**, not a
 finite mesh. It is rendered in the PNGs, but contributes no fictitious background
-points. The sparse cloud contains visible fetus surface samples and frozen
+points. The halo is a screen-space appearance effect, not duplicated 3D geometry;
+it creates no extra seed points or opaque observations. The sparse cloud contains visible fetus surface samples and frozen
 particle centers observed in at least two training views. Nonblack sprite pixels
 participate in visibility checks; blank corners do not hide the underlying mesh.
 
 Options: `--frames`, `--width`, `--height`, `--gsplat-time`, `--gsplat-fov`,
-`--gsplat-radius`, `--gsplat-end-radius`, `--gsplat-validation-every` and
-`--gsplat-camera-path`. Use a fresh output directory. Radius `0` chooses automatic
-framing. An explicit starting radius must enclose the fetus and particles; an
+`--gsplat-radius`, `--gsplat-end-radius`, `--gsplat-halo on|off`,
+`--gsplat-sampling orbit|octahedral`, `--gsplat-target-offset`, `--gsplat-lateral-offset`,
+`--gsplat-particle-size-scale`, `--gsplat-particle-cloud-scale`,
+`--gsplat-validation-every` and `--gsplat-camera-path`. Use a fresh output directory.
+Radius `0` chooses automatic framing. Final radius `0` keeps that radius constant;
+a positive smaller final radius opts into the previous progressive approach. An
+explicit starting radius must enclose the fetus and native particles before capture scaling; an
 explicit final radius must enclose the fetus and cannot exceed the starting
 radius. Both require a 0.5-unit margin. Close cameras may enter the particle
 cloud. Equal starting/final radii give a constant-distance orbit.
 
 CSV replay uses Saari's eight columns (`px,py,pz,tx,ty,tz,hfov_degrees,group`),
-with groups `progressive`, `sphere` or `custom`. Variable radii and legacy
+with groups `progressive`, `sphere`, `custom`, `octahedral`, `octahedral_target`
+or `octahedral_offset`. Variable radii and legacy
 origin-centered spheres are accepted, as are exact pole cameras. Cameras must
 stay outside the fetus enclosure with the same margin. CSV poses/FOVs replace
-the generated path and its radius/FOV options. Reuse the same resolution and
-frozen time for identical images. FPS does not advance time.
+the generated path and its radius/FOV/offset options; no offset is applied twice.
+Reuse the same resolution and
+frozen time, halo setting and particle scales for identical images. Replay uses the CSV's actual
+radii, including older progressive paths; it does not force them onto a sphere.
+FPS does not advance time. `--gsplat-halo off` provides an A/B comparison at the
+same poses without changing geometry or observation tracks.
 
 The output layout and coordinate conversion match Saari and Maku: **import only
 `images/` and the three COLMAP text files in `sparse/` together in Postshot**.
@@ -292,15 +335,28 @@ There are 270 training views and 30 held-out views in `validation/` by default.
 world-space sprite size. Its `point3D_id` identifies the candidate seed; that ID
 can be absent from `points3D.txt` when it has insufficient visible observations.
 `capture.json` records the orbit center, actual starting/final/minimum/maximum
-radii, geometry bounds, path kind, frozen time, counts and completion status.
+radii, geometry bounds, path kind, halo mode, frozen time, counts and completion status.
+It also records the sampling mode, octahedral grid size, requested/applied origin
+and target offsets, and target distribution. During CSV replay, applied offsets
+are zero because the saved poses already contain any perturbation.
+Particle scales remain active during CSV replay because they describe the scene,
+not the cameras. They are saved in `capture.json`, together with the scale origin
+and the native enclosure used for camera framing.
 
 The Feta CTest checks PNG integrity, native/COLMAP projection agreement,
-reciprocal tracks, particle coordinates, progressive approach, hemisphere coverage
-at different distances, complete mesh framing, exact reversed CSV replay,
+reciprocal tracks, particle coordinates, constant radius, optional progressive
+approach, halo A/B consistency, hemisphere coverage, complete mesh framing, exact reversed CSV replay,
 legacy CSVs, repeated views, frozen-time changes, pole cameras and input validation.
+The additional C++ test compares the capture halo against converged normal playback
+at three fixed poses (maximum difference 1/255 per channel from native integer
+temporal averaging), and checks additive behavior, untouched mesh pixels and ownership.
+The octahedral CTest checks the inverse grid mapping, constant radius, origin
+and target offsets, unchanged origins for target offsets, polar cameras, invalid
+parameters, and byte-identical images after reversed CSV replay.
 The native `feta` renderer's 35-frame comparison, WAV and manifest remained
-byte-identical. Reconstruction quality still needs assessment in Postshot,
-particularly for the directional background and additive particles.
+byte-identical. The new full dataset has 270 training views, 30 reserved views and
+6,884 initial points. Reconstruction quality still needs assessment in Postshot,
+particularly for the screen-space halo, directional background and additive particles.
 See [Feta capture notes](../documentation/forward-feta-gsplat-capture.md).
 
 ### Demo sequence exports

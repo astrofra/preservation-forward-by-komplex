@@ -91,6 +91,12 @@ ExportConfig::ExportConfig()
       gsplat_time(30.0f),
       gsplat_radius(0.0f),
       gsplat_end_radius(0.0f),
+      gsplat_halo(true),
+      gsplat_sampling("orbit"),
+      gsplat_lateral_offset(0.0f),
+      gsplat_target_offset(0.0f),
+      gsplat_particle_size_scale(1.0f),
+      gsplat_particle_cloud_scale(1.0f),
       gsplat_fov(80.0f),
       gsplat_height_fraction(0.25f),
       gsplat_grid_scale(1.5f),
@@ -103,7 +109,9 @@ ExportConfig::ExportConfig()
 ParseStatus parse_export_config(int argc, char** argv, ExportConfig& config, std::ostream& stream) {
     bool gsplat_option = false, explicit_width = false, explicit_height = false, explicit_frames = false;
     bool path_option = false, static_option = false, fov_option = false, height_option = false;
-    bool end_radius_option = false;
+    bool end_radius_option = false, halo_option = false;
+    bool sampling_option = false, lateral_option = false;
+    bool particle_option = false;
     bool grid_option = false;
     bool explicit_time = false;
     for (int index = 1; index < argc; ++index) {
@@ -199,6 +207,44 @@ ParseStatus parse_export_config(int argc, char** argv, ExportConfig& config, std
             else if (arg.compare(0, 14, "--gsplat-grid-") == 0) grid_option = true;
             else static_option = true;
             gsplat_option = true;
+        } else if (arg == "--gsplat-sampling") {
+            if (value != "orbit" && value != "octahedral") {
+                stream << "--gsplat-sampling expects orbit or octahedral\n";
+                return ParseStatus::error;
+            }
+            config.gsplat_sampling = value;
+            sampling_option = gsplat_option = true;
+        } else if (arg == "--gsplat-lateral-offset" || arg == "--gsplat-target-offset") {
+            char* end = NULL;
+            errno = 0;
+            const double number = std::strtod(value.c_str(), &end);
+            if (value.empty() || end == value.c_str() || *end != '\0' || errno == ERANGE ||
+                !std::isfinite(number) || number < 0 || number > 1) {
+                stream << arg << " expects 0..1 world units\n";
+                return ParseStatus::error;
+            }
+            if (arg == "--gsplat-target-offset") config.gsplat_target_offset = static_cast<float>(number);
+            else config.gsplat_lateral_offset = static_cast<float>(number);
+            lateral_option = gsplat_option = true;
+        } else if (arg == "--gsplat-particle-size-scale" || arg == "--gsplat-particle-cloud-scale") {
+            char* end = NULL;
+            errno = 0;
+            const double number = std::strtod(value.c_str(), &end);
+            if (value.empty() || end == value.c_str() || *end != '\0' || errno == ERANGE ||
+                !std::isfinite(number) || number < 0.1 || number > 10) {
+                stream << arg << " expects a scale in 0.1..10\n";
+                return ParseStatus::error;
+            }
+            if (arg == "--gsplat-particle-size-scale") config.gsplat_particle_size_scale = static_cast<float>(number);
+            else config.gsplat_particle_cloud_scale = static_cast<float>(number);
+            particle_option = gsplat_option = true;
+        } else if (arg == "--gsplat-halo") {
+            if (value != "on" && value != "off") {
+                stream << "--gsplat-halo expects on or off\n";
+                return ParseStatus::error;
+            }
+            config.gsplat_halo = value == "on";
+            halo_option = gsplat_option = true;
         } else if (arg == "--gsplat-camera-path") {
             config.gsplat_camera_path = value;
             path_option = true;
@@ -249,8 +295,9 @@ ParseStatus parse_export_config(int argc, char** argv, ExportConfig& config, std
     if ((gsplat_option && !saari_capture && !maku_capture && !feta_capture) ||
         ((static_option || path_option) && !saari_capture && !feta_capture) ||
         (fov_option && !maku_capture && !feta_capture) || (height_option && !maku_capture) ||
-        (end_radius_option && !feta_capture) || (grid_option && !maku_capture)) {
-        stream << "GSplat options: time/radius/camera-path for Saari or Feta, fov for Maku or Feta, height-fraction/grid-* for Maku, end-radius for Feta, validation-every for all capture modes\n";
+        ((end_radius_option || halo_option || sampling_option || lateral_option || particle_option) && !feta_capture) ||
+        (grid_option && !maku_capture)) {
+        stream << "GSplat options: time/radius/camera-path for Saari or Feta, fov for Maku or Feta, height-fraction/grid-* for Maku, end-radius/halo/sampling/lateral-offset/target-offset/particle-*-scale for Feta, validation-every for all capture modes\n";
         return ParseStatus::error;
     }
     if (saari_capture || maku_capture || feta_capture) {
@@ -258,6 +305,8 @@ ParseStatus parse_export_config(int argc, char** argv, ExportConfig& config, std
         if (!explicit_width) config.width = 1024;
         if (!explicit_height) config.height = maku_capture ? 512 : 768;
         if (!explicit_frames) config.frame_count = 300;
+        if (feta_capture && config.gsplat_sampling == "octahedral" && !explicit_frames)
+            config.frame_count = 324;
         if (config.width < 16 || config.height < 16 || config.width > 4096 || config.height > 4096 ||
             config.frame_count < 12 || config.frame_count > 5000 ||
             config.has_end_song_position || config.post_roll_frames != 0) {
@@ -286,7 +335,7 @@ void print_usage(std::ostream& stream) {
         << "                        (default: intro)\n"
         << "  saari-gsplat defaults: 300 PNG views at 1024x768, hemisphere + meditate focus\n"
         << "  maku-gsplat defaults: 300 views per path at 1024x512, original + raised H/4 + overhead grid\n"
-        << "  feta-gsplat defaults: 300 views at 1024x768, progressive inward orbit, frozen time 0, no temporal effects\n"
+        << "  feta-gsplat defaults: 300 views at 1024x768, constant-radius sphere, frozen time 0, static yellow halo\n"
         << "  --gsplat-fov <deg>    Maku/Feta horizontal FOV, 10..120 degrees (default: 80)\n"
         << "  --gsplat-height-fraction <f>  Maku second path: vertical offset f * terrain height, 0..1 (default: 0.25; 0 disables)\n"
         << "  --gsplat-grid-scale <f>  Maku grid XY extent / nominal camera bounds, 1..3 (default: 1.5; 0 disables)\n"
@@ -294,7 +343,13 @@ void print_usage(std::ostream& stream) {
         << "  --gsplat-grid-clearance <r>  Maku grid height above terrain maximum, 0..1000 (default: 0 = H/8)\n"
         << "  --gsplat-time <s>     Frozen scene time (Saari: 30, Feta: 0)\n"
         << "  --gsplat-radius <r>   Saari hemisphere/Feta starting radius, 0 = automatic (default: 0)\n"
-        << "  --gsplat-end-radius <r>  Feta final radius, 0 = auto-frame fetus (default: 0)\n"
+        << "  --gsplat-end-radius <r>  Feta optional inward orbit: final radius, 0 = constant starting radius (default: 0)\n"
+        << "  --gsplat-halo <on|off>  Feta stationary native halo per view (default: on)\n"
+        << "  --gsplat-sampling <orbit|octahedral>  Feta path (default: orbit); octahedral needs square frame count, default 324\n"
+        << "  --gsplat-lateral-offset <d>  Feta octahedral tangent shift, reprojected onto sphere; 0..1 world units (default: 0)\n"
+        << "  --gsplat-target-offset <d>  Feta octahedral look-target disk radius; camera positions unchanged; 0..1 (default: 0)\n"
+        << "  --gsplat-particle-size-scale <s>  Feta capture sprite world-size multiplier, 0.1..10 (default: 1)\n"
+        << "  --gsplat-particle-cloud-scale <s>  Feta capture particle-center spread about native origin, 0.1..10 (default: 1); camera framing unchanged\n"
         << "  --gsplat-camera-path <csv>  Replay/edit exported camera_path.csv (overrides view count)\n"
         << "  --gsplat-validation-every <n>  Hold out every nth view; 0 disables (default: 10)\n"
         << "  --until-song-position <hex>\n"

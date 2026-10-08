@@ -25,6 +25,12 @@ struct ExportConfig {
     float gsplat_time;
     float gsplat_radius;
     float gsplat_end_radius;
+    bool gsplat_halo;
+    std::string gsplat_sampling;
+    float gsplat_lateral_offset;
+    float gsplat_target_offset;
+    float gsplat_particle_size_scale;
+    float gsplat_particle_cloud_scale;
     float gsplat_fov;
     float gsplat_height_fraction;
     float gsplat_grid_scale;

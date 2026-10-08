@@ -48,12 +48,16 @@ public:
     const std::string& error_message() const;
 
     void render_capture(RgbSurface& surface, const CaptureCamera& camera, float frozen_time,
-                        std::vector<int>* surface_ids);
-    FetaCaptureBounds capture_geometry(float frozen_time, std::vector<CapturePoint>* points) const;
+                        std::vector<int>* surface_ids, bool halo = true,
+                        float particle_size_scale = 1.0f, float particle_cloud_scale = 1.0f);
+    FetaCaptureBounds capture_geometry(float frozen_time, std::vector<CapturePoint>* points,
+                                       float particle_size_scale = 1.0f, float particle_cloud_scale = 1.0f) const;
 
 private:
     void render_view(RgbSurface& surface, const CaptureCamera& camera, float scene_time_seconds,
-                     bool capture, std::vector<int>* surface_ids);
+                     bool capture, std::vector<int>* surface_ids, bool capture_halo = true,
+                     float particle_size_scale = 1.0f, float particle_cloud_scale = 1.0f);
+    void apply_capture_halo(std::vector<std::uint32_t>* packed_surface, int width, int height) const;
     bool load_assets();
     bool load_igu_mesh(const std::string& path,
                        FetaIguMesh* mesh,
